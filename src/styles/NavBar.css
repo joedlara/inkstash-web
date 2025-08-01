@@ -1,0 +1,211 @@
+/* Container */
+.navbar {
+  position: relative;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: Inter, sans-serif;
+  z-index: 50;
+}
+
+/* Top Row */
+.navbar-top {
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  gap: 1rem;
+  background: #f3f4f6;
+}
+.hamburger-btn {
+  display: none; /* shown via media query */
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #111;
+}
+.logo-img {
+  height: 2.3rem;
+  margin-right: 1rem;
+}
+.top-center {
+  display: flex;
+  flex: 2 2;
+  min-width: 0;
+  max-width: 350px;
+  height: 2.5rem;
+}
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  font-size: 1rem;
+}
+.search-btn {
+  width: 2.25rem;
+  background: #e31b23;
+  border: 1px solid #e31b23;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+.top-actions {
+  display: flex;
+  gap: 1rem;
+}
+.top-actions a {
+  padding: 0.45rem 0.75rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+.top-actions .login {
+  border-radius: 4px;
+  border: 1px solid #e31b23;
+  color: #e31b23;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+.top-actions .login:hover {
+  background: #ffe7e8;
+}
+.top-actions .signup {
+  background: #e31b23;
+  color: #fff;
+}
+.top-actions .signup:hover {
+  background: #c81a22;
+}
+
+/* Bottom Row (desktop) */
+.navbar-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 2rem;
+}
+.bottom-links {
+  display: flex;
+  gap: 1.5rem;
+}
+.bottom-links a {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #4b5563;
+  transition: background 0.2s, color 0.2s;
+}
+.bottom-links a:hover {
+  background: #f3f4f6;
+  color: #111;
+}
+.bottom-links .active {
+  background: #ffe5e5;
+  color: #e31b23;
+  font-weight: 500;
+}
+.bottom-actions {
+  display: flex;
+  gap: 1rem;
+}
+.more-dropdown {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #4b5563;
+  transition: background 0.2s, color 0.2s;
+}
+.bottom-actions .sell {
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #4b5563;
+  transition: background 0.2s, color 0.2s;
+}
+.bottom-actions .sell:hover {
+  background: #f3f4f6;
+  color: #111;
+}
+
+/* ─── Mobile Modal ───────────────────────────────────── */
+.mobile-modal {
+  inset: 0;
+  background: #fff;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 100;
+}
+.mobile-nav,
+.mobile-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.mobile-nav .sell {
+  color: #c81a22;
+}
+.mobile-nav a,
+.mobile-auth a {
+  font-size: 1.25rem;
+  text-decoration: none;
+  color: #111;
+}
+.mobile-auth {
+  margin-top: auto;
+}
+.mobile-auth a {
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e31b23;
+  text-align: center;
+}
+.mobile-auth a:last-child {
+  background: #e31b23;
+  color: #fff;
+}
+
+/* ─── Responsive Below 725px ────────────────────────── */
+@media (max-width: 725px) {
+  .hamburger-btn {
+    display: block;
+  }
+  .navbar-bottom {
+    display: none;
+  }
+  .top-center {
+    margin: 0 0.5rem;
+  }
+  .top-actions .signup {
+    display: none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-modal {
+  /* ensure it starts hidden so animation can run */
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out forwards;
+}

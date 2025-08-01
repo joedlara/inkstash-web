@@ -1,0 +1,85 @@
+/* ─── Page Wrapper ───────────────────────────────────────── */
+.home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f9f9f9;
+  color: #111111;
+  font-family: Inter, sans-serif;
+}
+
+/* ─── Hero / CTA ───────────────────────────────────────── */
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 3rem 2rem;
+  background: #fff2f0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+.hero-cta .text {
+  flex: 1 1 300px;
+  max-width: 500px;
+}
+.hero-cta .text h2 {
+  font-size: 2.25rem;
+  margin-bottom: 1rem;
+  color: #111111;
+}
+.hero-cta .text p {
+  color: #4b5563;
+  margin-bottom: 1.5rem;
+}
+.hero-cta .text a {
+  background: #e31b23;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.hero-cta .text a:hover {
+  background: #c81a22;
+}
+.hero-cta .avatars {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: 1rem;
+  /* max-width: 300px; */
+}
+
+/* ─── Trust Stats ─────────────────────────────────────── */
+.trust-stats {
+  background: #f9f9f9;
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+.trust-stats .stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.trust-stats .stars svg {
+  color: #e31b23;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.trust-stats .text {
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+/* ─── Footer ──────────────────────────────────────────── */
+.footer {
+  margin-top: auto;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  padding: 1.5rem 2rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
