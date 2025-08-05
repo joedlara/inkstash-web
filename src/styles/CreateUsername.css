@@ -1,0 +1,111 @@
+/* Box‐sizing to prevent overflow */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Page background */
+.create-username-page {
+  width: 100%;
+  background: #f1f1f1;
+}
+
+/* Thin red bar like signup */
+.create-username-top-bar {
+  height: 4px;
+  background: #d23d2d;
+  width: 100%;
+}
+
+/* Center the card */
+.create-username-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* The white card */
+.create-username-card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+/* Heading & subtext */
+.create-username-card h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.create-username-card p {
+  color: #555;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+/* Form & fields */
+.create-username-form {
+  display: flex;
+  flex-direction: column;
+}
+.field-group {
+  margin-bottom: 1rem;
+}
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #d23d2d;
+}
+.input-field.invalid {
+  border-color: #e63946;
+}
+
+/* Error message below field */
+.field-error {
+  color: #e63946;
+  font-size: 0.85rem;
+  text-align: left;
+  margin-top: 0.25rem;
+}
+
+/* Continue button */
+.submit-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #d23d2d;
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.submit-button:hover:not(:disabled) {
+  background: #b32424;
+}
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive tweaks */
+@media (max-width: 400px) {
+  .create-username-card {
+    padding: 1.5rem 1rem;
+  }
+  .create-username-card h1 {
+    font-size: 1.4rem;
+  }
+}

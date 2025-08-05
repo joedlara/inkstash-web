@@ -1,6 +1,5 @@
-import NavBar from "../components/NavBar"
 import Carousel from "../components/Carousel"
-import MembersCarousel from "../components/membersCarousel"
+import MembersCarousel from "../components/MembersCarousel"
 
 import "../styles/Home.css"
 
@@ -12,7 +11,6 @@ export default function Home() {
 
   return (
     <div className="home">
-      <NavBar />
       <Carousel />
 
       <section className="hero-cta">
@@ -50,12 +48,6 @@ export default function Home() {
       </section>
 
       <MembersCarousel />
-
-      {/* Footer */}
-      <footer className="footer">
-        &copy; {new Date().getFullYear()} InkStash — Secure, SSL-encrypted
-        marketplace.
-      </footer>
     </div>
   )
 }
