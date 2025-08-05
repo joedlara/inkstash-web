@@ -13,6 +13,7 @@ import Signup from "./pages/Signup"
 import NavBar from "./components/NavBar"
 import Footer from "./components/Footer"
 import CreateUsername from "./pages/CreateUsername"
+import EmailConfirmation from "./pages/EmailConfirmation"
 
 createRoot(document.getElementById("root")!).render(
   <Provider store={store}>
@@ -25,6 +26,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/auctions" element={<Auctions />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/create-username" element={<CreateUsername />} />
+        <Route path="/email-confirmation" element={<EmailConfirmation />} />
       </Routes>
       <Footer />
     </BrowserRouter>

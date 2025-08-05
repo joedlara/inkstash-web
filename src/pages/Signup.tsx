@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../api/supabase/supabaseClient"
+import type { Session } from "@supabase/supabase-js"
 import { FcGoogle } from "react-icons/fc"
 import { IoEye, IoEyeOff } from "react-icons/io5"
 import "../styles/Signup.css"
@@ -72,41 +73,63 @@ const Signup: React.FC = () => {
     e.preventDefault()
     setFormError(null)
 
+    // 1) run your existing validations...
     const okEmail = validateEmail()
     const okUser = await validateUsername()
     const okPass = validatePassword()
-    const okConfirm = validateConfirm()
-    if (!(okEmail && okUser && okPass && okConfirm)) {
+    const okConf = validateConfirm()
+    if (!(okEmail && okUser && okPass && okConf)) {
       return setFormError("Please fix the errors above")
     }
 
     setLoading(true)
-    const { error } = await supabase.auth.signUp(
-      { email, password },
-      { data: { username: username.toLowerCase() } }
+
+    // 2) Kick off signUp with v2 signature (metadata  emailRedirectTo)
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
+      {
+        email,
+        password,
+        options: {
+          data: { username: username.toLowerCase() },
+          emailRedirectTo: `${window.location.origin}/email-confirmation`,
+        },
+      }
     )
+
     setLoading(false)
 
-    if (error) {
+    // 3) Handle errors (including duplicate-email)
+    if (signUpError) {
       if (
-        error.status === 400 &&
-        error.message.toLowerCase().includes("already registered")
+        signUpError.status === 400 &&
+        signUpError.message.toLowerCase().includes("already registered")
       ) {
-        setFormError(
+        return setFormError(
           <>
-            <p>An account with this email already exists.</p>
-            <a href="/login" className="link">
-              Log in
-            </a>
-            {" instead."}
+            An account with this email already exists.{" "}
+            <a href="/login">Log in</a> instead.
           </>
         )
-      } else {
-        setFormError(error.message)
       }
-    } else {
-      navigate("/")
+      return setFormError(signUpError.message)
     }
+
+    // 4) On success, write into your users table so you have a second record
+    if (signUpData.user) {
+      const { id, email: newEmail } = signUpData.user
+      const { error: dbError } = await supabase
+        .from("users")
+        .upsert(
+          { id, email: newEmail, username: username.toLowerCase() },
+          { onConflict: "id" }
+        )
+      if (dbError) {
+        console.error("Error writing user to DB:", dbError)
+      }
+    }
+
+    // 5) Finally, send them to the “check your email” page
+    navigate("/email-confirmation")
   }
 
   const handleGoogleSignup = async () => {
