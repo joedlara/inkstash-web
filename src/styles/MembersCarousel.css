@@ -49,7 +49,7 @@
   border-radius: 0.5rem;
   overflow: hidden;
   scroll-snap-align: start;
-  border: 2px solid #0d3a94;
+  border: 4px solid #0d3a94;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s;
 }

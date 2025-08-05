@@ -1,0 +1,10 @@
+/* ─── Footer ──────────────────────────────────────────── */
+.footer {
+  margin-top: auto;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  padding: 1.5rem 2rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}

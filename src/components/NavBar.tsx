@@ -1,14 +1,41 @@
-import React from "react"
-import { useState } from "react"
-import { Link, useLocation } from "react-router-dom"
+import React, { useEffect, useState } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Search, Menu, X } from "lucide-react"
+import { supabase } from "../api/supabase/supabaseClient"
 import "../styles/NavBar.css"
-
 import logoUrl from "../assets/logo.png"
 
 export default function NavBar() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
+
+  // ← New: track the Supabase session
+  const [session, setSession] = useState<any>(null)
+
+  useEffect(() => {
+    // get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    // subscribe to future changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session)
+      }
+    )
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  // ← New: sign out handler
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    navigate("/") // go back to home
+    setSession(null)
+  }
 
   const bottomLinks = [
     { label: "Livestreams", to: "/livestreams" },
@@ -21,7 +48,6 @@ export default function NavBar() {
     <header className="navbar">
       {/* ────── Top Row ────── */}
       <div className="navbar-top">
-        {/* Hamburger on mobile */}
         <button className="hamburger-btn" onClick={() => setIsOpen((v) => !v)}>
           {isOpen ? (
             <X size={24} color="#e31b23" />
@@ -30,12 +56,10 @@ export default function NavBar() {
           )}
         </button>
 
-        {/* Logo */}
         <Link to="/" className="logo">
           <img src={logoUrl} alt="InkStash" className="logo-img" />
         </Link>
 
-        {/* Search */}
         <div className="top-center">
           <input
             className="search-input"
@@ -47,18 +71,26 @@ export default function NavBar() {
           </button>
         </div>
 
-        {/* Auth buttons */}
+        {/* ← Updated: conditional auth buttons */}
         <div className="top-actions">
-          <Link to="/login" className="login">
-            Login
-          </Link>
-          <Link to="/signup" className="signup">
-            Sign up
-          </Link>
+          {session ? (
+            <button className="signout" onClick={handleSignOut}>
+              Sign Out
+            </button>
+          ) : (
+            <>
+              <Link to="/login" className="login">
+                Login
+              </Link>
+              <Link to="/signup" className="signup">
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Full-screen mobile modal */}
+      {/* ────── Mobile Menu ────── */}
       {isOpen && (
         <div className="mobile-modal">
           <nav className="mobile-nav">
@@ -77,17 +109,31 @@ export default function NavBar() {
             </Link>
           </nav>
           <div className="mobile-auth">
-            <Link to="/login" onClick={() => setIsOpen(false)}>
-              Login
-            </Link>
-            <Link to="/signup" onClick={() => setIsOpen(false)}>
-              Sign up
-            </Link>
+            {session ? (
+              <button
+                className="signout"
+                onClick={() => {
+                  handleSignOut()
+                  setIsOpen(false)
+                }}
+              >
+                Sign Out
+              </button>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setIsOpen(false)}>
+                  Login
+                </Link>
+                <Link to="/signup" onClick={() => setIsOpen(false)}>
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* ────── Bottom Row (desktop only) ────── */}
+      {/* ────── Bottom Row ────── */}
       <div className="navbar-bottom">
         <nav className="bottom-links">
           {bottomLinks.map(({ label, to }) => (
