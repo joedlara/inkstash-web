@@ -1,4 +1,4 @@
-import MembersCarousel from '../components/main/Footer';
+import MembersCarousel from '../components/ui/MembersCarousel';
 import Carousel from '../components/ui/Carousel';
 import '../styles/Home.css';
 

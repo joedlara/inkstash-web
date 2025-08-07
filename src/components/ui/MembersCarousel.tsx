@@ -1,26 +1,27 @@
-import { useEffect, useState } from "react"
-import { supabase } from "../api/supabase/supabaseClient"
-import "../styles/MembersCarousel.css"
+import { useEffect, useState } from 'react';
+import { supabase } from '../../api/supabase/supabaseClient';
+import '../../styles/MembersCarousel.css';
 
 interface Member {
-  id: string
-  username: string
-  profile_pic: string | null
+  id: string;
+  username: string;
+  avatar_url: string | null;
 }
 
 export default function MembersCarousel() {
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<Member[]>([]);
 
   useEffect(() => {
     async function load() {
       const { data, error } = await supabase
-        .from<Member>("users")
-        .select("id, username, profile_pic")
-      if (error) console.error("Error loading members:", error)
-      else setMembers(data)
+        .from<Member>('users')
+        .select('id, username, avatar_url');
+      console.log(data);
+      if (error) console.error('Error loading members:', error);
+      else setMembers(data);
     }
-    load()
-  }, [])
+    load();
+  }, []);
 
   return (
     <section className="members-carousel">
@@ -33,12 +34,12 @@ export default function MembersCarousel() {
         sellers.
       </p>
       <div className="carousel">
-        {members.map((m) => (
+        {members.map(m => (
           <div className="member-card" key={m.id}>
             <img
               src={
-                m.profile_pic ||
-                "https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png"
+                m.avatar_url ||
+                'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'
               }
               alt={m.username}
             />
@@ -47,5 +48,5 @@ export default function MembersCarousel() {
         ))}
       </div>
     </section>
-  )
+  );
 }

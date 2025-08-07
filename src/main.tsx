@@ -5,7 +5,7 @@ import { Provider } from 'react-redux';
 import { store } from './app/store';
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import UserDashboard from './components/dashboard/UserDashboard';
+import UserDashboard from './pages/UserDashboard';
 import Profile from './pages/Profile';
 import Home from './pages/Home';
 import Auctions from './pages/Auctions';

@@ -14,7 +14,7 @@ import {
   Search,
   Brain,
 } from 'lucide-react';
-import '../../styles/InsightsPanel.css';
+import '../../../styles/InsightsPanel.css';
 
 interface CollectionInsights {
   diversificationScore: number;
