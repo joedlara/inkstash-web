@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Menu, X } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
-import '../styles/NavBar.css';
-import logoUrl from '../assets/logo.png';
+import '../../styles/NavBar.css';
+import logoUrl from '../../assets/logo.png';
 
 export default function NavBar() {
   const { pathname } = useLocation();

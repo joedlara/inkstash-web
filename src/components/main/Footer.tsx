@@ -1,4 +1,4 @@
-import "../styles/Footer.css"
+import '../../styles/Footer.css';
 
 export default function MembersCarousel() {
   return (
@@ -6,5 +6,5 @@ export default function MembersCarousel() {
       &copy; {new Date().getFullYear()} InkStash — Secure, SSL-encrypted
       marketplace.
     </footer>
-  )
+  );
 }

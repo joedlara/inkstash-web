@@ -1,13 +1,12 @@
-import Carousel from "../components/Carousel"
-import MembersCarousel from "../components/MembersCarousel"
-
-import "../styles/Home.css"
+import MembersCarousel from '../components/ui/MembersCarousel';
+import Carousel from '../components/ui/Carousel';
+import '../styles/Home.css';
 
 export default function Home() {
   const heroAvatars = Array.from({ length: 12 }).map(
     () =>
-      "https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png"
-  )
+      'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'
+  );
 
   return (
     <div className="home">
@@ -49,5 +48,5 @@ export default function Home() {
 
       <MembersCarousel />
     </div>
-  )
+  );
 }
