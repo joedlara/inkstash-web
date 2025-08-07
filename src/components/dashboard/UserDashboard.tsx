@@ -23,7 +23,7 @@ import {
   useAI,
   CollectionInsights,
   PersonalizedRecommendation,
-} from '../../services/AIService';
+} from '../../api/ai/aiService';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollection } from '../../hooks/useCollection';
 
