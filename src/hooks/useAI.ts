@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { AIService } from '../services/ai';
+import { AIService } from '../api/ai/aiService';
 
 export const useAI = () => {
   const [loading, setLoading] = useState(false);

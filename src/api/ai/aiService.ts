@@ -1,10 +1,9 @@
-// AI Integration Service for InkStash
-// Handles OpenAI integrations for smart features
-
+import { useState, useMemo } from 'react';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
 });
 
 export interface ProductAnalysis {
@@ -66,7 +65,7 @@ export class AIService {
       Respond in JSON format with: estimatedValue (min/max), marketTrend, rarity, investmentPotential (1-10), description, tags, category, condition`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -126,7 +125,7 @@ export class AIService {
       Return as JSON array.`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -175,7 +174,7 @@ export class AIService {
       Return as JSON with these fields: totalValue, topItems, missingKeyIssues, investmentRecommendations, diversificationScore, riskProfile`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -229,7 +228,7 @@ export class AIService {
       Provide: suggestedPrice, priceRange (min/max), reasoning, marketTrend`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -285,7 +284,7 @@ export class AIService {
       Return: isAppropriate (boolean), confidence (1-10), issues (array of problems), suggestedEdit (if needed)`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -343,7 +342,7 @@ export class AIService {
       Write in a ${tone} style that would excite potential bidders.`;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -430,10 +429,25 @@ export const useAI = () => {
     }
   };
 
+  const analyzeCollection = async (collectionItems: any[]) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const insights = await aiService.analyzeCollection(collectionItems);
+      return insights;
+    } catch (err) {
+      setError('Failed to analyze collection');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     analyzeProduct,
     getRecommendations,
-    analyzeCollection: aiService.analyzeCollection.bind(aiService),
+    analyzeCollection,
     suggestPricing: aiService.suggestPricing.bind(aiService),
     moderateContent: aiService.moderateContent.bind(aiService),
     generateDescription: aiService.generateAuctionDescription.bind(aiService),
