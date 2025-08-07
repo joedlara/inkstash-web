@@ -1,54 +1,54 @@
-import React, { useEffect, useState } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
-import { Search, Menu, X } from "lucide-react"
-import { supabase } from "../api/supabase/supabaseClient"
-import "../styles/NavBar.css"
-import logoUrl from "../assets/logo.png"
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Search, Menu, X } from 'lucide-react';
+import { supabase } from '../../api/supabase/supabaseClient';
+import '../styles/NavBar.css';
+import logoUrl from '../assets/logo.png';
 
 export default function NavBar() {
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
 
   // ← New: track the Supabase session
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     // get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-    })
+      setSession(session);
+    });
 
     // subscribe to future changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session)
+        setSession(session);
       }
-    )
+    );
     return () => {
-      listener.subscription.unsubscribe()
-    }
-  }, [])
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   // ← New: sign out handler
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    navigate("/") // go back to home
-    setSession(null)
-  }
+    await supabase.auth.signOut();
+    navigate('/'); // go back to home
+    setSession(null);
+  };
 
   const bottomLinks = [
-    { label: "Livestreams", to: "/livestreams" },
-    { label: "Auctions", to: "/auctions" },
-    { label: "Browse Pieces", to: "/pieces" },
-    { label: "Browse Artists", to: "/artists" },
-  ]
+    { label: 'Livestreams', to: '/livestreams' },
+    { label: 'Auctions', to: '/auctions' },
+    { label: 'Browse Pieces', to: '/pieces' },
+    { label: 'Browse Artists', to: '/artists' },
+  ];
 
   return (
     <header className="navbar">
       {/* ────── Top Row ────── */}
       <div className="navbar-top">
-        <button className="hamburger-btn" onClick={() => setIsOpen((v) => !v)}>
+        <button className="hamburger-btn" onClick={() => setIsOpen(v => !v)}>
           {isOpen ? (
             <X size={24} color="#e31b23" />
           ) : (
@@ -99,7 +99,7 @@ export default function NavBar() {
                 key={to}
                 to={to}
                 onClick={() => setIsOpen(false)}
-                className={pathname.startsWith(to) ? "active" : ""}
+                className={pathname.startsWith(to) ? 'active' : ''}
               >
                 {label}
               </Link>
@@ -113,8 +113,8 @@ export default function NavBar() {
               <button
                 className="signout"
                 onClick={() => {
-                  handleSignOut()
-                  setIsOpen(false)
+                  handleSignOut();
+                  setIsOpen(false);
                 }}
               >
                 Sign Out
@@ -140,7 +140,7 @@ export default function NavBar() {
             <Link
               key={to}
               to={to}
-              className={pathname.startsWith(to) ? "active" : ""}
+              className={pathname.startsWith(to) ? 'active' : ''}
             >
               {label}
             </Link>
@@ -154,5 +154,5 @@ export default function NavBar() {
         </div>
       </div>
     </header>
-  )
+  );
 }
