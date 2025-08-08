@@ -1,4 +1,4 @@
-import '../../styles/Footer.css';
+import '../../styles/ui/footer.css';
 
 export default function MembersCarousel() {
   return (

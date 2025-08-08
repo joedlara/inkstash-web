@@ -9,7 +9,7 @@ import {
   Clock,
   Eye,
 } from 'lucide-react';
-import '../../../styles/ActivityFeed.css';
+import '../../../styles/dashboard/shared/ActivityFeed.css';
 
 interface RecentActivity {
   id: string;

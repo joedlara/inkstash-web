@@ -3,7 +3,6 @@ import {
   TrendingUp,
   Award,
   Target,
-  AlertCircle,
   BarChart3,
   PieChart,
   DollarSign,
@@ -14,7 +13,7 @@ import {
   Search,
   Brain,
 } from 'lucide-react';
-import '../../../styles/InsightsPanel.css';
+import '../../../styles/dashboard/shared/insightsPanel.css';
 
 interface CollectionInsights {
   diversificationScore: number;

@@ -1,0 +1,381 @@
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.recommendation-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #d1d5db;
+}
+
+/* Image Section */
+.recommendation-image-container {
+  position: relative;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background-color: #f9fafb;
+}
+
+.recommendation-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.recommendation-card:hover .recommendation-image {
+  transform: scale(1.05);
+}
+
+/* Confidence Badge */
+.confidence-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.confidence-badge.confidence-high {
+  background-color: rgba(16, 185, 129, 0.9);
+}
+
+.confidence-badge.confidence-medium {
+  background-color: rgba(245, 158, 11, 0.9);
+}
+
+.confidence-badge.confidence-low {
+  background-color: rgba(107, 114, 128, 0.9);
+}
+
+.confidence-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Overlay Actions */
+.recommendation-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.recommendation-card:hover .recommendation-overlay {
+  opacity: 1;
+}
+
+.overlay-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.overlay-action:hover {
+  background-color: white;
+  color: #374151;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.overlay-action.watchlist.active {
+  color: #ef4444;
+  background-color: rgba(254, 226, 226, 0.9);
+}
+
+.overlay-action.view:hover {
+  color: #3b82f6;
+}
+
+/* Content Section */
+.recommendation-content {
+  padding: 16px;
+}
+
+.recommendation-header {
+  margin-bottom: 12px;
+}
+
+.recommendation-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Match Quality */
+.match-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.match-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.match-indicator.confidence-high .match-text {
+  color: #059669;
+}
+
+.match-indicator.confidence-medium .match-text {
+  color: #d97706;
+}
+
+.match-indicator.confidence-low .match-text {
+  color: #6b7280;
+}
+
+.match-stars {
+  display: flex;
+  gap: 1px;
+}
+
+.match-star {
+  width: 12px;
+  height: 12px;
+  color: #e5e7eb;
+}
+
+.match-star.filled {
+  color: #fbbf24;
+}
+
+/* Reason */
+.recommendation-reason {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+/* Details */
+.recommendation-details {
+  margin-bottom: 16px;
+}
+
+.price-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.price-icon {
+  width: 16px;
+  height: 16px;
+  color: #059669;
+}
+
+.price-range {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #059669;
+}
+
+.trending-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.trending-icon {
+  width: 14px;
+  height: 14px;
+  color: #dc2626;
+}
+
+.trending-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #dc2626;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.market-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.market-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Tags */
+.recommendation-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.recommendation-tag {
+  padding: 4px 8px;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.recommendation-tag.more {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* Actions */
+.recommendation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button.secondary {
+  background: #f9fafb;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.action-button.secondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.action-button.primary {
+  background: #3b82f6;
+  color: white;
+  border: 1px solid #3b82f6;
+}
+
+.action-button.primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Priority Indicator */
+.priority-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.priority-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .recommendations-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .recommendations-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .recommendation-content {
+    padding: 12px;
+  }
+
+  .recommendation-title {
+    font-size: 1rem;
+  }
+
+  .action-button {
+    padding: 8px 10px;
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .recommendation-actions {
+    flex-direction: column;
+  }
+
+  .match-indicator {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .price-section {
+    flex-wrap: wrap;
+  }
+
+  .trending-indicator {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}

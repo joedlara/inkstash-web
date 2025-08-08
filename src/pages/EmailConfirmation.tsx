@@ -1,24 +1,24 @@
-import { Link, useNavigate } from "react-router-dom"
-import "../styles/EmailConfirmation.css"
-import { useEffect } from "react"
-import { supabase } from "../api/supabase/supabaseClient"
+import { Link, useNavigate } from 'react-router-dom';
+import '../styles/signup/emailConfirmation.css';
+import { useEffect } from 'react';
+import { supabase } from '../api/supabase/supabaseClient';
 
 const EmailConfirmation: React.FC = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   useEffect(() => {
     // if Supabase finds the session in the URL hash, this will fire
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session) {
           // user just confirmed their email & is signed in
-          navigate("/")
+          navigate('/');
         }
       }
-    )
+    );
     return () => {
-      listener.subscription.unsubscribe()
-    }
-  }, [navigate])
+      listener.subscription.unsubscribe();
+    };
+  }, [navigate]);
   return (
     <div className="email-confirmation-page">
       <div className="email-confirmation-top-bar" />
@@ -31,7 +31,7 @@ const EmailConfirmation: React.FC = () => {
             activate your account.
           </p>
           <p>
-            Already confirmed?{" "}
+            Already confirmed?{' '}
             <Link to="/login" className="email-link">
               Log in
             </Link>
@@ -39,7 +39,7 @@ const EmailConfirmation: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default EmailConfirmation
+export default EmailConfirmation;
