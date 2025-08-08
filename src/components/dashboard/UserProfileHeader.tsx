@@ -1,6 +1,6 @@
 import React from 'react';
 import { Star } from 'lucide-react';
-import './UserProfileHeader.css';
+import '../../styles/dashboard/userProfileHeader.css';
 
 interface Badge {
   id: string;
@@ -54,7 +54,10 @@ const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
         {/* Avatar */}
         <div className="profile-avatar">
           <img
-            src={user.avatarUrl || '/default-avatar.png'}
+            src={
+              user.avatarUrl ||
+              'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'
+            }
             alt={user.name}
             className="avatar-image"
           />

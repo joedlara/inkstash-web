@@ -1,6 +1,6 @@
 // Carousel.tsx
 import React, { useEffect, useState } from 'react';
-import '../../styles/Carousel.css';
+import '../../styles/ui/carousel.css';
 import { supabase } from '../../api/supabase/supabaseClient';
 
 interface AuctionRecord {

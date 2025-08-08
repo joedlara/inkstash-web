@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../api/supabase/supabaseClient';
-import '../../styles/MembersCarousel.css';
+import '../../styles/ui/MembersCarousel.css';
 
 interface Member {
   id: string;

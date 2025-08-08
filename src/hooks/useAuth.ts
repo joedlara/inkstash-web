@@ -6,7 +6,6 @@ import type { User, Session } from '@supabase/supabase-js';
 interface AuthUser {
   id: string;
   email: string;
-  name?: string;
   username?: string;
   preferences?: {
     favoriteCharacters: string[];
@@ -66,8 +65,9 @@ export const useAuth = () => {
       setUser({
         id: authUser.id,
         email: authUser.email || '',
-        name: profile?.username || authUser.user_metadata?.name,
+        name: profile?.fullName || authUser.user_metadata?.name,
         username: profile?.username,
+        avatar: profile?.avatar_url,
         preferences: {
           favoriteCharacters: profile?.favorite_characters || [],
           collectionFocus: profile?.collection_focus || [],

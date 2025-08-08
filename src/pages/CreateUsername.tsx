@@ -1,59 +1,59 @@
-import React, { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { supabase } from "../api/supabase/supabaseClient"
-import "../styles/CreateUsername.css"
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../api/supabase/supabaseClient';
+import '../styles/signup/createUsername.css';
 
 const CreateUsername: React.FC = () => {
-  const navigate = useNavigate()
-  const [username, setUsername] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Ensure we actually have a session
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
-        return navigate("/signup")
+        return navigate('/signup');
       }
       // if they already have a profile, skip to home
       const { data: existing, error: fetchError } = await supabase
-        .from("users")
-        .select("username")
-        .eq("id", session.user.id)
-        .single()
+        .from('users')
+        .select('username')
+        .eq('id', session.user.id)
+        .single();
       if (existing && !fetchError) {
-        return navigate("/")
+        return navigate('/');
       }
-    })
-  }, [navigate])
+    });
+  }, [navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     const {
       data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) return navigate("/signup")
+    } = await supabase.auth.getSession();
+    if (!session) return navigate('/signup');
 
     if (!/^[a-zA-Z0-9]+$/.test(username)) {
-      return setError("Letters & numbers only")
+      return setError('Letters & numbers only');
     }
 
-    setLoading(true)
-    const { error: dbError } = await supabase.from("users").upsert({
+    setLoading(true);
+    const { error: dbError } = await supabase.from('users').upsert({
       id: session.user.id,
       email: session.user.email,
       username: username.toLowerCase(),
-    })
-    setLoading(false)
+    });
+    setLoading(false);
 
     if (dbError) {
-      setError(dbError.message)
+      setError(dbError.message);
     } else {
-      navigate("/")
+      navigate('/');
     }
-  }
+  };
 
   return (
     <div className="create-username-page">
@@ -70,22 +70,22 @@ const CreateUsername: React.FC = () => {
             <div className="field-group">
               <input
                 type="text"
-                className={`input-field ${error ? "invalid" : ""}`}
+                className={`input-field ${error ? 'invalid' : ''}`}
                 placeholder="Username – letters & numbers only"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={e => setUsername(e.target.value)}
               />
               {error && <small className="field-error">{error}</small>}
             </div>
 
             <button type="submit" className="submit-button" disabled={loading}>
-              {loading ? "Saving…" : "Continue"}
+              {loading ? 'Saving…' : 'Continue'}
             </button>
           </form>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CreateUsername
+export default CreateUsername;

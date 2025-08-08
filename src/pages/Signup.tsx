@@ -1,88 +1,88 @@
-import React, { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { supabase } from "../api/supabase/supabaseClient"
-import type { Session } from "@supabase/supabase-js"
-import { FcGoogle } from "react-icons/fc"
-import { IoEye, IoEyeOff } from "react-icons/io5"
-import "../styles/Signup.css"
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../api/supabase/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
+import { FcGoogle } from 'react-icons/fc';
+import { IoEye, IoEyeOff } from 'react-icons/io5';
+import '../styles/signup/signup.css';
 
 const Signup: React.FC = () => {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState("")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [emailError, setEmailError] = useState<string | null>(null)
-  const [usernameError, setUsernameError] = useState<string | null>(null)
-  const [passwordError, setPasswordError] = useState<string | null>(null)
-  const [confirmError, setConfirmError] = useState<string | null>(null)
-  const [formError, setFormError] = useState<React.ReactNode | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<React.ReactNode | null>(null);
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const emailRegex = /^\S+@\S+\.\S+$/
+  const emailRegex = /^\S+@\S+\.\S+$/;
 
   const validateEmail = () => {
     if (!emailRegex.test(email)) {
-      setEmailError("Please enter a valid email")
-      return false
+      setEmailError('Please enter a valid email');
+      return false;
     }
-    setEmailError(null)
-    return true
-  }
+    setEmailError(null);
+    return true;
+  };
 
   const validateUsername = async () => {
     if (!username) {
-      setUsernameError("Username is required")
-      return false
+      setUsernameError('Username is required');
+      return false;
     }
     const { data, error } = await supabase
-      .from("users")
-      .select("username", { count: "exact" })
-      .eq("username", username.toLowerCase())
+      .from('users')
+      .select('username', { count: 'exact' })
+      .eq('username', username.toLowerCase());
     if (error || data!.length > 0) {
-      setUsernameError(error ? "Error checking username" : "Username taken")
-      return false
+      setUsernameError(error ? 'Error checking username' : 'Username taken');
+      return false;
     }
-    setUsernameError(null)
-    return true
-  }
+    setUsernameError(null);
+    return true;
+  };
 
   const validatePassword = () => {
     if (password.length < 6) {
-      setPasswordError("Must be at least 6 characters")
-      return false
+      setPasswordError('Must be at least 6 characters');
+      return false;
     }
-    setPasswordError(null)
-    return true
-  }
+    setPasswordError(null);
+    return true;
+  };
 
   const validateConfirm = () => {
     if (confirmPassword !== password) {
-      setConfirmError("Passwords do not match")
-      return false
+      setConfirmError('Passwords do not match');
+      return false;
     }
-    setConfirmError(null)
-    return true
-  }
+    setConfirmError(null);
+    return true;
+  };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError(null)
+    e.preventDefault();
+    setFormError(null);
 
     // 1) run your existing validations...
-    const okEmail = validateEmail()
-    const okUser = await validateUsername()
-    const okPass = validatePassword()
-    const okConf = validateConfirm()
+    const okEmail = validateEmail();
+    const okUser = await validateUsername();
+    const okPass = validatePassword();
+    const okConf = validateConfirm();
     if (!(okEmail && okUser && okPass && okConf)) {
-      return setFormError("Please fix the errors above")
+      return setFormError('Please fix the errors above');
     }
 
-    setLoading(true)
+    setLoading(true);
 
     // 2) Kick off signUp with v2 signature (metadata  emailRedirectTo)
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
@@ -94,54 +94,54 @@ const Signup: React.FC = () => {
           emailRedirectTo: `${window.location.origin}/email-confirmation`,
         },
       }
-    )
+    );
 
-    setLoading(false)
+    setLoading(false);
 
     // 3) Handle errors (including duplicate-email)
     if (signUpError) {
       if (
         signUpError.status === 400 &&
-        signUpError.message.toLowerCase().includes("already registered")
+        signUpError.message.toLowerCase().includes('already registered')
       ) {
         return setFormError(
           <>
-            An account with this email already exists.{" "}
+            An account with this email already exists.{' '}
             <a href="/login">Log in</a> instead.
           </>
-        )
+        );
       }
-      return setFormError(signUpError.message)
+      return setFormError(signUpError.message);
     }
 
     // 4) On success, write into your users table so you have a second record
     if (signUpData.user) {
-      const { id, email: newEmail } = signUpData.user
+      const { id, email: newEmail } = signUpData.user;
       const { error: dbError } = await supabase
-        .from("users")
+        .from('users')
         .upsert(
           { id, email: newEmail, username: username.toLowerCase() },
-          { onConflict: "id" }
-        )
+          { onConflict: 'id' }
+        );
       if (dbError) {
-        console.error("Error writing user to DB:", dbError)
+        console.error('Error writing user to DB:', dbError);
       }
     }
 
     // 5) Finally, send them to the “check your email” page
-    navigate("/email-confirmation")
-  }
+    navigate('/email-confirmation');
+  };
 
   const handleGoogleSignup = async () => {
-    setFormError(null)
-    setLoading(true)
+    setFormError(null);
+    setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: { redirectTo: `${window.location.origin}/create-username` },
-    })
-    setLoading(false)
-    if (error) setFormError(error.message)
-  }
+    });
+    setLoading(false);
+    if (error) setFormError(error.message);
+  };
 
   return (
     <div className="signup-page">
@@ -173,9 +173,9 @@ const Signup: React.FC = () => {
                 type="email"
                 placeholder="Email address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 onBlur={validateEmail}
-                className={`input-field ${emailError ? "invalid" : ""}`}
+                className={`input-field ${emailError ? 'invalid' : ''}`}
               />
               {emailError && (
                 <small className="field-error">{emailError}</small>
@@ -188,11 +188,11 @@ const Signup: React.FC = () => {
                 type="text"
                 placeholder="Your username – numbers & letters only"
                 value={username}
-                onChange={(e) =>
-                  setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))
+                onChange={e =>
+                  setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))
                 }
                 onBlur={validateUsername}
-                className={`input-field ${usernameError ? "invalid" : ""}`}
+                className={`input-field ${usernameError ? 'invalid' : ''}`}
               />
               {usernameError && (
                 <small className="field-error">{usernameError}</small>
@@ -202,17 +202,17 @@ const Signup: React.FC = () => {
             {/* Password */}
             <div className="field-group password-wrapper">
               <input
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Password (6 characters minimum)"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 onBlur={validatePassword}
-                className={`input-field ${passwordError ? "invalid" : ""}`}
+                className={`input-field ${passwordError ? 'invalid' : ''}`}
               />
               <button
                 type="button"
                 className="toggle-button"
-                onClick={() => setShowPassword((v) => !v)}
+                onClick={() => setShowPassword(v => !v)}
               >
                 {showPassword ? <IoEye size={20} /> : <IoEyeOff size={20} />}
               </button>
@@ -224,17 +224,17 @@ const Signup: React.FC = () => {
             {/* Confirm */}
             <div className="field-group password-wrapper">
               <input
-                type={showConfirm ? "text" : "password"}
+                type={showConfirm ? 'text' : 'password'}
                 placeholder="Confirm Password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={e => setConfirmPassword(e.target.value)}
                 onBlur={validateConfirm}
-                className={`input-field ${confirmError ? "invalid" : ""}`}
+                className={`input-field ${confirmError ? 'invalid' : ''}`}
               />
               <button
                 type="button"
                 className="toggle-button"
-                onClick={() => setShowConfirm((v) => !v)}
+                onClick={() => setShowConfirm(v => !v)}
               >
                 {showConfirm ? <IoEye size={20} /> : <IoEyeOff size={20} />}
               </button>
@@ -246,12 +246,12 @@ const Signup: React.FC = () => {
             {formError && <div className="form-error">{formError}</div>}
 
             <button type="submit" className="submit-button" disabled={loading}>
-              {loading ? "Signing up…" : "Sign Up"}
+              {loading ? 'Signing up…' : 'Sign Up'}
             </button>
           </form>
 
           <p className="terms">
-            By signing up, you agree to the <a href="/tos">Terms of Service</a>{" "}
+            By signing up, you agree to the <a href="/tos">Terms of Service</a>{' '}
             and <a href="/privacy">Privacy Policy</a>.
           </p>
           <p className="have-account">
@@ -260,7 +260,7 @@ const Signup: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Signup
+export default Signup;

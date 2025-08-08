@@ -1,0 +1,348 @@
+.recommendations-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.recommendations-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.recommendations-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.title-icon {
+  width: 24px;
+  height: 24px;
+  color: #3b82f6;
+}
+
+.recommendations-subtitle {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.refresh-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* User Preferences */
+.preferences-summary {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.preferences-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px 0;
+}
+
+.preferences-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preference-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.preference-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 120px;
+}
+
+.preference-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preference-tag {
+  padding: 4px 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.preference-tag.more {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+.preference-value {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Empty State */
+.recommendations-empty {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 60px 40px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  color: #9ca3af;
+  margin-bottom: 24px;
+}
+
+.empty-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 12px 0;
+}
+
+.empty-description {
+  font-size: 1rem;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+}
+
+.generate-recommendations-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.generate-recommendations-button:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.generate-recommendations-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.rate-limit-notice {
+  font-size: 0.875rem;
+  color: #dc2626;
+  margin: 0;
+}
+
+/* Loading State */
+.recommendations-loading {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 60px 40px;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.loading-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 16px 0 8px 0;
+}
+
+.loading-content p {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Footer */
+.recommendations-footer {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.explanation {
+  flex: 1;
+}
+
+.explanation-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.explanation-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.recommendation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.secondary-action,
+.primary-action {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.secondary-action {
+  background: white;
+  color: #374151;
+}
+
+.secondary-action:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.primary-action {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.primary-action:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recommendations-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .refresh-button {
+    align-self: flex-end;
+  }
+
+  .recommendations-title {
+    font-size: 1.5rem;
+  }
+
+  .preferences-summary {
+    padding: 16px;
+  }
+
+  .preference-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .preference-label {
+    min-width: auto;
+    font-weight: 600;
+  }
+
+  .recommendations-empty,
+  .recommendations-loading {
+    padding: 40px 24px;
+  }
+
+  .recommendations-footer {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .recommendation-actions {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .secondary-action,
+  .primary-action {
+    flex: 1;
+  }
+}
