@@ -4,6 +4,7 @@ import React, { memo } from 'react';
 import { Star, RefreshCw, Zap } from 'lucide-react';
 import type { RecommendationsTabProps } from '../../../types/dashboard';
 import '../../../styles/dashboard/tabs/recommendationsTab.css';
+import RecommendationsGrid from '../RecommendationsGrid';
 
 const RecommendationsTab: React.FC<RecommendationsTabProps> = memo(
   ({
@@ -109,57 +110,53 @@ const RecommendationsTab: React.FC<RecommendationsTabProps> = memo(
 
         {/* User Preferences Summary */}
         {user?.preferences && (
-          <DashboardErrorBoundary section="User Preferences">
-            <div className="preferences-summary">
-              <h4 className="preferences-title">Your Preferences</h4>
-              <div className="preferences-content">
-                {user.preferences.favoriteCharacters?.length > 0 && (
-                  <div className="preference-group">
-                    <span className="preference-label">
-                      Favorite Characters:
-                    </span>
-                    <div className="preference-tags">
-                      {user.preferences.favoriteCharacters
-                        .slice(0, 3)
-                        .map(character => (
-                          <span key={character} className="preference-tag">
-                            {character}
-                          </span>
-                        ))}
-                      {user.preferences.favoriteCharacters.length > 3 && (
-                        <span className="preference-tag more">
-                          +{user.preferences.favoriteCharacters.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {user.preferences.collectionFocus?.length > 0 && (
-                  <div className="preference-group">
-                    <span className="preference-label">Collection Focus:</span>
-                    <div className="preference-tags">
-                      {user.preferences.collectionFocus.map(focus => (
-                        <span key={focus} className="preference-tag">
-                          {focus}
+          <div className="preferences-summary">
+            <h4 className="preferences-title">Your Preferences</h4>
+            <div className="preferences-content">
+              {user.preferences.favoriteCharacters?.length > 0 && (
+                <div className="preference-group">
+                  <span className="preference-label">Favorite Characters:</span>
+                  <div className="preference-tags">
+                    {user.preferences.favoriteCharacters
+                      .slice(0, 3)
+                      .map(character => (
+                        <span key={character} className="preference-tag">
+                          {character}
                         </span>
                       ))}
-                    </div>
+                    {user.preferences.favoriteCharacters.length > 3 && (
+                      <span className="preference-tag more">
+                        +{user.preferences.favoriteCharacters.length - 3} more
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {user.preferences.priceRange && (
-                  <div className="preference-group">
-                    <span className="preference-label">Price Range:</span>
-                    <span className="preference-value">
-                      ${user.preferences.priceRange.min} - $
-                      {user.preferences.priceRange.max}
-                    </span>
+              {user.preferences.collectionFocus?.length > 0 && (
+                <div className="preference-group">
+                  <span className="preference-label">Collection Focus:</span>
+                  <div className="preference-tags">
+                    {user.preferences.collectionFocus.map(focus => (
+                      <span key={focus} className="preference-tag">
+                        {focus}
+                      </span>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {user.preferences.priceRange && (
+                <div className="preference-group">
+                  <span className="preference-label">Price Range:</span>
+                  <span className="preference-value">
+                    ${user.preferences.priceRange.min} - $
+                    {user.preferences.priceRange.max}
+                  </span>
+                </div>
+              )}
             </div>
-          </DashboardErrorBoundary>
+          </div>
         )}
 
         {/* Main Content */}
@@ -167,15 +164,13 @@ const RecommendationsTab: React.FC<RecommendationsTabProps> = memo(
           {isLoading ? (
             <LoadingRecommendations />
           ) : recommendations.length > 0 ? (
-            <DashboardErrorBoundary section="Recommendations Grid">
-              <RecommendationsGrid
-                recommendations={recommendations}
-                isLoading={isLoading}
-                onViewRecommendation={handleViewRecommendation}
-                onAddToWatchlist={handleAddToWatchlist}
-                onBuyNow={handleBuyNow}
-              />
-            </DashboardErrorBoundary>
+            <RecommendationsGrid
+              recommendations={recommendations}
+              isLoading={isLoading}
+              onViewRecommendation={handleViewRecommendation}
+              onAddToWatchlist={handleAddToWatchlist}
+              onBuyNow={handleBuyNow}
+            />
           ) : (
             <EmptyRecommendations />
           )}

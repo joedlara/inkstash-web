@@ -11,7 +11,7 @@ import {
   DollarSign,
   Eye,
 } from 'lucide-react';
-import { PersonalizedRecommendation } from '../../api/ai/aiService';
+import type { PersonalizedRecommendation } from '../../api/ai/aiService';
 import '../../styles/dashboard//RecommendationsGrid.css';
 
 interface RecommendationsGridProps {

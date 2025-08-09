@@ -4,6 +4,7 @@ import { Search, Menu, X } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import '../../styles/ui/NavBar.css';
 import logoUrl from '../../assets/logo.png';
+import ThemeToggle from '../ui/ThemeToggle';
 
 export default function NavBar() {
   const { pathname } = useLocation();
@@ -87,6 +88,7 @@ export default function NavBar() {
               </Link>
             </>
           )}
+          <ThemeToggle />
         </div>
       </div>
 

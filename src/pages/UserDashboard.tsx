@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  DollarSign,
+  BookOpen,
+  MessageSquare,
+  Flame,
+  Award,
+} from 'lucide-react';
+import {
   useAI,
   type CollectionInsights,
   type PersonalizedRecommendation,
 } from '../api/ai/aiService';
 import { useAuth } from '../hooks/useAuth';
 import { useCollection } from '../hooks/useCollection';
+import type { Badge, UserProfileData } from '../types/dashboard';
 
 import '../styles/dashboard/userDashboard.css';
 import UserProfileHeader from '../components/dashboard/UserProfileHeader';
@@ -201,29 +209,53 @@ const UserDashboard: React.FC = () => {
     ]);
   };
 
-  const userProfileData = {
+  // Create user profile data with Lucide icons
+  const userProfileData: UserProfileData = {
     name: user?.name || 'Collector',
     username: user?.username || 'comic_collector_pro',
-    level: user?.level || 8,
-    xp: user?.xp || 3240,
+    level: user?.level || 18,
+    xp: user?.xp || 900,
     xpToNext: user?.xpToNext || 4000,
     avatarUrl: user?.avatar,
     badges: [
-      { id: '1', name: 'Power Seller', icon: 'power-seller', color: 'blue' },
-      { id: '2', name: 'Manga Master', icon: 'manga-master', color: 'purple' },
-      { id: '3', name: 'Forum Regular', icon: 'forum-regular', color: 'green' },
+      {
+        id: '1',
+        name: 'Power Seller',
+        icon: DollarSign,
+        color: 'green',
+        isNew: true,
+      },
+      {
+        id: '2',
+        name: 'Manga Master',
+        icon: BookOpen,
+        color: 'blue',
+      },
+      {
+        id: '3',
+        name: 'Forum Regular',
+        icon: MessageSquare,
+        color: 'purple',
+      },
       {
         id: '4',
         name: 'Daily Devotee',
-        icon: 'daily-devotee',
+        icon: Flame,
         color: 'orange',
       },
+      {
+        id: '5',
+        name: 'Achievement Hunter',
+        icon: Award,
+        color: 'gold',
+      },
     ],
+    isOnline: true,
   };
 
   return (
     <div className="dashboard-container">
-      <UserProfileHeader user={userProfileData} />
+      <UserProfileHeader user={userProfileData} isLoading={collectionLoading} />
       <AIStatusBanner
         rateLimitInfo={rateLimitInfo}
         aiError={aiError}
@@ -240,8 +272,8 @@ const UserDashboard: React.FC = () => {
             isLoading={collectionLoading}
             onGenerateInsights={loadCollectionInsights}
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
-            aiLoading={false}
-            insightsRequested={false}
+            aiLoading={aiLoading}
+            insightsRequested={insightsRequested}
           />
         )}
 
@@ -263,7 +295,7 @@ const UserDashboard: React.FC = () => {
             isLoading={aiLoading || recommendationsRequested}
             onLoadRecommendations={loadRecommendations}
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
-            user={null}
+            user={user}
           />
         )}
 
@@ -275,8 +307,8 @@ const UserDashboard: React.FC = () => {
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
             lastAnalysisTime={lastAnalysisTime}
             collectionCount={collection.length}
-            aiLoading={false}
-            insightsRequested={false}
+            aiLoading={aiLoading}
+            insightsRequested={insightsRequested}
           />
         )}
       </div>

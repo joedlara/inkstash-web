@@ -16,7 +16,6 @@ export default function MembersCarousel() {
       const { data, error } = await supabase
         .from<Member>('users')
         .select('id, username, avatar_url');
-      console.log(data);
       if (error) console.error('Error loading members:', error);
       else setMembers(data);
     }

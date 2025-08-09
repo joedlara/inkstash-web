@@ -1,26 +1,10 @@
 import React from 'react';
-import { Star } from 'lucide-react';
 import '../../styles/dashboard/userProfileHeader.css';
-
-interface Badge {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  isNew?: boolean;
-}
+import { Star } from 'lucide-react';
+import type { Badge, UserProfileData } from '../../types/dashboard';
 
 interface UserProfileHeaderProps {
-  user: {
-    name: string;
-    username: string;
-    level: number;
-    xp: number;
-    xpToNext: number;
-    avatarUrl?: string;
-    badges: Badge[];
-    isOnline?: boolean;
-  };
+  user: UserProfileData;
   isLoading?: boolean;
 }
 
@@ -29,22 +13,6 @@ const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
   isLoading = false,
 }) => {
   const progressPercentage = Math.min((user.xp / user.xpToNext) * 100, 100);
-
-  const getBadgeIcon = (iconType: string) => {
-    // You can expand this based on your badge system
-    switch (iconType) {
-      case 'power-seller':
-        return '⚡';
-      case 'manga-master':
-        return '📚';
-      case 'forum-regular':
-        return '💬';
-      case 'daily-devotee':
-        return '🔥';
-      default:
-        return '🏆';
-    }
-  };
 
   return (
     <div
@@ -68,7 +36,7 @@ const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
         <div className="profile-info">
           <div className="user-name-section">
             <h2 className="user-name">{user.name}</h2>
-            <span className="user-username">{user.username}</span>
+            <span className="user-username">@{user.username}</span>
           </div>
 
           {/* Level and XP */}
@@ -104,16 +72,23 @@ const UserProfileHeader: React.FC<UserProfileHeaderProps> = ({
           <div className="badges-section">
             <h4 className="badges-title">Recent Badges</h4>
             <div className="badges-container">
-              {user.badges.slice(0, 4).map(badge => (
-                <span
-                  key={badge.id}
-                  className={`badge badge-${badge.color} ${badge.isNew ? 'badge-new' : ''}`}
-                  title={badge.name}
-                >
-                  <span className="badge-icon">{getBadgeIcon(badge.icon)}</span>
-                  {badge.name}
-                </span>
-              ))}
+              {user.badges.slice(0, 4).map((badge: Badge) => {
+                const IconComponent = badge.icon;
+                return (
+                  <span
+                    key={badge.id}
+                    className={`badge badge-${badge.color} ${badge.isNew ? 'badge-new' : ''}`}
+                    title={badge.name}
+                  >
+                    <IconComponent
+                      className="badge-icon"
+                      size={16}
+                      aria-hidden="true"
+                    />
+                    <span className="badge-text">{badge.name}</span>
+                  </span>
+                );
+              })}
               {user.badges.length > 4 && (
                 <span className="badge badge-more">
                   +{user.badges.length - 4} more

@@ -1,3 +1,5 @@
+// src/components/dashboard/tabs/CollectionTab.tsx
+
 import React, { memo, useMemo } from 'react';
 import { Package } from 'lucide-react';
 import type { CollectionTabProps } from '../../../types/dashboard';
@@ -30,28 +32,6 @@ const CollectionTab: React.FC<CollectionTabProps> = memo(
         return matchesSearch && matchesCategory;
       });
     }, [collection, searchTerm, filterCategory]);
-
-    // Calculate collection statistics
-    const collectionStats = useMemo(() => {
-      const totalValue = filteredCollection.reduce(
-        (sum, item) => sum + (item.estimatedValue || 0),
-        0
-      );
-      const averageValue =
-        filteredCollection.length > 0
-          ? Math.round(totalValue / filteredCollection.length)
-          : 0;
-      const categoryCount = new Set(
-        filteredCollection.map(item => item.category)
-      ).size;
-
-      return {
-        totalItems: filteredCollection.length,
-        totalValue,
-        averageValue,
-        categoryCount,
-      };
-    }, [filteredCollection]);
 
     // Handle item actions
     const handleViewItem = (item: any) => {

@@ -3,7 +3,6 @@
   position: relative;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
-  font-family: Inter, sans-serif;
   z-index: 50;
 }
 
@@ -102,7 +101,9 @@
   border-radius: 4px;
   text-decoration: none;
   color: #4b5563;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .bottom-links a:hover {
   background: #f3f4f6;
@@ -122,14 +123,18 @@
   border-radius: 4px;
   text-decoration: none;
   color: #4b5563;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .bottom-actions .sell {
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   text-decoration: none;
   color: #4b5563;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 .bottom-actions .sell:hover {
   background: #f3f4f6;
