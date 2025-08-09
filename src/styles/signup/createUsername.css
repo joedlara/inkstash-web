@@ -8,13 +8,18 @@
 /* Page background */
 .create-username-page {
   width: 100%;
-  background: #f1f1f1;
+  background: var(--background);
+  transition: background-color 0.3s ease;
 }
 
 /* Thin red bar like signup */
 .create-username-top-bar {
   height: 4px;
-  background: #d23d2d;
+  background: linear-gradient(
+    90deg,
+    var(--button-accent),
+    var(--button-accent-hover)
+  );
   width: 100%;
 }
 
@@ -22,6 +27,8 @@
 .create-username-container {
   display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 4px);
   padding: 2rem 1rem;
 }
 
@@ -29,23 +36,35 @@
 .create-username-card {
   width: 100%;
   max-width: 420px;
-  background: #fff;
+  background: var(--surface-elevated);
   border-radius: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px var(--shadow-strong);
+  border: 1px solid var(--border);
   padding: 2rem 1.5rem;
   text-align: center;
+  transition: all 0.3s ease;
+}
+
+.create-username-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px var(--shadow-strong);
 }
 
 /* Heading & subtext */
 .create-username-card h1 {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
 }
+
 .create-username-card p {
-  color: #555;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
   font-size: 1rem;
+  line-height: 1.5;
+  transition: color 0.3s ease;
 }
 
 /* Form & fields */
@@ -53,51 +72,249 @@
   display: flex;
   flex-direction: column;
 }
+
 .field-group {
   margin-bottom: 1rem;
+  text-align: left;
 }
+
+.field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+}
+
 .input-field {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
 }
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
 .input-field:focus {
   outline: none;
-  border-color: #d23d2d;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+
 .input-field.invalid {
-  border-color: #e63946;
+  border-color: var(--accent-500);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.input-field.valid {
+  border-color: var(--success-500);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* Input with icon */
+.input-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.input-wrapper .input-field {
+  padding-left: 2.5rem;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--primary-500);
 }
 
 /* Error message below field */
 .field-error {
-  color: #e63946;
+  color: var(--accent-600);
   font-size: 0.85rem;
   text-align: left;
   margin-top: 0.25rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.field-success {
+  color: var(--success-600);
+  font-size: 0.85rem;
+  text-align: left;
+  margin-top: 0.25rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+/* Username availability indicator */
+.username-status {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.username-status.checking {
+  color: var(--warning-500);
+  animation: spin 1s linear infinite;
+}
+
+.username-status.available {
+  color: var(--success-500);
+}
+
+.username-status.unavailable {
+  color: var(--accent-500);
+}
+
+@keyframes spin {
+  0% {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  100% {
+    transform: translateY(-50%) rotate(360deg);
+  }
 }
 
 /* Continue button */
 .submit-button {
   width: 100%;
   padding: 0.75rem;
-  background: #d23d2d;
-  color: #fff;
+  background: var(--button-primary);
+  color: var(--button-primary-text);
   border: none;
   border-radius: 0.75rem;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
 }
+
 .submit-button:hover:not(:disabled) {
-  background: #b32424;
+  background: var(--button-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
+
+.submit-button:focus {
+  outline: 2px solid var(--primary-300);
+  outline-offset: 2px;
+}
+
 .submit-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading state */
+.submit-button.loading {
+  position: relative;
+  color: transparent;
+}
+
+.submit-button.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin-button 1s linear infinite;
+  color: var(--button-primary-text);
+}
+
+@keyframes spin-button {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Username guidelines */
+.username-guidelines {
+  background: var(--surface);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.username-guidelines h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.username-guidelines ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+
+.username-guidelines li {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.username-guidelines li::before {
+  content: '•';
+  color: var(--primary-500);
+  position: absolute;
+  left: -1rem;
+}
+
+/* Back button */
+.back-button {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  color: var(--text-secondary);
+  background: var(--surface);
+  text-decoration: none;
 }
 
 /* Responsive tweaks */
@@ -105,7 +322,56 @@
   .create-username-card {
     padding: 1.5rem 1rem;
   }
+
   .create-username-card h1 {
     font-size: 1.4rem;
   }
+
+  .create-username-container {
+    padding: 1rem 0.5rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .create-username-card {
+    border: 2px solid var(--border-strong);
+  }
+
+  .input-field {
+    border: 2px solid var(--border-strong);
+  }
+
+  .submit-button {
+    border: 2px solid var(--button-primary);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .create-username-card,
+  .input-field,
+  .submit-button,
+  .username-guidelines,
+  .back-button {
+    transition: none;
+  }
+
+  .create-username-card:hover,
+  .submit-button:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .username-status.checking,
+  .submit-button.loading::after {
+    animation: none;
+  }
+}
+
+/* Focus visible for better accessibility */
+.input-field:focus-visible,
+.submit-button:focus-visible,
+.back-button:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
 }
