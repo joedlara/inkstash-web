@@ -1,9 +1,12 @@
 /* Container */
 .navbar {
   position: relative;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--border);
   z-index: 50;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 /* Top Row */
@@ -13,23 +16,45 @@
   align-items: center;
   padding: 0.75rem;
   gap: 1rem;
-  background: #f3f4f6;
+  background: var(--surface-muted);
+  transition: background-color 0.3s ease;
+  border-bottom: 1.5px solid #1e293b;
+  box-shadow: #1e293b;
 }
+
 .hamburger-btn {
   display: none; /* shown via media query */
   background: none;
   border: none;
   cursor: pointer;
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
 }
+
+.hamburger-btn:hover {
+  background: var(--surface);
+}
+
 .logo {
   display: flex;
   align-items: center;
   text-decoration: none;
-  color: #111;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
 }
+
 .logo-img {
   height: 2.5rem;
+  transition: filter 0.3s ease;
 }
+
+/* Dark mode logo filter adjustment */
+[data-theme='dark'] .logo-img {
+  filter: brightness(1.1) contrast(0.9);
+}
+
 .top-center {
   display: flex;
   flex: 2 2;
@@ -37,52 +62,104 @@
   max-width: 350px;
   height: 2.5rem;
 }
+
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-right: none;
   border-radius: 4px 0 0 4px;
   font-size: 1rem;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
 }
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .search-btn {
   width: 2.25rem;
-  background: #e31b23;
-  border: 1px solid #e31b23;
-  color: #fff;
+  background: var(--button-accent);
+  border: 1px solid var(--button-accent);
+  color: var(--button-accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
+
+.search-btn:hover {
+  background: var(--button-accent-hover);
+  border-color: var(--button-accent-hover);
+}
+
 .top-actions {
   display: flex;
   gap: 1rem;
+  align-items: center;
 }
-.top-actions a {
+
+.top-actions a,
+.top-actions button {
   padding: 0.45rem 0.75rem;
   border-radius: 4px;
   text-decoration: none;
   font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
+
 .top-actions .login {
-  border-radius: 4px;
-  border: 1px solid #e31b23;
-  color: #e31b23;
-  text-decoration: none;
-  font-size: 0.875rem;
+  border: 1px solid var(--button-accent);
+  color: var(--button-accent);
+  background: var(--surface-elevated);
 }
+
 .top-actions .login:hover {
-  background: #ffe7e8;
+  background: var(--accent-50);
+  border-color: var(--button-accent-hover);
 }
+
+[data-theme='dark'] .top-actions .login:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .top-actions .signup {
-  background: #e31b23;
-  color: #fff;
+  background: var(--button-accent);
+  color: var(--button-accent-text);
+  border-color: var(--button-accent);
 }
+
 .top-actions .signup:hover {
-  background: #c81a22;
+  background: var(--button-accent-hover);
+  border-color: var(--button-accent-hover);
+}
+
+.top-actions .signout {
+  border: 1px solid var(--button-accent);
+  background: transparent;
+  color: var(--button-accent);
+  cursor: pointer;
+}
+
+.top-actions .signout:hover {
+  background: var(--accent-50);
+}
+
+[data-theme='dark'] .top-actions .signout:hover {
+  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Bottom Row (desktop) */
@@ -91,66 +168,74 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 2rem;
+  background: var(--surface-elevated);
+  transition: background-color 0.3s ease;
 }
+
 .bottom-links {
   display: flex;
   gap: 1.5rem;
 }
+
 .bottom-links a {
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   text-decoration: none;
-  color: #4b5563;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-.bottom-links a:hover {
-  background: #f3f4f6;
-  color: #111;
-}
-.bottom-links .active {
-  background: #ffe5e5;
-  color: #e31b23;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
   font-weight: 500;
 }
+
+.bottom-links a:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.bottom-links .active {
+  background: var(--accent-50);
+  color: var(--button-accent);
+}
+
+[data-theme='dark'] .bottom-links .active {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-300);
+}
+
 .bottom-actions {
   display: flex;
   gap: 1rem;
+  align-items: center;
 }
-.more-dropdown {
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  text-decoration: none;
-  color: #4b5563;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
+
+.more-dropdown,
 .bottom-actions .sell {
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   text-decoration: none;
-  color: #4b5563;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
+
+.more-dropdown:hover,
 .bottom-actions .sell:hover {
-  background: #f3f4f6;
-  color: #111;
+  background: var(--surface);
+  color: var(--text-primary);
 }
 
 /* ─── Mobile Modal ───────────────────────────────────── */
 .mobile-modal {
+  position: fixed;
   inset: 0;
-  background: #fff;
+  background: var(--surface-elevated);
   padding: 2rem;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   z-index: 100;
+  transition: background-color 0.3s ease;
 }
+
 .mobile-nav,
 .mobile-auth {
   display: flex;
@@ -158,54 +243,69 @@
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
+
 .mobile-nav .sell {
-  color: #c81a22;
+  color: var(--button-accent-hover);
 }
+
 .mobile-nav a,
 .mobile-auth a {
   font-size: 1.25rem;
   text-decoration: none;
-  color: #111;
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
 }
+
+.mobile-nav a:hover {
+  background: var(--surface);
+}
+
 .mobile-auth {
   margin-top: auto;
 }
-.mobile-auth a {
+
+.mobile-auth a,
+.mobile-auth button {
   padding: 0.75rem;
   border-radius: 6px;
-  border: 1px solid #e31b23;
+  border: 1px solid var(--button-accent);
   text-align: center;
-}
-.mobile-auth a:last-child {
-  background: #e31b23;
-  color: #fff;
-}
-
-.top-actions .signout {
-  padding: 0.45rem 0.75rem;
-  border-radius: 4px;
-  border: 1px solid #e31b23;
-  background: transparent;
-  color: #e31b23;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-.top-actions .signout:hover {
-  background: #ffe7e8;
-}
-
-/* Mobile auth “signout” */
-.mobile-auth .signout {
-  padding: 0.75rem;
-  border: 1px solid #e31b23;
-  border-radius: 6px;
-  background: transparent;
-  color: #e31b23;
   font-size: 1.25rem;
-  cursor: pointer;
+  transition: all 0.2s ease;
 }
+
+.mobile-auth a:first-child,
+.mobile-auth .signout {
+  background: transparent;
+  color: var(--button-accent);
+}
+
+.mobile-auth a:first-child:hover,
 .mobile-auth .signout:hover {
-  background: #ffe7e8;
+  background: var(--accent-50);
+}
+
+[data-theme='dark'] .mobile-auth a:first-child:hover,
+[data-theme='dark'] .mobile-auth .signout:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.mobile-auth a:last-child {
+  background: var(--button-accent);
+  color: var(--button-accent-text);
+}
+
+.mobile-auth a:last-child:hover {
+  background: var(--button-accent-hover);
+}
+
+.mobile-auth .signout {
+  background: transparent;
+  color: var(--button-accent);
+  cursor: pointer;
+  font-weight: 500;
 }
 
 /* ─── Responsive Below 725px ────────────────────────── */
@@ -227,6 +327,7 @@
   }
 }
 
+/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -242,4 +343,43 @@
   /* ensure it starts hidden so animation can run */
   opacity: 0;
   animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Focus states for accessibility */
+.search-input:focus,
+.top-actions a:focus,
+.top-actions button:focus,
+.bottom-links a:focus,
+.bottom-actions a:focus {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .navbar {
+    border-bottom: 2px solid var(--border-strong);
+  }
+
+  .top-actions .login,
+  .top-actions .signout {
+    border: 2px solid var(--button-accent);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .navbar,
+  .navbar-top,
+  .search-input,
+  .top-actions a,
+  .top-actions button,
+  .bottom-links a,
+  .mobile-modal {
+    transition: none;
+  }
+
+  .mobile-modal {
+    animation: none;
+  }
 }

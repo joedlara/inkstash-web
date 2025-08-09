@@ -155,6 +155,7 @@ export default function NavBar() {
           <div className="more-dropdown">More ▾</div>
         </div>
       </div>
+      <div className="signup-top-bar" />
     </header>
   );
 }

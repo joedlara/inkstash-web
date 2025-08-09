@@ -146,7 +146,7 @@ const Signup: React.FC = () => {
   return (
     <div className="signup-page">
       {/* thin red bar under the navbar */}
-      <div className="signup-top-bar" />
+      {/* <div className="signup-top-bar" /> */}
 
       {/* center card */}
       <div className="signup-container">
