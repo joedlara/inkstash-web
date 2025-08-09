@@ -1,24 +1,31 @@
-// Add these export statements to the end of your dashboard.ts file
-// Or make sure all your interfaces have the 'export' keyword
-
 import type {
   CollectionInsights,
   PersonalizedRecommendation,
 } from '../api/ai/aiService';
 
-// Make sure ALL these interfaces are exported with 'export' keyword:
+import { LucideIcon } from 'lucide-react';
 
 export interface User {
   id: string;
   name: string;
   username: string;
   email: string;
-  level?: number;
-  xp?: number;
-  xpToNext?: number;
-  avatarUrl?: string;
-  isOnline?: boolean;
+  // level?: number;
+  // xp?: number;
+  // xpToNext?: number;
+  // avatarUrl?: string;
+  // isOnline?: boolean;
   preferences?: UserPreferences;
+}
+export interface UserProfileData {
+  name: string;
+  username: string;
+  level: number;
+  xp: number;
+  xpToNext: number;
+  avatarUrl?: string;
+  badges: Badge[];
+  isOnline?: boolean;
 }
 
 export interface UserPreferences {
@@ -33,7 +40,7 @@ export interface UserPreferences {
 export interface Badge {
   id: string;
   name: string;
-  icon: string;
+  icon: LucideIcon;
   color: 'blue' | 'purple' | 'green' | 'orange' | 'yellow' | 'gray';
   isNew?: boolean;
   earnedAt: string;

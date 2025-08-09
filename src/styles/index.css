@@ -2,32 +2,13 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
 }
 
 h1 {
@@ -35,34 +16,166 @@ h1 {
   line-height: 1.1;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* Color System for Dual-Theme Collecting Platform */
+
+:root {
+  /* Primary Brand Colors - Work beautifully in both themes */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6; /* Main brand blue */
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+
+  /* Secondary - Purple for premium feel */
+  --secondary-50: #faf5ff;
+  --secondary-100: #f3e8ff;
+  --secondary-200: #e9d5ff;
+  --secondary-300: #d8b4fe;
+  --secondary-400: #c084fc;
+  --secondary-500: #a855f7; /* Main purple */
+  --secondary-600: #9333ea;
+  --secondary-700: #7c3aed;
+  --secondary-800: #6b21a8;
+  --secondary-900: #581c87;
+
+  /* Accent - For important actions (sales, purchases) */
+  --accent-50: #fef2f2;
+  --accent-100: #fee2e2;
+  --accent-200: #fecaca;
+  --accent-300: #fca5a5;
+  --accent-400: #f87171;
+  --accent-500: #ef4444; /* Your current red, refined */
+  --accent-600: #dc2626;
+  --accent-700: #b91c1c;
+  --accent-800: #991b1b;
+  --accent-900: #7f1d1d;
+
+  /* Success - For completed transactions */
+  --success-50: #f0fdf4;
+  --success-100: #dcfce7;
+  --success-200: #bbf7d0;
+  --success-300: #86efac;
+  --success-400: #4ade80;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+  --success-800: #166534;
+  --success-900: #14532d;
+
+  /* Warning - For watchlists, bidding */
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-300: #fcd34d;
+  --warning-400: #fbbf24;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --warning-800: #92400e;
+  --warning-900: #78350f;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* Light Theme */
+[data-theme='light'] {
+  --background: #ffffff;
+  --surface: #f8fafc;
+  --surface-elevated: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.15);
+
+  /* Header gradient for light mode */
+  --header-gradient: linear-gradient(
+    135deg,
+    var(--primary-600) 0%,
+    var(--secondary-600) 100%
+  );
+  --header-text: #ffffff;
+  --header-text-muted: rgba(255, 255, 255, 0.8);
+}
+
+/* Dark Theme */
+[data-theme='dark'] {
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-elevated: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --border-strong: #475569;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-strong: rgba(0, 0, 0, 0.5);
+
+  /* Header gradient for dark mode */
+  --header-gradient: linear-gradient(
+    135deg,
+    var(--primary-700) 0%,
+    var(--secondary-700) 100%
+  );
+  --header-text: #ffffff;
+  --header-text-muted: rgba(255, 255, 255, 0.9);
+}
+
+/* Auto theme detection */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --border-strong: #475569;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-strong: rgba(0, 0, 0, 0.5);
+    --header-gradient: linear-gradient(
+      135deg,
+      var(--primary-700) 0%,
+      var(--secondary-700) 100%
+    );
+    --header-text: #ffffff;
+    --header-text-muted: rgba(255, 255, 255, 0.9);
   }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+}
+
+/* Component color tokens - semantic meaning */
+:root {
+  --button-primary: var(--primary-600);
+  --button-primary-hover: var(--primary-700);
+  --button-primary-text: #ffffff;
+
+  --button-secondary: var(--surface-elevated);
+  --button-secondary-hover: var(--border-strong);
+  --button-secondary-text: var(--text-primary);
+
+  --button-accent: var(--accent-600);
+  --button-accent-hover: var(--accent-700);
+  --button-accent-text: #ffffff;
+
+  --badge-default: var(--surface);
+  --badge-success: var(--success-100);
+  --badge-warning: var(--warning-100);
+  --badge-accent: var(--accent-100);
+  --badge-primary: var(--primary-100);
+  --badge-secondary: var(--secondary-100);
+}
+
+[data-theme='dark'] {
+  --badge-default: var(--surface-elevated);
+  --badge-success: rgba(34, 197, 94, 0.2);
+  --badge-warning: rgba(245, 158, 11, 0.2);
+  --badge-accent: rgba(239, 68, 68, 0.2);
+  --badge-primary: rgba(59, 130, 246, 0.2);
+  --badge-secondary: rgba(168, 85, 247, 0.2);
 }

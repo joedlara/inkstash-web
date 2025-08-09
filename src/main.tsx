@@ -15,6 +15,8 @@ import Footer from './components/main/Footer';
 import CreateUsername from './pages/CreateUsername';
 import EmailConfirmation from './pages/EmailConfirmation';
 
+import './styles/index.css';
+
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>
     <BrowserRouter>
