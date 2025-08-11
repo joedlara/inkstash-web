@@ -5,18 +5,14 @@ import type {
 
 import { LucideIcon } from 'lucide-react';
 
-export interface User {
-  id: string;
-  name: string;
-  username: string;
-  email: string;
-  // level?: number;
-  // xp?: number;
-  // xpToNext?: number;
-  // avatarUrl?: string;
-  // isOnline?: boolean;
-  preferences?: UserPreferences;
-}
+// export interface User {
+//   id: string;
+//   name: string;
+//   username: string;
+//   email: string;
+//   preferences?: UserPreferences;
+// }
+
 export interface UserProfileData {
   name: string;
   username: string;
@@ -41,7 +37,7 @@ export interface Badge {
   id: string;
   name: string;
   icon: LucideIcon;
-  color: 'blue' | 'purple' | 'green' | 'orange' | 'yellow' | 'gray';
+  color: 'blue' | 'purple' | 'green' | 'orange' | 'yellow' | 'gold';
   isNew?: boolean;
   earnedAt: string;
   description?: string;

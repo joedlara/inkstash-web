@@ -15,11 +15,7 @@
 /* thin red bar under navbar */
 .signup-top-bar {
   height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--button-accent),
-    var(--button-accent-hover)
-  );
+  background: var(--page-bar);
   width: 100%;
 }
 

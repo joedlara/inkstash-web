@@ -13,7 +13,7 @@ import {
 } from '../api/ai/aiService';
 import { useAuth } from '../hooks/useAuth';
 import { useCollection } from '../hooks/useCollection';
-import type { Badge, UserProfileData } from '../types/dashboard';
+import type { UserProfileData } from '../types/dashboard';
 
 import '../styles/dashboard/userDashboard.css';
 import UserProfileHeader from '../components/dashboard/UserProfileHeader';
@@ -214,7 +214,7 @@ const UserDashboard: React.FC = () => {
     name: user?.name || 'Collector',
     username: user?.username || 'comic_collector_pro',
     level: user?.level || 18,
-    xp: user?.xp || 900,
+    xp: user?.xp || 2500,
     xpToNext: user?.xpToNext || 4000,
     avatarUrl: user?.avatar,
     badges: [
@@ -224,30 +224,35 @@ const UserDashboard: React.FC = () => {
         icon: DollarSign,
         color: 'green',
         isNew: true,
+        earnedAt: '',
       },
       {
         id: '2',
         name: 'Manga Master',
         icon: BookOpen,
         color: 'blue',
+        earnedAt: '',
       },
       {
         id: '3',
         name: 'Forum Regular',
         icon: MessageSquare,
         color: 'purple',
+        earnedAt: '',
       },
       {
         id: '4',
         name: 'Daily Devotee',
         icon: Flame,
         color: 'orange',
+        earnedAt: '',
       },
       {
         id: '5',
         name: 'Achievement Hunter',
         icon: Award,
         color: 'gold',
+        earnedAt: '',
       },
     ],
     isOnline: true,

@@ -1,7 +1,6 @@
 /* UserDashboard.css */
 
 .dashboard-container {
-  max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
   background: var(--background);
@@ -10,7 +9,6 @@
 }
 
 .content-container {
-  background: var(--surface-elevated);
   border-radius: 12px;
   box-shadow: 0 4px 24px var(--shadow);
   overflow: hidden;

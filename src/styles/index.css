@@ -93,6 +93,9 @@ h1 {
   --border-strong: #cbd5e1;
   --shadow: rgba(0, 0, 0, 0.1);
   --shadow-strong: rgba(0, 0, 0, 0.15);
+  --top-navbar: #f8fafc;
+  --bot-navbar: var(--primary-200);
+  --page-bar: #334155;
 
   /* Header gradient for light mode */
   --header-gradient: linear-gradient(
@@ -117,6 +120,9 @@ h1 {
   --border-strong: #475569;
   --shadow: rgba(0, 0, 0, 0.3);
   --shadow-strong: rgba(0, 0, 0, 0.5);
+  --top-navbar: #1e293b;
+  --bot-navbar: #334155;
+  --page-bar: var(--primary-600);
 
   /* Header gradient for dark mode */
   --header-gradient: linear-gradient(
@@ -137,7 +143,7 @@ h1 {
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
-    --border: #334155;
+    --border: #1e293b;
     --border-strong: #475569;
     --shadow: rgba(0, 0, 0, 0.3);
     --shadow-strong: rgba(0, 0, 0, 0.5);

@@ -1,7 +1,7 @@
 /* Container */
 .navbar {
   position: relative;
-  background: var(--surface-elevated);
+  background: var(--top-navbar);
   border-bottom: 1px solid var(--border);
   z-index: 50;
   transition:
@@ -88,8 +88,8 @@
 
 .search-btn {
   width: 2.25rem;
-  background: var(--button-accent);
-  border: 1px solid var(--button-accent);
+  background: var(--primary-600);
+  border: 1px solid var(--border);
   color: var(--button-accent-text);
   display: flex;
   align-items: center;
@@ -148,14 +148,14 @@
 }
 
 .top-actions .signout {
-  border: 1px solid var(--button-accent);
+  border: 1px solid lightgreen;
   background: transparent;
-  color: var(--button-accent);
+  color: lightgreen;
   cursor: pointer;
 }
 
 .top-actions .signout:hover {
-  background: var(--accent-50);
+  background: var(--primary-100);
 }
 
 [data-theme='dark'] .top-actions .signout:hover {
@@ -168,7 +168,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 2rem;
-  background: var(--surface-elevated);
+  background: var(--bot-navbar);
   transition: background-color 0.3s ease;
 }
 
@@ -181,7 +181,7 @@
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   text-decoration: none;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   transition: all 0.2s ease;
   font-weight: 500;
 }
@@ -234,6 +234,7 @@
   overflow-y: auto;
   z-index: 100;
   transition: background-color 0.3s ease;
+  height: 50%;
 }
 
 .mobile-nav,
