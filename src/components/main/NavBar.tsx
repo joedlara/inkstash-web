@@ -1,26 +1,106 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Menu, X } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import '../../styles/ui/NavBar.css';
-import logoUrl from '../../assets/logo.png';
 import ThemeToggle from '../ui/ThemeToggle';
 
-export default function NavBar() {
-  const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+// Explicit URL imports to force consistent processing
+import logoUrlDark from '../../assets/full-logo-dark.png?url';
+import logoUrlLight from '../../assets/full-logo-light.png?url';
 
-  // ← New: track the Supabase session
-  const [session, setSession] = useState<any>(null);
+interface NavigationLink {
+  label: string;
+  to: string;
+}
+
+// Custom hook for theme detection
+const useTheme = (): boolean => {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize with current theme state to avoid flash
+    const htmlElement = document.documentElement;
+    const dataTheme = htmlElement.getAttribute('data-theme');
+
+    // If data-theme is already set, use it
+    if (dataTheme) {
+      return dataTheme === 'dark';
+    }
+
+    // Fallback: check localStorage or system preference
+    try {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        return savedTheme === 'dark';
+      }
+    } catch (error) {
+      // localStorage might not be available
+    }
+
+    // Final fallback: system preference
+    return (
+      window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+    );
+  });
 
   useEffect(() => {
-    // get initial session
+    const checkTheme = (): void => {
+      const htmlElement = document.documentElement;
+      const dataTheme = htmlElement.getAttribute('data-theme');
+
+      if (dataTheme) {
+        const isDark = dataTheme === 'dark';
+
+        setIsDarkMode(prevIsDark => {
+          if (prevIsDark !== isDark) {
+            return isDark;
+          }
+          return prevIsDark;
+        });
+      }
+    };
+
+    // Initial check after component mounts (in case theme was set after initialization)
+    checkTheme();
+
+    // Listen for data-theme attribute changes
+    const observer = new MutationObserver(mutations => {
+      const themeChanged = mutations.some(
+        mutation =>
+          mutation.type === 'attributes' &&
+          mutation.attributeName === 'data-theme'
+      );
+
+      if (themeChanged) {
+        checkTheme();
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  return isDarkMode;
+};
+
+export default function NavBar(): JSX.Element {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [session, setSession] = useState<any>(null);
+  const isDarkMode = useTheme();
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // subscribe to future changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
@@ -31,25 +111,39 @@ export default function NavBar() {
     };
   }, []);
 
-  // ← New: sign out handler
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut();
-    navigate('/'); // go back to home
+    navigate('/');
     setSession(null);
-  };
+  }, [navigate]);
 
-  const bottomLinks = [
+  const toggleMobileMenu = useCallback((): void => {
+    setIsOpen(prevState => !prevState);
+  }, []);
+
+  const closeMobileMenu = useCallback((): void => {
+    setIsOpen(false);
+  }, []);
+
+  const bottomLinks: NavigationLink[] = [
     { label: 'Livestreams', to: '/livestreams' },
     { label: 'Auctions', to: '/auctions' },
     { label: 'Browse Pieces', to: '/pieces' },
     { label: 'Browse Artists', to: '/artists' },
   ];
 
+  // Light logo for dark mode, dark logo for light mode
+  const currentLogo: string = isDarkMode ? logoUrlDark : logoUrlLight;
+
   return (
     <header className="navbar">
-      {/* ────── Top Row ────── */}
       <div className="navbar-top">
-        <button className="hamburger-btn" onClick={() => setIsOpen(v => !v)}>
+        <button
+          className="hamburger-btn"
+          onClick={toggleMobileMenu}
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isOpen}
+        >
           {isOpen ? (
             <X size={24} color="#e31b23" />
           ) : (
@@ -57,8 +151,13 @@ export default function NavBar() {
           )}
         </button>
 
-        <Link to="/" className="logo">
-          <img src={logoUrl} alt="InkStash" className="logo-img" />
+        <Link to="/" className="logo" aria-label="InkStash home">
+          <img
+            src={currentLogo}
+            alt="InkStash"
+            className="logo-img"
+            key={`logo-${isDarkMode ? 'light' : 'dark'}`}
+          />
         </Link>
 
         <div className="top-center">
@@ -66,13 +165,13 @@ export default function NavBar() {
             className="search-input"
             type="text"
             placeholder="Search comics…"
+            aria-label="Search comics"
           />
-          <button className="search-btn">
+          <button className="search-btn" aria-label="Search">
             <Search size={18} />
           </button>
         </div>
 
-        {/* ← Updated: conditional auth buttons */}
         <div className="top-actions">
           {session ? (
             <button className="signout" onClick={handleSignOut}>
@@ -92,7 +191,6 @@ export default function NavBar() {
         </div>
       </div>
 
-      {/* ────── Mobile Menu ────── */}
       {isOpen && (
         <div className="mobile-modal">
           <nav className="mobile-nav">
@@ -100,13 +198,13 @@ export default function NavBar() {
               <Link
                 key={to}
                 to={to}
-                onClick={() => setIsOpen(false)}
+                onClick={closeMobileMenu}
                 className={pathname.startsWith(to) ? 'active' : ''}
               >
                 {label}
               </Link>
             ))}
-            <Link to="/sell" className="sell" onClick={() => setIsOpen(false)}>
+            <Link to="/sell" className="sell" onClick={closeMobileMenu}>
               Sell on InkStash
             </Link>
           </nav>
@@ -116,17 +214,17 @@ export default function NavBar() {
                 className="signout"
                 onClick={() => {
                   handleSignOut();
-                  setIsOpen(false);
+                  closeMobileMenu();
                 }}
               >
                 Sign Out
               </button>
             ) : (
               <>
-                <Link to="/login" onClick={() => setIsOpen(false)}>
+                <Link to="/login" onClick={closeMobileMenu}>
                   Login
                 </Link>
-                <Link to="/signup" onClick={() => setIsOpen(false)}>
+                <Link to="/signup" onClick={closeMobileMenu}>
                   Sign up
                 </Link>
               </>
@@ -135,7 +233,6 @@ export default function NavBar() {
         </div>
       )}
 
-      {/* ────── Bottom Row ────── */}
       <div className="navbar-bottom">
         <nav className="bottom-links">
           {bottomLinks.map(({ label, to }) => (
