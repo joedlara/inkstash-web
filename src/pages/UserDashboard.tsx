@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
   BookOpen,
@@ -32,6 +33,7 @@ interface UserStats {
   watchlistItems: number;
   completedSales: number;
   averageRating: number;
+  totalPurchases?: number;
 }
 
 interface RecentActivity {
@@ -45,8 +47,19 @@ interface RecentActivity {
 }
 
 const UserDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const { collection, loading: collectionLoading } = useCollection();
+  const navigate = useNavigate();
+  const {
+    user,
+    loading: authLoading,
+    isAuthenticated,
+    initialized,
+  } = useAuth();
+  const {
+    collection,
+    loading: collectionLoading,
+    totalValue,
+    totalItems,
+  } = useCollection();
   const {
     analyzeCollection,
     getRecommendations,
@@ -55,6 +68,13 @@ const UserDashboard: React.FC = () => {
     rateLimitInfo,
     clearCache,
   } = useAI();
+
+  // Redirect to login if not authenticated after auth is initialized
+  useEffect(() => {
+    if (initialized && !authLoading && !isAuthenticated) {
+      navigate('/login');
+    }
+  }, [initialized, authLoading, isAuthenticated, navigate]);
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'collection' | 'recommendations' | 'insights'
@@ -86,16 +106,16 @@ const UserDashboard: React.FC = () => {
     useState(false);
   const [lastAnalysisTime, setLastAnalysisTime] = useState<number | null>(null);
 
-  // Load basic dashboard data on mount
+  // Update user stats when collection changes
   useEffect(() => {
     if (collection.length > 0) {
       calculateUserStats();
     }
-  }, [collection]);
+  }, [collection, totalValue, totalItems]);
 
   // Manual function to load collection insights
   const loadCollectionInsights = useCallback(async () => {
-    if (!collection.length || aiLoading) return;
+    if (!collection.length || aiLoading || !isAuthenticated) return;
 
     // Don't auto-reload if insights were generated recently (within 10 minutes)
     const now = Date.now();
@@ -123,11 +143,17 @@ const UserDashboard: React.FC = () => {
     } finally {
       setInsightsRequested(false);
     }
-  }, [collection, analyzeCollection, aiLoading, lastAnalysisTime]);
+  }, [
+    collection,
+    analyzeCollection,
+    aiLoading,
+    lastAnalysisTime,
+    isAuthenticated,
+  ]);
 
   // Manual function to load recommendations
   const loadRecommendations = useCallback(async () => {
-    if (!collection.length || aiLoading) return;
+    if (!collection.length || aiLoading || !isAuthenticated) return;
 
     try {
       setRecommendationsRequested(true);
@@ -148,19 +174,17 @@ const UserDashboard: React.FC = () => {
     } finally {
       setRecommendationsRequested(false);
     }
-  }, [collection, user, getRecommendations, aiLoading]);
+  }, [collection, user, getRecommendations, aiLoading, isAuthenticated]);
 
   const calculateUserStats = () => {
     const stats: UserStats = {
-      collection: collection.length,
-      totalValue: collection.reduce(
-        (sum, item) => sum + (item.estimatedValue || 0),
-        0
-      ),
+      collection: totalItems,
+      totalValue: totalValue,
       forumPosts: userStats.forumPosts,
       watchlistItems: Math.floor(Math.random() * 20),
       completedSales: Math.floor(Math.random() * 10),
       averageRating: 4.5 + Math.random() * 0.5,
+      totalPurchases: Math.floor(Math.random() * 50) + 10,
     };
     setUserStats(stats);
 
@@ -209,14 +233,31 @@ const UserDashboard: React.FC = () => {
     ]);
   };
 
+  // Show loading screen while auth is initializing
+  if (!initialized || authLoading) {
+    return (
+      <div className="dashboard-loading">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+        </div>
+        <p>Loading your dashboard...</p>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (redirect is handled by useEffect)
+  if (!isAuthenticated || !user) {
+    return null;
+  }
+
   // Create user profile data with Lucide icons
   const userProfileData: UserProfileData = {
-    name: user?.name || 'Collector',
+    name: user?.full_name || user?.username || 'Collector',
     username: user?.username || 'comic_collector_pro',
     level: user?.level || 18,
     xp: user?.xp || 2500,
     xpToNext: user?.xpToNext || 4000,
-    avatarUrl: user?.avatar,
+    avatarUrl: user?.avatar_url,
     badges: [
       {
         id: '1',
@@ -291,6 +332,7 @@ const UserDashboard: React.FC = () => {
             onSearchChange={setSearchTerm}
             onFilterChange={setFilterCategory}
             onViewModeChange={setViewMode}
+            isLoading={collectionLoading}
           />
         )}
 

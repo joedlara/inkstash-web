@@ -96,6 +96,7 @@ h1 {
   --top-navbar: #f8fafc;
   --bot-navbar: var(--primary-200);
   --page-bar: #334155;
+  --badge-border: #0f172a;
 
   /* Header gradient for light mode */
   --header-gradient: linear-gradient(
@@ -123,6 +124,7 @@ h1 {
   --top-navbar: #1e293b;
   --bot-navbar: #334155;
   --page-bar: var(--primary-600);
+  --badge-border: #f1f5f9;
 
   /* Header gradient for dark mode */
   --header-gradient: linear-gradient(

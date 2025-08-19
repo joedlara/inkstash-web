@@ -1,249 +1,285 @@
 // src/hooks/useCollection.ts
-import { useState, useEffect } from 'react';
-import { supabase } from '../api/supabase/supabaseClient';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import type { CollectionItem } from '../types/dashboard';
 
-interface CollectionItem {
-  id: string;
-  title: string;
-  category: string;
-  condition: string;
-  estimatedValue?: number;
-  purchasePrice?: number;
-  year?: number;
-  imageUrl?: string;
-  description?: string;
-  tags?: string[];
-  dateAdded: string;
-  userId: string;
+// Mock data for development - replace with actual Supabase calls
+const mockCollectionData: CollectionItem[] = [
+  {
+    id: '1',
+    title: 'Amazing Spider-Man #1 (1963)',
+    category: 'comics',
+    condition: 'Near Mint',
+    estimatedValue: 2500,
+    purchasePrice: 1800,
+    imageUrl: 'https://example.com/spiderman1.jpg',
+    dateAdded: '2024-01-15',
+    year: 1963,
+    description: 'First appearance of Spider-Man in his own series',
+  },
+  {
+    id: '2',
+    title: 'Batman #1 (1940)',
+    category: 'comics',
+    condition: 'Very Fine',
+    estimatedValue: 15000,
+    purchasePrice: 12000,
+    imageUrl: 'https://example.com/batman1.jpg',
+    dateAdded: '2024-01-10',
+    year: 1940,
+    description: 'First appearance of the Joker and Catwoman',
+  },
+  {
+    id: '3',
+    title: 'X-Men #1 (1963)',
+    category: 'comics',
+    condition: 'Fine',
+    estimatedValue: 3200,
+    purchasePrice: 2800,
+    imageUrl: 'https://example.com/xmen1.jpg',
+    dateAdded: '2024-01-05',
+    year: 1963,
+    description: 'First appearance of the X-Men',
+  },
+  {
+    id: '4',
+    title: 'Naruto Volume 1',
+    category: 'manga',
+    condition: 'Mint',
+    estimatedValue: 45,
+    purchasePrice: 35,
+    imageUrl: 'https://example.com/naruto1.jpg',
+    dateAdded: '2024-01-20',
+    year: 1999,
+    description: 'First volume of the beloved ninja series',
+  },
+  {
+    id: '5',
+    title: 'Pokemon Base Set Charizard',
+    category: 'trading-card',
+    condition: 'Near Mint',
+    estimatedValue: 350,
+    purchasePrice: 280,
+    imageUrl: 'https://example.com/charizard.jpg',
+    dateAdded: '2024-01-18',
+    year: 1998,
+    description: 'Holographic Charizard from the original Pokemon set',
+  },
+  {
+    id: '6',
+    title: 'One Piece Luffy Figure',
+    category: 'figure',
+    condition: 'Mint',
+    estimatedValue: 120,
+    purchasePrice: 95,
+    imageUrl: 'https://example.com/luffy.jpg',
+    dateAdded: '2024-01-12',
+    year: 2020,
+    description: 'Premium figure of Monkey D. Luffy',
+  },
+];
+
+interface CollectionState {
+  items: CollectionItem[];
+  loading: boolean;
+  error: string | null;
+  initialized: boolean;
 }
 
 export const useCollection = () => {
-  const { user } = useAuth();
-  const [collection, setCollection] = useState<CollectionItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated, initialized: authInitialized } = useAuth();
+  const [collectionState, setCollectionState] = useState<CollectionState>({
+    items: [],
+    loading: true,
+    error: null,
+    initialized: false,
+  });
 
+  const fetchCollection = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setCollectionState({
+        items: [],
+        loading: false,
+        error: null,
+        initialized: true,
+      });
+      return;
+    }
+
+    try {
+      setCollectionState(prev => ({ ...prev, loading: true, error: null }));
+
+      // TODO: Replace with actual Supabase query
+      // const { data, error } = await supabase
+      //   .from('collection_items')
+      //   .select('*')
+      //   .eq('user_id', user.id)
+      //   .order('date_added', { ascending: false });
+
+      // if (error) throw error;
+
+      // For now, simulate API delay and return mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setCollectionState({
+        items: mockCollectionData,
+        loading: false,
+        error: null,
+        initialized: true,
+      });
+    } catch (error: any) {
+      console.error('Error fetching collection:', error);
+      setCollectionState({
+        items: [],
+        loading: false,
+        error: error.message || 'Failed to load collection',
+        initialized: true,
+      });
+    }
+  }, [isAuthenticated, user]);
+
+  const addItem = useCallback(
+    async (item: Omit<CollectionItem, 'id' | 'dateAdded'>) => {
+      if (!isAuthenticated || !user) {
+        throw new Error('Must be authenticated to add items');
+      }
+
+      try {
+        // TODO: Replace with actual Supabase insert
+        // const { data, error } = await supabase
+        //   .from('collection_items')
+        //   .insert([{
+        //     ...item,
+        //     user_id: user.id,
+        //     date_added: new Date().toISOString(),
+        //   }])
+        //   .select()
+        //   .single();
+
+        // if (error) throw error;
+
+        // For now, simulate adding to local state
+        const newItem: CollectionItem = {
+          ...item,
+          id: Date.now().toString(),
+          dateAdded: new Date().toISOString(),
+        };
+
+        setCollectionState(prev => ({
+          ...prev,
+          items: [newItem, ...prev.items],
+        }));
+
+        return newItem;
+      } catch (error: any) {
+        console.error('Error adding item:', error);
+        throw new Error(error.message || 'Failed to add item');
+      }
+    },
+    [isAuthenticated, user]
+  );
+
+  const updateItem = useCallback(
+    async (id: string, updates: Partial<CollectionItem>) => {
+      if (!isAuthenticated || !user) {
+        throw new Error('Must be authenticated to update items');
+      }
+
+      try {
+        // TODO: Replace with actual Supabase update
+        // const { data, error } = await supabase
+        //   .from('collection_items')
+        //   .update(updates)
+        //   .eq('id', id)
+        //   .eq('user_id', user.id)
+        //   .select()
+        //   .single();
+
+        // if (error) throw error;
+
+        // For now, simulate updating local state
+        setCollectionState(prev => ({
+          ...prev,
+          items: prev.items.map(item =>
+            item.id === id ? { ...item, ...updates } : item
+          ),
+        }));
+
+        return updates;
+      } catch (error: any) {
+        console.error('Error updating item:', error);
+        throw new Error(error.message || 'Failed to update item');
+      }
+    },
+    [isAuthenticated, user]
+  );
+
+  const deleteItem = useCallback(
+    async (id: string) => {
+      if (!isAuthenticated || !user) {
+        throw new Error('Must be authenticated to delete items');
+      }
+
+      try {
+        // TODO: Replace with actual Supabase delete
+        // const { error } = await supabase
+        //   .from('collection_items')
+        //   .delete()
+        //   .eq('id', id)
+        //   .eq('user_id', user.id);
+
+        // if (error) throw error;
+
+        // For now, simulate deleting from local state
+        setCollectionState(prev => ({
+          ...prev,
+          items: prev.items.filter(item => item.id !== id),
+        }));
+      } catch (error: any) {
+        console.error('Error deleting item:', error);
+        throw new Error(error.message || 'Failed to delete item');
+      }
+    },
+    [isAuthenticated, user]
+  );
+
+  const refreshCollection = useCallback(async () => {
+    await fetchCollection();
+  }, [fetchCollection]);
+
+  // Initialize collection when auth is ready
   useEffect(() => {
-    if (user?.id) {
-      loadCollection();
+    if (authInitialized && !collectionState.initialized) {
+      fetchCollection();
     }
-  }, [user?.id]);
+  }, [authInitialized, collectionState.initialized, fetchCollection]);
 
-  const loadCollection = async () => {
-    if (!user?.id) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('user_collections')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date_added', { ascending: false });
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      // Transform database format to our interface
-      const transformedItems: CollectionItem[] = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        category: item.category,
-        condition: item.condition,
-        estimatedValue: item.estimated_value,
-        purchasePrice: item.purchase_price,
-        year: item.year,
-        imageUrl: item.image_url,
-        description: item.description,
-        tags: item.tags || [],
-        dateAdded: item.date_added,
-        userId: item.user_id,
-      }));
-
-      setCollection(transformedItems);
-    } catch (err) {
-      console.error('Error loading collection:', err);
-      setError('Failed to load collection');
-
-      // For demo purposes, set some mock data if real data fails
-      setCollection([
-        {
-          id: '1',
-          title: 'Amazing Spider-Man #1 (1963)',
-          category: 'Comics',
-          condition: 'Very Fine',
-          estimatedValue: 2500,
-          purchasePrice: 1800,
-          year: 1963,
-          imageUrl: '/placeholder-comic.jpg',
-          dateAdded: new Date().toISOString(),
-          userId: user?.id || '',
-        },
-        {
-          id: '2',
-          title: 'Batman #1 (1940)',
-          category: 'Comics',
-          condition: 'Good',
-          estimatedValue: 1200,
-          purchasePrice: 900,
-          year: 1940,
-          imageUrl: '/placeholder-comic.jpg',
-          dateAdded: new Date().toISOString(),
-          userId: user?.id || '',
-        },
-        {
-          id: '3',
-          title: 'One Piece Vol. 1',
-          category: 'Manga',
-          condition: 'Near Mint',
-          estimatedValue: 45,
-          purchasePrice: 25,
-          year: 1997,
-          imageUrl: '/placeholder-manga.jpg',
-          dateAdded: new Date().toISOString(),
-          userId: user?.id || '',
-        },
-      ]);
-    } finally {
-      setLoading(false);
+  // Refetch collection when user changes
+  useEffect(() => {
+    if (authInitialized && collectionState.initialized) {
+      fetchCollection();
     }
-  };
-
-  const addItem = async (
-    item: Omit<CollectionItem, 'id' | 'userId' | 'dateAdded'>
-  ) => {
-    if (!user?.id) return { success: false, error: 'Not authenticated' };
-
-    try {
-      const { data, error: insertError } = await supabase
-        .from('user_collections')
-        .insert({
-          user_id: user.id,
-          title: item.title,
-          category: item.category,
-          condition: item.condition,
-          estimated_value: item.estimatedValue,
-          purchase_price: item.purchasePrice,
-          year: item.year,
-          image_url: item.imageUrl,
-          description: item.description,
-          tags: item.tags,
-          date_added: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      // Refresh collection
-      await loadCollection();
-
-      return { success: true, data };
-    } catch (err) {
-      console.error('Error adding item:', err);
-      return { success: false, error: 'Failed to add item' };
-    }
-  };
-
-  const updateItem = async (id: string, updates: Partial<CollectionItem>) => {
-    if (!user?.id) return { success: false, error: 'Not authenticated' };
-
-    try {
-      const { error: updateError } = await supabase
-        .from('user_collections')
-        .update({
-          title: updates.title,
-          category: updates.category,
-          condition: updates.condition,
-          estimated_value: updates.estimatedValue,
-          purchase_price: updates.purchasePrice,
-          year: updates.year,
-          image_url: updates.imageUrl,
-          description: updates.description,
-          tags: updates.tags,
-        })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Refresh collection
-      await loadCollection();
-
-      return { success: true };
-    } catch (err) {
-      console.error('Error updating item:', err);
-      return { success: false, error: 'Failed to update item' };
-    }
-  };
-
-  const removeItem = async (id: string) => {
-    if (!user?.id) return { success: false, error: 'Not authenticated' };
-
-    try {
-      const { error: deleteError } = await supabase
-        .from('user_collections')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
-      // Remove from local state
-      setCollection(prev => prev.filter(item => item.id !== id));
-
-      return { success: true };
-    } catch (err) {
-      console.error('Error removing item:', err);
-      return { success: false, error: 'Failed to remove item' };
-    }
-  };
-
-  const getCollectionStats = () => {
-    const totalItems = collection.length;
-    const totalValue = collection.reduce(
-      (sum, item) => sum + (item.estimatedValue || 0),
-      0
-    );
-    const totalInvestment = collection.reduce(
-      (sum, item) => sum + (item.purchasePrice || 0),
-      0
-    );
-    const categories = [...new Set(collection.map(item => item.category))];
-
-    return {
-      totalItems,
-      totalValue,
-      totalInvestment,
-      profitLoss: totalValue - totalInvestment,
-      categories: categories.length,
-      categoriesBreakdown: categories.map(category => ({
-        category,
-        count: collection.filter(item => item.category === category).length,
-        value: collection
-          .filter(item => item.category === category)
-          .reduce((sum, item) => sum + (item.estimatedValue || 0), 0),
-      })),
-    };
-  };
+  }, [user?.id, authInitialized, fetchCollection]);
 
   return {
-    collection,
-    loading,
-    error,
+    collection: collectionState.items,
+    loading: collectionState.loading,
+    error: collectionState.error,
+    initialized: collectionState.initialized,
     addItem,
     updateItem,
-    removeItem,
-    loadCollection,
-    stats: getCollectionStats(),
+    deleteItem,
+    refreshCollection,
+
+    // Computed values
+    totalItems: collectionState.items.length,
+    totalValue: collectionState.items.reduce(
+      (sum, item) => sum + item.estimatedValue,
+      0
+    ),
+    totalInvestment: collectionState.items.reduce(
+      (sum, item) => sum + item.purchasePrice,
+      0
+    ),
   };
 };

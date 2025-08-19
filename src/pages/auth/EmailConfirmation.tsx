@@ -1,12 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
-import '../styles/signup/emailConfirmation.css';
+import '../../styles/auth/emailConfirmation.css';
 import { useEffect } from 'react';
-import { supabase } from '../api/supabase/supabaseClient';
+import { supabase } from '../../api/supabase/supabaseClient';
 
 const EmailConfirmation: React.FC = () => {
   const navigate = useNavigate();
   useEffect(() => {
-    // if Supabase finds the session in the URL hash, this will fire
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session) {

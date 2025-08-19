@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../api/supabase/supabaseClient';
-import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../../api/supabase/supabaseClient';
 import { FcGoogle } from 'react-icons/fc';
 import { IoEye, IoEyeOff } from 'react-icons/io5';
-import '../styles/signup/signup.css';
+import '../../styles/auth/signup.css';
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
