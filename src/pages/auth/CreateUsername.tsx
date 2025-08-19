@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../api/supabase/supabaseClient';
-import '../styles/signup/createUsername.css';
+import { supabase } from '../../api/supabase/supabaseClient';
+import '../../styles/auth/createUsername.css';
 
 const CreateUsername: React.FC = () => {
   const navigate = useNavigate();

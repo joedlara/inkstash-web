@@ -5,14 +5,6 @@ import type {
 
 import { LucideIcon } from 'lucide-react';
 
-// export interface User {
-//   id: string;
-//   name: string;
-//   username: string;
-//   email: string;
-//   preferences?: UserPreferences;
-// }
-
 export interface UserProfileData {
   name: string;
   username: string;

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -11,3 +11,26 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+<script>
+  (function () {
+    try {
+      const storedTheme = localStorage.getItem('theme');
+      const theme = storedTheme || 'auto';
+
+      let resolvedTheme;
+      if (theme === 'auto') {
+        resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)')
+          .matches
+          ? 'dark'
+          : 'light';
+      } else {
+        resolvedTheme = theme;
+      }
+
+      document.documentElement.setAttribute('data-theme', resolvedTheme);
+    } catch (error) {
+      // Fallback to light theme
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();
+</script>

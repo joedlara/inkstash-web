@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import '../../styles/themeToggle.css';
+import '../../styles/ui/themeToggle.css';
 
 interface ThemeToggleProps {
   className?: string;
