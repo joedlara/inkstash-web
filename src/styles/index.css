@@ -85,7 +85,7 @@ h1 {
   --background: #ffffff;
   --surface: #f8fafc;
   --surface-elevated: #ffffff;
-  --surface-member: #fff2f0;
+  --surface-member: #dbeafe;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
@@ -97,6 +97,8 @@ h1 {
   --bot-navbar: var(--primary-200);
   --page-bar: #334155;
   --badge-border: #0f172a;
+  --on-hover: #3b82f6;
+  --bg-on-hover: #dbeafe;
 
   /* Header gradient for light mode */
   --header-gradient: linear-gradient(
@@ -125,6 +127,8 @@ h1 {
   --bot-navbar: #334155;
   --page-bar: var(--primary-600);
   --badge-border: #f1f5f9;
+  --on-hover: #3b82f6;
+  --bg-on-hover: #1e293b;
 
   /* Header gradient for dark mode */
   --header-gradient: linear-gradient(

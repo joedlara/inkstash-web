@@ -13,7 +13,6 @@ import { supabase } from '../../api/supabase/supabaseClient';
 import ThemeToggle from '../ui/ThemeToggle';
 import '../../styles/ui/NavBar.css';
 
-// Explicit URL imports to force consistent processing
 import logoUrlDark from '../../assets/full-logo-dark.png?url';
 import logoUrlLight from '../../assets/full-logo-light.png?url';
 
@@ -272,7 +271,7 @@ export default function NavBar(): JSX.Element {
             src={currentLogo}
             alt="InkStash"
             className="logo-img"
-            key={`logo-${isDarkMode ? 'light' : 'dark'}`}
+            key={`logo-${isDarkMode ? 'dark' : 'light'}`}
           />
         </Link>
 

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import type { CollectionItem } from '../types/dashboard';
+import { supabase } from '../api/supabase/supabaseClient';
 
 // Mock data for development - replace with actual Supabase calls
 const mockCollectionData: CollectionItem[] = [
@@ -10,9 +11,9 @@ const mockCollectionData: CollectionItem[] = [
     title: 'Amazing Spider-Man #1 (1963)',
     category: 'comics',
     condition: 'Near Mint',
-    estimatedValue: 2500,
-    purchasePrice: 1800,
-    imageUrl: 'https://example.com/spiderman1.jpg',
+    estimated_value: 2500,
+    purchase_price: 1800,
+    image_url: 'https://example.com/spiderman1.jpg',
     dateAdded: '2024-01-15',
     year: 1963,
     description: 'First appearance of Spider-Man in his own series',
@@ -22,10 +23,10 @@ const mockCollectionData: CollectionItem[] = [
     title: 'Batman #1 (1940)',
     category: 'comics',
     condition: 'Very Fine',
-    estimatedValue: 15000,
-    purchasePrice: 12000,
-    imageUrl: 'https://example.com/batman1.jpg',
-    dateAdded: '2024-01-10',
+    estimated_value: 15000,
+    purchase_price: 12000,
+    image_url: 'https://example.com/batman1.jpg',
+    date_added: '2024-01-10',
     year: 1940,
     description: 'First appearance of the Joker and Catwoman',
   },
@@ -34,10 +35,10 @@ const mockCollectionData: CollectionItem[] = [
     title: 'X-Men #1 (1963)',
     category: 'comics',
     condition: 'Fine',
-    estimatedValue: 3200,
-    purchasePrice: 2800,
-    imageUrl: 'https://example.com/xmen1.jpg',
-    dateAdded: '2024-01-05',
+    estimated_value: 3200,
+    purchase_price: 2800,
+    image_url: 'https://example.com/xmen1.jpg',
+    date_added: '2024-01-05',
     year: 1963,
     description: 'First appearance of the X-Men',
   },
@@ -46,10 +47,10 @@ const mockCollectionData: CollectionItem[] = [
     title: 'Naruto Volume 1',
     category: 'manga',
     condition: 'Mint',
-    estimatedValue: 45,
-    purchasePrice: 35,
-    imageUrl: 'https://example.com/naruto1.jpg',
-    dateAdded: '2024-01-20',
+    estimated_value: 45,
+    purchase_price: 35,
+    image_url: 'https://example.com/naruto1.jpg',
+    date_added: '2024-01-20',
     year: 1999,
     description: 'First volume of the beloved ninja series',
   },
@@ -58,10 +59,10 @@ const mockCollectionData: CollectionItem[] = [
     title: 'Pokemon Base Set Charizard',
     category: 'trading-card',
     condition: 'Near Mint',
-    estimatedValue: 350,
-    purchasePrice: 280,
-    imageUrl: 'https://example.com/charizard.jpg',
-    dateAdded: '2024-01-18',
+    estimated_value: 350,
+    purchase_price: 280,
+    image_url: 'https://example.com/charizard.jpg',
+    date_added: '2024-01-18',
     year: 1998,
     description: 'Holographic Charizard from the original Pokemon set',
   },
@@ -70,10 +71,10 @@ const mockCollectionData: CollectionItem[] = [
     title: 'One Piece Luffy Figure',
     category: 'figure',
     condition: 'Mint',
-    estimatedValue: 120,
-    purchasePrice: 95,
-    imageUrl: 'https://example.com/luffy.jpg',
-    dateAdded: '2024-01-12',
+    estimated_value: 120,
+    purchase_price: 95,
+    image_url: 'https://example.com/luffy.jpg',
+    date_added: '2024-01-12',
     year: 2020,
     description: 'Premium figure of Monkey D. Luffy',
   },
@@ -94,7 +95,6 @@ export const useCollection = () => {
     error: null,
     initialized: false,
   });
-
   const fetchCollection = useCallback(async () => {
     if (!isAuthenticated || !user) {
       setCollectionState({
@@ -110,19 +110,20 @@ export const useCollection = () => {
       setCollectionState(prev => ({ ...prev, loading: true, error: null }));
 
       // TODO: Replace with actual Supabase query
-      // const { data, error } = await supabase
-      //   .from('collection_items')
-      //   .select('*')
-      //   .eq('user_id', user.id)
-      //   .order('date_added', { ascending: false });
+      const { data, error } = await supabase
+        .from('user_collections')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date_added', { ascending: false });
 
-      // if (error) throw error;
+      console.log(data);
+      if (error) throw error;
 
       // For now, simulate API delay and return mock data
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setCollectionState({
-        items: mockCollectionData,
+        items: data || mockCollectionData,
         loading: false,
         error: null,
         initialized: true,
@@ -146,17 +147,19 @@ export const useCollection = () => {
 
       try {
         // TODO: Replace with actual Supabase insert
-        // const { data, error } = await supabase
-        //   .from('collection_items')
-        //   .insert([{
-        //     ...item,
-        //     user_id: user.id,
-        //     date_added: new Date().toISOString(),
-        //   }])
-        //   .select()
-        //   .single();
+        const { data, error } = await supabase
+          .from('user_collection')
+          .insert([
+            {
+              ...item,
+              user_id: user.id,
+              date_added: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single();
 
-        // if (error) throw error;
+        if (error) throw error;
 
         // For now, simulate adding to local state
         const newItem: CollectionItem = {
@@ -274,11 +277,11 @@ export const useCollection = () => {
     // Computed values
     totalItems: collectionState.items.length,
     totalValue: collectionState.items.reduce(
-      (sum, item) => sum + item.estimatedValue,
+      (sum, item) => sum + item.estimated_value,
       0
     ),
     totalInvestment: collectionState.items.reduce(
-      (sum, item) => sum + item.purchasePrice,
+      (sum, item) => sum + item.purchase_price,
       0
     ),
   };
