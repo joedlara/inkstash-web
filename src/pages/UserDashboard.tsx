@@ -90,7 +90,7 @@ const UserDashboard: React.FC = () => {
     forumPosts: 249,
     watchlistItems: 0,
     completedSales: 0,
-    averageRating: 4.9,
+    averageRating: 0,
   });
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -130,8 +130,8 @@ const UserDashboard: React.FC = () => {
         collection.map(item => ({
           title: item.title,
           category: item.category,
-          purchasePrice: item.purchasePrice,
-          currentValue: item.estimatedValue,
+          purchasePrice: item.purchase_price,
+          currentValue: item.estimated_value,
           condition: item.condition,
           year: item.year,
         }))

@@ -21,14 +21,18 @@
 
 /* Grid View Styles */
 .collection-item.grid-view {
-  display: flex;
+  display: inline-block;
   flex-direction: column;
+  height: 500px;
+  width: 300px;
+  margin: 2rem;
 }
 
 .item-image-container {
   position: relative;
   overflow: hidden;
   background-color: var(--surface);
+  height: 300px;
 }
 
 .image-wrapper {
@@ -78,6 +82,7 @@
   height: 100%;
   color: var(--text-muted);
   background-color: var(--surface);
+  margin-top: 8rem;
 }
 
 .placeholder-icon {
@@ -381,11 +386,11 @@
 
 .item-thumbnail {
   flex-shrink: 0;
-  width: 80px;
-  height: 100px;
+  width: 100px;
+  height: -webkit-fill-available;
   border-radius: 6px;
   overflow: hidden;
-  background-color: var(--surface);
+  border: solid 2px var(--surface);
 }
 
 .thumbnail-image {

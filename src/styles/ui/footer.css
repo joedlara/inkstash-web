@@ -1,13 +1,13 @@
 /* ─── Footer ──────────────────────────────────────────── */
 .footer {
   margin-top: auto;
-  background: var(--surface-elevated);
   border-top: 3px solid var(--page-bar);
   padding: 1.5rem 2rem;
   text-align: center;
   color: var(--text-secondary);
   font-size: 0.875rem;
   transition: all 0.3s ease;
+  background: var(--surface);
 }
 
 .footer a {

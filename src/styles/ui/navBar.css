@@ -169,20 +169,20 @@
 }
 
 .user-avatar-button:hover {
-  background: var(--hover-bg, #f7fafc);
+  background: var(--bg-on-hover);
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-color, #e2e8f0);
+  border: 2px solid var(--bg-on-hover);
   transition: border-color 0.2s ease;
 }
 
 .user-avatar-button:hover .user-avatar {
-  border-color: var(--primary-color, #e31b23);
+  border-color: var(--on-hover);
 }
 
 .dropdown-chevron {
@@ -235,7 +235,7 @@
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-color, #e2e8f0);
+  border: 2px solid var(--border-color);
 }
 
 .user-details {
@@ -340,12 +340,12 @@
 }
 
 .bottom-links a:hover {
-  color: var(--primary-color, #e31b23);
+  color: var(--on-hover);
 }
 
 .bottom-links a.active {
-  color: var(--primary-color, #e31b23);
-  border-bottom-color: var(--primary-color, #e31b23);
+  color: var(--on-hover);
+  border-bottom-color: var(--on-hover);
 }
 
 .bottom-actions {

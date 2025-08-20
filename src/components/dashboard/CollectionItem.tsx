@@ -1,14 +1,7 @@
 // src/components/dashboard/CollectionItem.tsx
 
 import React, { memo, useState } from 'react';
-import {
-  Eye,
-  Heart,
-  MoreVertical,
-  Calendar,
-  DollarSign,
-  Tag,
-} from 'lucide-react';
+import { Eye, Heart, MoreVertical, Calendar, Tag } from 'lucide-react';
 import type {
   CollectionItem as CollectionItemType,
   ViewMode,
@@ -71,17 +64,47 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
       }).format(value);
     };
 
-    const formatDate = (dateString: string) => {
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      }).format(new Date(dateString));
+    const formatDate = (dateString: string | undefined | null) => {
+      try {
+        // Handle the specific format from Supabase: "08/07/2025, 11:10:09 AM"
+        let dateToFormat: Date;
+
+        if (
+          dateString.includes(',') &&
+          (dateString.includes('AM') || dateString.includes('PM'))
+        ) {
+          // Parse the MM/DD/YYYY, HH:MM:SS AM/PM format
+          dateToFormat = new Date(dateString);
+        } else {
+          // Handle other formats (ISO, etc.)
+          dateToFormat = new Date(dateString);
+        }
+
+        // Check if the date is valid
+        if (isNaN(dateToFormat.getTime())) {
+          console.warn('Invalid date string:', dateString);
+          return 'Invalid Date';
+        }
+
+        return new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }).format(dateToFormat);
+      } catch (error) {
+        console.error(
+          'Error formatting date:',
+          error,
+          'for dateString:',
+          dateString
+        );
+        return 'Invalid Date';
+      }
     };
 
     const calculateGainLoss = () => {
-      const gain = item.estimatedValue - item.purchasePrice;
-      const percentage = (gain / item.purchasePrice) * 100;
+      const gain = item.estimated_value - item.purchase_price;
+      const percentage = (gain / item.purchase_price) * 100;
       return { gain, percentage };
     };
 
@@ -132,7 +155,7 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
             <div className={`image-wrapper ${!imageLoaded ? 'loading' : ''}`}>
               {!imageError ? (
                 <img
-                  src={item.imageUrl || '/placeholder-comic.jpg'}
+                  src={item.image_url || '/placeholder-comic.jpg'}
                   alt={item.title}
                   className="item-image"
                   onLoad={handleImageLoad}
@@ -234,11 +257,11 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
             <div className="item-details">
               <div className="item-value">
                 <span className="current-value">
-                  {formatCurrency(item.estimatedValue)}
+                  {formatCurrency(item.estimated_value)}
                 </span>
-                {item.purchasePrice !== item.estimatedValue && (
+                {item.purchase_price !== item.estimated_value && (
                   <span className="purchase-value">
-                    (bought for {formatCurrency(item.purchasePrice)})
+                    (bought for {formatCurrency(item.purchase_price)})
                   </span>
                 )}
               </div>
@@ -271,7 +294,7 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
         <div className="item-thumbnail">
           {!imageError ? (
             <img
-              src={item.imageUrl || '/placeholder-comic.jpg'}
+              src={item.image_url || '/placeholder-comic.jpg'}
               alt={item.title}
               className="thumbnail-image"
               onLoad={handleImageLoad}
@@ -305,18 +328,17 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
               {item.year && <span className="year-badge">{item.year}</span>}
               <span className="date-added">
                 <Calendar className="w-3 h-3" />
-                {formatDate(item.dateAdded)}
+                {formatDate(item.date_added)}
               </span>
             </div>
 
             <div className="value-row">
               <div className="values">
                 <span className="current-value">
-                  <DollarSign className="w-4 h-4" />
-                  {formatCurrency(item.estimatedValue)}
+                  {formatCurrency(item.estimated_value)}
                 </span>
                 <span className="purchase-value">
-                  Paid: {formatCurrency(item.purchasePrice)}
+                  Paid: {formatCurrency(item.purchase_price)}
                 </span>
               </div>
               {gain !== 0 && (
