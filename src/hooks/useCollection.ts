@@ -116,7 +116,6 @@ export const useCollection = () => {
         .eq('user_id', user.id)
         .order('date_added', { ascending: false });
 
-      console.log(data);
       if (error) throw error;
 
       // For now, simulate API delay and return mock data

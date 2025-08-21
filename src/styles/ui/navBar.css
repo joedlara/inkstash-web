@@ -402,12 +402,32 @@
   animation: fadeIn 0.2s ease-out;
 }
 
+.mobile-modal-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.2s ease-out;
+}
+
 @keyframes fadeIn {
   0% {
     opacity: 0;
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -548,6 +568,45 @@
 @media (max-width: 768px) {
   .hamburger-btn {
     display: block;
+  }
+
+  .top-center {
+    margin: 0 1rem;
+  }
+
+  .bottom-links {
+    display: none;
+  }
+
+  .bottom-actions {
+    display: none;
+  }
+
+  .navbar-bottom {
+    display: none;
+  }
+
+  .mobile-modal {
+    display: block;
+  }
+
+  .user-dropdown {
+    width: 260px;
+    right: -1rem;
+  }
+}
+
+@media (max-width: 725px) {
+  .signup {
+    display: none;
+  }
+
+  .hamburger-btn {
+    display: block;
+  }
+
+  .hamburger-btn svg {
+    color: var(--page-bar);
   }
 
   .top-center {

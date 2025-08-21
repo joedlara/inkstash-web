@@ -67,8 +67,6 @@ export class SessionManager {
 
       // Listen for auth state changes
       supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-
         switch (event) {
           case 'SIGNED_IN':
           case 'TOKEN_REFRESHED':
