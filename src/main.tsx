@@ -1,10 +1,11 @@
+// src/main.tsx - Simplified (no AuthProvider needed with singleton)
+
 import 'uno.css';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { Provider } from 'react-redux';
-import { store } from './app/store';
-
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import UserDashboard from './pages/UserDashboard';
 import Home from './pages/Home';
 import Auctions from './pages/Auctions';
@@ -15,11 +16,10 @@ import CreateUsername from './pages/auth/CreateUsername';
 import EmailConfirmation from './pages/auth/EmailConfirmation';
 import Login from './components/auth/Login';
 
-import './utils/theme';
 import './styles/index.css';
 
 createRoot(document.getElementById('root')!).render(
-  <Provider store={store}>
+  <React.StrictMode>
     <BrowserRouter>
       <NavBar />
       <Routes>
@@ -33,5 +33,5 @@ createRoot(document.getElementById('root')!).render(
       </Routes>
       <Footer />
     </BrowserRouter>
-  </Provider>
+  </React.StrictMode>
 );

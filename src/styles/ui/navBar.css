@@ -128,8 +128,8 @@
 }
 
 .login {
-  color: var(--text-primary, #1a202c);
-  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--on-hover, #1a202c);
+  border: 1px solid var(--on-hover);
   background: var(--card-bg, #ffffff);
 }
 
@@ -140,15 +140,15 @@
 
 .signup {
   color: white;
-  background: var(--primary-color, #e31b23);
-  border: 1px solid var(--primary-color, #e31b23);
+  background: var(--on-hover);
+  border: 1px solid var(--on-hover);
 }
 
 .signup:hover {
-  background: var(--primary-hover, #c41e3a);
-  border-color: var(--primary-hover, #c41e3a);
+  background: var(--signup);
+  border-color: var(--signup);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(227, 27, 35, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 39, 165, 0.3);
 }
 
 /* User Menu Styles */
@@ -356,7 +356,7 @@
 
 .sell {
   padding: 0.5rem 1rem;
-  background: var(--primary-color, #e31b23);
+  background: var(--on-hover);
   color: white;
   text-decoration: none;
   border-radius: 6px;
@@ -366,7 +366,7 @@
 }
 
 .sell:hover {
-  background: var(--primary-hover, #c41e3a);
+  background: var(--on-hover);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(227, 27, 35, 0.3);
 }
@@ -402,12 +402,32 @@
   animation: fadeIn 0.2s ease-out;
 }
 
+.mobile-modal-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  background: var(--card-bg, #ffffff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.2s ease-out;
+}
+
 @keyframes fadeIn {
   0% {
     opacity: 0;
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -548,6 +568,45 @@
 @media (max-width: 768px) {
   .hamburger-btn {
     display: block;
+  }
+
+  .top-center {
+    margin: 0 1rem;
+  }
+
+  .bottom-links {
+    display: none;
+  }
+
+  .bottom-actions {
+    display: none;
+  }
+
+  .navbar-bottom {
+    display: none;
+  }
+
+  .mobile-modal {
+    display: block;
+  }
+
+  .user-dropdown {
+    width: 260px;
+    right: -1rem;
+  }
+}
+
+@media (max-width: 725px) {
+  .signup {
+    display: none;
+  }
+
+  .hamburger-btn {
+    display: block;
+  }
+
+  .hamburger-btn svg {
+    color: var(--page-bar);
   }
 
   .top-center {
