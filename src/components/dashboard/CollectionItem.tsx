@@ -228,19 +228,6 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
                   {showDropdown && (
                     <div className="actions-dropdown">
                       <button
-                        onClick={() => onView?.(item)}
-                        className="dropdown-item"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => onEdit?.(item)}
-                        className="dropdown-item"
-                      >
-                        Edit
-                      </button>
-                      <button
                         onClick={() => onDelete?.(item)}
                         className="dropdown-item danger"
                       >
@@ -378,19 +365,6 @@ const CollectionItem: React.FC<CollectionItemProps> = memo(
               </button>
               {showDropdown && (
                 <div className="actions-dropdown">
-                  <button
-                    onClick={() => onView?.(item)}
-                    className="dropdown-item"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => onEdit?.(item)}
-                    className="dropdown-item"
-                  >
-                    Edit
-                  </button>
                   <button
                     onClick={() => onDelete?.(item)}
                     className="dropdown-item danger"

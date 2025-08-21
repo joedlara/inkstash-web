@@ -99,6 +99,7 @@ h1 {
   --badge-border: #0f172a;
   --on-hover: #3b82f6;
   --bg-on-hover: #dbeafe;
+  --signup: var(--primary-600);
 
   /* Header gradient for light mode */
   --header-gradient: linear-gradient(
@@ -129,6 +130,7 @@ h1 {
   --badge-border: #f1f5f9;
   --on-hover: #3b82f6;
   --bg-on-hover: #1e293b;
+  --signup: var(--primary-600);
 
   /* Header gradient for dark mode */
   --header-gradient: linear-gradient(
