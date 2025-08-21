@@ -1,0 +1,115 @@
+/* src/styles/auth/protectedRoute.css */
+
+.protected-route-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--background);
+  padding: 2rem;
+  gap: 1.5rem;
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+  text-align: center;
+}
+
+.access-denied {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--background);
+  padding: 2rem;
+}
+
+.access-denied-content {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+
+.access-denied-content h2 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+
+.access-denied-content p {
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.access-denied-content p:last-of-type {
+  margin-bottom: 2rem;
+  font-weight: 500;
+  color: var(--accent-600);
+}
+
+.back-button {
+  background: var(--button-primary);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: var(--button-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.back-button:active {
+  transform: translateY(0);
+}
+
+.back-button:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .protected-route-loading {
+    padding: 1rem;
+  }
+
+  .access-denied {
+    padding: 1rem;
+  }
+
+  .access-denied-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .access-denied-content h2 {
+    font-size: 1.25rem;
+  }
+
+  .loading-text {
+    font-size: 0.875rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .back-button:hover {
+    transform: none;
+  }
+}

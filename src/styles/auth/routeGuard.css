@@ -1,0 +1,47 @@
+.route-guard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--background);
+  padding: 2rem;
+  gap: 1.5rem;
+}
+
+.loading-message {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+  text-align: center;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .route-guard-loading {
+    padding: 1rem;
+  }
+
+  .loading-message {
+    font-size: 0.875rem;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .loading-message {
+    animation: none;
+  }
+}

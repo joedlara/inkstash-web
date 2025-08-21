@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
   Menu,
-  X,
   User,
   Settings,
   LogOut,
@@ -107,6 +106,7 @@ export default function NavBar(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const isDarkMode = useTheme();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileModalRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -124,6 +124,36 @@ export default function NavBar(): JSX.Element {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Close mobile modal when clicking outside the content
+  useEffect(() => {
+    const handleMobileModalClick = (event: MouseEvent) => {
+      if (mobileModalRef.current && event.target === mobileModalRef.current) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleMobileModalClick);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleMobileModalClick);
+    };
+  }, [isOpen]);
+
+  // Prevent body scroll when mobile modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   // Initialize session and user data
   useEffect(() => {
@@ -151,8 +181,6 @@ export default function NavBar(): JSX.Element {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
-
       setSession(session);
 
       if (session?.user) {
@@ -259,11 +287,7 @@ export default function NavBar(): JSX.Element {
           aria-label={isOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={isOpen}
         >
-          {isOpen ? (
-            <X size={24} color="#e31b23" />
-          ) : (
-            <Menu size={24} color="#e31b23" />
-          )}
+          <Menu size={24} />
         </button>
 
         <Link to="/" className="logo" aria-label="InkStash home">
@@ -373,69 +397,71 @@ export default function NavBar(): JSX.Element {
       </div>
 
       {isOpen && (
-        <div className="mobile-modal">
-          <nav className="mobile-nav">
-            {bottomLinks.map(({ label, to }) => (
-              <Link
-                key={to}
-                to={to}
-                onClick={closeMobileMenu}
-                className={pathname.startsWith(to) ? 'active' : ''}
-              >
-                {label}
+        <div className="mobile-modal" ref={mobileModalRef}>
+          <div className="mobile-modal-content">
+            <nav className="mobile-nav">
+              {bottomLinks.map(({ label, to }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={closeMobileMenu}
+                  className={pathname.startsWith(to) ? 'active' : ''}
+                >
+                  {label}
+                </Link>
+              ))}
+              <Link to="/sell" className="sell" onClick={closeMobileMenu}>
+                Sell on InkStash
               </Link>
-            ))}
-            <Link to="/sell" className="sell" onClick={closeMobileMenu}>
-              Sell on InkStash
-            </Link>
-          </nav>
-          <div className="mobile-auth">
-            {session && userData ? (
-              <div className="mobile-user-section">
-                <div className="mobile-user-info">
-                  <img
-                    src={getAvatarUrl()}
-                    alt={getDisplayName()}
-                    className="mobile-avatar"
-                  />
-                  <div>
-                    <div className="mobile-user-name">{getDisplayName()}</div>
-                    <div className="mobile-username">
-                      {getUsernameDisplay()}
+            </nav>
+            <div className="mobile-auth">
+              {session && userData ? (
+                <div className="mobile-user-section">
+                  <div className="mobile-user-info">
+                    <img
+                      src={getAvatarUrl()}
+                      alt={getDisplayName()}
+                      className="mobile-avatar"
+                    />
+                    <div>
+                      <div className="mobile-user-name">{getDisplayName()}</div>
+                      <div className="mobile-username">
+                        {getUsernameDisplay()}
+                      </div>
                     </div>
                   </div>
+                  <button
+                    className="mobile-settings"
+                    onClick={() => {
+                      handleAccountSettings();
+                      closeMobileMenu();
+                    }}
+                  >
+                    <Settings size={16} />
+                    Settings
+                  </button>
+                  <button
+                    className="mobile-logout"
+                    onClick={() => {
+                      handleSignOut();
+                      closeMobileMenu();
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </button>
                 </div>
-                <button
-                  className="mobile-settings"
-                  onClick={() => {
-                    handleAccountSettings();
-                    closeMobileMenu();
-                  }}
-                >
-                  <Settings size={16} />
-                  Settings
-                </button>
-                <button
-                  className="mobile-logout"
-                  onClick={() => {
-                    handleSignOut();
-                    closeMobileMenu();
-                  }}
-                >
-                  <LogOut size={16} />
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <>
-                <Link to="/login" onClick={closeMobileMenu}>
-                  Login
-                </Link>
-                <Link to="/signup" onClick={closeMobileMenu}>
-                  Sign up
-                </Link>
-              </>
-            )}
+              ) : (
+                <>
+                  <Link to="/login" onClick={closeMobileMenu}>
+                    Login
+                  </Link>
+                  <Link to="/signup" onClick={closeMobileMenu}>
+                    Sign up
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

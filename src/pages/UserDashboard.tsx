@@ -233,24 +233,14 @@ const UserDashboard: React.FC = () => {
     ]);
   };
 
-  // Show loading screen while auth is initializing
-  if (!initialized || authLoading) {
-    return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-        </div>
-        <p>Loading your dashboard...</p>
-      </div>
-    );
-  }
-
-  // Don't render anything if not authenticated (redirect is handled by useEffect)
-  if (!isAuthenticated || !user) {
+  // Don't render anything if not authenticated after initialization (redirect is handled by useEffect)
+  if (initialized && !authLoading && !isAuthenticated) {
     return null;
   }
 
-  // Create user profile data with Lucide icons
+  // Determine if we're in loading state
+  const isLoading = !initialized || authLoading || (!user && isAuthenticated);
+
   const userProfileData: UserProfileData = {
     name: user?.full_name || user?.username || 'Collector',
     username: user?.username || 'comic_collector_pro',
@@ -301,7 +291,7 @@ const UserDashboard: React.FC = () => {
 
   return (
     <div className="dashboard-container">
-      <UserProfileHeader user={userProfileData} isLoading={collectionLoading} />
+      <UserProfileHeader user={userProfileData} isLoading={isLoading} />
       <AIStatusBanner
         rateLimitInfo={rateLimitInfo}
         aiError={aiError}
@@ -315,7 +305,7 @@ const UserDashboard: React.FC = () => {
             userStats={userStats}
             recentActivity={recentActivity}
             collectionInsights={collectionInsights}
-            isLoading={collectionLoading}
+            isLoading={isLoading || collectionLoading}
             onGenerateInsights={loadCollectionInsights}
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
             aiLoading={aiLoading}
@@ -332,14 +322,14 @@ const UserDashboard: React.FC = () => {
             onSearchChange={setSearchTerm}
             onFilterChange={setFilterCategory}
             onViewModeChange={setViewMode}
-            isLoading={collectionLoading}
+            isLoading={isLoading || collectionLoading}
           />
         )}
 
         {activeTab === 'recommendations' && (
           <RecommendationsTab
             recommendations={recommendations}
-            isLoading={aiLoading || recommendationsRequested}
+            isLoading={isLoading || aiLoading || recommendationsRequested}
             onLoadRecommendations={loadRecommendations}
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
             user={user}
@@ -349,7 +339,7 @@ const UserDashboard: React.FC = () => {
         {activeTab === 'insights' && (
           <InsightsTab
             insights={collectionInsights}
-            isLoading={aiLoading || insightsRequested}
+            isLoading={isLoading || aiLoading || insightsRequested}
             onGenerateInsights={loadCollectionInsights}
             canMakeAIRequest={rateLimitInfo.canMakeRequest}
             lastAnalysisTime={lastAnalysisTime}
