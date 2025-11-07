@@ -1,0 +1,153 @@
+/* ─── Landing Navbar ──────────────────────────────────── */
+.landing-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.navbar-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ─── Logo ───────────────────────────────────────────── */
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.navbar-logo:hover {
+  opacity: 0.8;
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Navigation Links ───────────────────────────────── */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  background: none;
+  border: none;
+  color: #000000;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0.5rem 0;
+}
+
+.nav-link:hover {
+  color: #374151;
+}
+
+.nav-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.nav-button.login {
+  background: #000000;
+  color: white;
+}
+
+.nav-button.login:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.nav-button.signup {
+  background: transparent;
+  color: #000000;
+  border: 2px solid #000000;
+}
+
+.nav-button.signup:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: #374151;
+}
+
+/* ─── Mobile Menu Toggle ─────────────────────────────── */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: #000000;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+/* ─── Responsive Design ──────────────────────────────── */
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: 1rem 1.5rem;
+  }
+
+  .navbar-links {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: block;
+  }
+
+  .logo-text {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-container {
+    padding: 0.875rem 1rem;
+  }
+
+  .navbar-logo svg {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* ─── Accessibility ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .navbar-logo,
+  .nav-link,
+  .nav-button {
+    transition: none;
+  }
+
+  .nav-button.login:hover {
+    transform: none;
+  }
+}
+
+.nav-link:focus-visible,
+.nav-button:focus-visible {
+  outline: 2px solid #0078FF;
+  outline-offset: 2px;
+}
