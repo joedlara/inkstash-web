@@ -1,52 +1,43 @@
-import MembersCarousel from '../components/ui/MembersCarousel';
-import Carousel from '../components/ui/Carousel';
-import '../styles/Home.css';
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import LandingNavbar from '../components/landing/LandingNavbar';
+import HeroSectionOne from '../components/landing/HeroSectionOne';
+import HeroSectionTwo from '../components/landing/HeroSectionTwo';
+import HeroSectionThree from '../components/landing/HeroSectionThree';
+import LandingFooter from '../components/landing/LandingFooter';
+import CategoryNav from '../components/home/CategoryNav';
+import LiveAuctionsGrid from '../components/home/LiveAuctionsGrid';
+import FeaturedCreators from '../components/home/FeaturedCreators';
+import CTASection from '../components/home/CTASection';
+import type { CategoryType } from '../components/home/CategoryNav';
 
 export default function Home() {
-  const heroAvatars = Array.from({ length: 12 }).map(
-    () =>
-      'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'
-  );
+  const { user } = useAuth();
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('all');
 
+  // Show landing page for non-authenticated users
+  if (!user) {
+    return (
+      <div className="home landing">
+        <LandingNavbar />
+        <HeroSectionOne />
+        <HeroSectionTwo />
+        <HeroSectionThree />
+        <LandingFooter />
+      </div>
+    );
+  }
+
+  // Show dashboard/marketplace for authenticated users
   return (
-    <div className="home">
-      <Carousel />
-
-      <section className="hero-cta">
-        <div className="hero-left text"></div>
-        <div className="hero-left text">
-          <h2>The Most Trusted Spot for Rare Comics, Collectibles & Art</h2>
-          <p>
-            Discover, buy, and sell original comic art, one-of-a-kind
-            collectibles, signed issues, and more directly from our community of
-            verified artists, reps, and sellers.
-          </p>
-          <a className="hero-btn" href="/signup">
-            Sign Up
-          </a>
-        </div>
-        <div className="hero-right">
-          <div className="avatars">
-            {heroAvatars.map((src, i) => (
-              <img key={i} src={src} alt={`Trusted member ${i + 1}`} />
-            ))}
-          </div>
-          <div className="trust-stats">
-            <div className="stars">
-              <span>★</span>
-              <span>★</span>
-              <span>★</span>
-              <span>★</span>
-              <span>★</span>
-            </div>
-            <div className="text">
-              Trusted by 10,000 creators, reps, and collectors
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <MembersCarousel />
+    <div className="home authenticated">
+      <CategoryNav
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+      />
+      <LiveAuctionsGrid category={activeCategory} />
+      <FeaturedCreators />
+      <CTASection />
     </div>
   );
 }

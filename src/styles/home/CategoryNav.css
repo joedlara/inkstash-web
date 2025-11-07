@@ -1,0 +1,173 @@
+/* ─── Category Navigation ───────────────────────────────── */
+.category-nav {
+  width: 100%;
+  padding: 1.5rem 0;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.category-nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.category-scroll {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  scroll-behavior: smooth;
+  padding-bottom: 0.5rem;
+}
+
+.category-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* ─── Category Pills ───────────────────────────────────── */
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.category-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--primary-300);
+  background: var(--surface-elevated);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.category-pill.active {
+  color: white;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #ef4444;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+}
+
+.category-pill.active:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+[data-theme='dark'] .category-pill {
+  background: rgba(31, 41, 55, 0.5);
+}
+
+[data-theme='dark'] .category-pill:hover {
+  background: rgba(55, 65, 81, 0.7);
+}
+
+.category-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.category-label {
+  line-height: 1;
+}
+
+/* ─── Scroll Indicators (optional gradient fade) ────────── */
+.category-nav-container::before,
+.category-nav-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.category-nav-container::before {
+  left: 0;
+  background: linear-gradient(to right, var(--background), transparent);
+}
+
+.category-nav-container::after {
+  right: 0;
+  background: linear-gradient(to left, var(--background), transparent);
+}
+
+.category-nav-container.has-scroll-left::before,
+.category-nav-container.has-scroll-right::after {
+  opacity: 1;
+}
+
+/* ─── Responsive Design ───────────────────────────────── */
+@media (max-width: 768px) {
+  .category-nav {
+    padding: 1rem 0;
+  }
+
+  .category-nav-container {
+    padding: 0 1rem;
+  }
+
+  .category-scroll {
+    gap: 0.5rem;
+  }
+
+  .category-pill {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .category-icon {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .category-nav-container {
+    padding: 0 0.75rem;
+  }
+
+  .category-pill {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* ─── Accessibility ───────────────────────────────────── */
+.category-pill:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-nav,
+  .category-pill {
+    transition: none;
+  }
+
+  .category-pill:hover,
+  .category-pill.active:hover {
+    transform: none;
+  }
+
+  .category-scroll {
+    scroll-behavior: auto;
+  }
+}
