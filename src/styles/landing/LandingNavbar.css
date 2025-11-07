@@ -5,9 +5,96 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+/* Dark theme - for light backgrounds (default) */
+.landing-navbar.navbar-dark {
+  color: #000000;
+}
+
+.landing-navbar.navbar-dark .logo-text,
+.landing-navbar.navbar-dark .nav-link {
+  color: #000000;
+}
+
+.landing-navbar.navbar-dark .logo-circle {
+  fill: #000000;
+}
+
+.landing-navbar.navbar-dark .logo-accent {
+  fill: #0078FF;
+}
+
+.landing-navbar.navbar-dark .nav-button.login {
+  background: #000000;
+  color: white;
+}
+
+.landing-navbar.navbar-dark .nav-button.login:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.landing-navbar.navbar-dark .nav-button.signup {
+  background: transparent;
+  color: #000000;
+  border-color: #000000;
+}
+
+.landing-navbar.navbar-dark .nav-button.signup:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: #374151;
+}
+
+.landing-navbar.navbar-dark .mobile-menu-toggle {
+  color: #000000;
+}
+
+/* Light theme - for dark backgrounds */
+.landing-navbar.navbar-light {
+  color: #ffffff;
+}
+
+.landing-navbar.navbar-light .logo-text,
+.landing-navbar.navbar-light .nav-link {
+  color: #ffffff;
+}
+
+.landing-navbar.navbar-light .logo-circle {
+  fill: #ffffff;
+}
+
+.landing-navbar.navbar-light .logo-accent {
+  fill: #0078FF;
+}
+
+.landing-navbar.navbar-light .nav-button.login {
+  background: #0078FF;
+  color: #ffffff;
+}
+
+.landing-navbar.navbar-light .nav-button.login:hover {
+  background: #006AE6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.landing-navbar.navbar-light .nav-button.signup {
+  background: transparent;
+  color: #ffffff;
+  border-color: #0078FF;
+}
+
+.landing-navbar.navbar-light .nav-button.signup:hover {
+  background: rgba(0, 120, 255, 0.1);
+  border-color: #0066DD;
+}
+
+.landing-navbar.navbar-light .mobile-menu-toggle {
+  color: #ffffff;
 }
 
 .navbar-container {

@@ -2,7 +2,7 @@ import '../../styles/landing/HeroSectionTwo.css';
 
 export default function HeroSectionTwo() {
   return (
-    <section className="hero-section-two">
+    <section className="hero-section-two" id="hero-section-two">
       <div className="hero-two-content">
         <div className="hero-two-left">
           <h2 className="hero-two-title">Join In the Fun</h2>
@@ -82,12 +82,29 @@ export default function HeroSectionTwo() {
       </div>
 
       <div className="navigation-buttons">
-        <button className="nav-arrow" aria-label="Previous section">
+        <button
+          className="nav-arrow"
+          aria-label="Previous section"
+          onClick={() => {
+            const firstSection = document.getElementById('hero-section-one');
+            if (firstSection) {
+              firstSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <button className="more-button">
+        <button
+          className="more-button"
+          onClick={() => {
+            const nextSection = document.getElementById('hero-section-three');
+            if (nextSection) {
+              nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

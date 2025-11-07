@@ -56,15 +56,15 @@
 
 .category-pill.active {
   color: white;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border-color: #ef4444;
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+  background: #0078FF;
+  border-color: #0078FF;
+  box-shadow: 0 4px 16px rgba(0, 120, 255, 0.3);
 }
 
 .category-pill.active:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: #0066DD;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 120, 255, 0.4);
 }
 
 [data-theme='dark'] .category-pill {

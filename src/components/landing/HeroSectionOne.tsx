@@ -1,11 +1,15 @@
-import { useState } from 'react';
 import '../../styles/landing/HeroSectionOne.css';
 
 export default function HeroSectionOne() {
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const scrollToNextSection = () => {
+    const nextSection = document.getElementById('hero-section-two');
+    if (nextSection) {
+      nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
-    <section className="hero-section-one">
+    <section className="hero-section-one" id="hero-section-one">
       <div className="hero-content">
         <div className="hero-left">
           <div className="phone-mockup">
@@ -81,11 +85,11 @@ export default function HeroSectionOne() {
       </div>
 
       <button
-        className={`how-it-works-toggle ${showHowItWorks ? 'active' : ''}`}
-        onClick={() => setShowHowItWorks(!showHowItWorks)}
+        className="how-it-works-toggle"
+        onClick={scrollToNextSection}
       >
         <svg
-          className={`chevron ${showHowItWorks ? 'rotated' : ''}`}
+          className="chevron"
           width="20"
           height="20"
           viewBox="0 0 24 24"
@@ -95,28 +99,6 @@ export default function HeroSectionOne() {
         </svg>
         How it works
       </button>
-
-      {showHowItWorks && (
-        <div className="how-it-works-content">
-          <div className="steps-container">
-            <div className="step">
-              <div className="step-number">1</div>
-              <h3>Browse Live Auctions</h3>
-              <p>Watch sellers showcase rare collectibles in real-time</p>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <h3>Place Your Bid</h3>
-              <p>Compete with other collectors for the items you want</p>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <h3>Win & Collect</h3>
-              <p>Secure your purchase and add to your collection</p>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
