@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/home/FeaturedCollectibles.css';
@@ -18,6 +18,10 @@ interface FeaturedCollectible {
 export default function FeaturedCollectibles() {
   const [items, setItems] = useState<FeaturedCollectible[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
+  const carouselRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -157,20 +161,75 @@ export default function FeaturedCollectibles() {
     navigate(`/auction/${itemId}`);
   };
 
+  const checkScrollButtons = () => {
+    if (!carouselRef.current) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  };
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (!carouselRef.current) return;
+
+    const scrollAmount = 300;
+    const newScrollLeft = direction === 'left'
+      ? carouselRef.current.scrollLeft - scrollAmount
+      : carouselRef.current.scrollLeft + scrollAmount;
+
+    carouselRef.current.scrollTo({
+      left: newScrollLeft,
+      behavior: 'smooth'
+    });
+  };
+
+  useEffect(() => {
+    checkScrollButtons();
+    const carousel = carouselRef.current;
+    if (carousel) {
+      carousel.addEventListener('scroll', checkScrollButtons);
+      window.addEventListener('resize', checkScrollButtons);
+    }
+    return () => {
+      if (carousel) {
+        carousel.removeEventListener('scroll', checkScrollButtons);
+      }
+      window.removeEventListener('resize', checkScrollButtons);
+    };
+  }, [items]);
+
   if (loading) {
     return (
       <section className="featured-collectibles">
         <div className="featured-container">
+          <div className="tab-navigation">
+            <button className="tab-button active">
+              For You
+            </button>
+            <button className="tab-button">
+              Following
+            </button>
+          </div>
+
           <div className="section-header">
             <h2>Featured Collectibles</h2>
           </div>
-          <div className="collectibles-grid">
+          <div className="collectibles-carousel">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="collectible-card loading">
-                <div className="card-image-area loading-shimmer"></div>
+                <div className="card-image-area">
+                  <div className="loading-shimmer"></div>
+                </div>
                 <div className="card-details">
                   <div className="loading-line"></div>
-                  <div className="loading-line"></div>
+                  <div className="loading-seller">
+                    <div className="loading-avatar"></div>
+                    <div className="loading-seller-text"></div>
+                  </div>
+                  <div className="loading-bid-row">
+                    <div className="loading-price"></div>
+                    <div className="loading-button"></div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -187,11 +246,37 @@ export default function FeaturedCollectibles() {
   return (
     <section className="featured-collectibles">
       <div className="featured-container">
+        <div className="tab-navigation">
+          <button
+            className={`tab-button ${activeTab === 'forYou' ? 'active' : ''}`}
+            onClick={() => setActiveTab('forYou')}
+          >
+            For You
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
+            onClick={() => setActiveTab('following')}
+          >
+            Following
+          </button>
+        </div>
+
         <div className="section-header">
           <h2>Featured Collectibles</h2>
         </div>
 
-        <div className="collectibles-grid">
+        <div className="carousel-wrapper">
+          <button
+            className={`carousel-nav-button left ${!canScrollLeft ? 'hidden' : ''}`}
+            onClick={() => scrollCarousel('left')}
+            aria-label="Scroll left"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div className="collectibles-carousel" ref={carouselRef}>
           {items.map((item) => {
             const timeRemaining = calculateTimeRemaining(item.end_time);
 
@@ -199,17 +284,16 @@ export default function FeaturedCollectibles() {
               <div
                 key={item.id}
                 className="collectible-card"
-                onClick={() => handleItemClick(item.id)}
               >
-                <div className="card-image-area">
-                  <div className="featured-badge">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" fill="currentColor"/>
-                      <path d="M12 7v5l3 3" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Featured
-                  </div>
-                  <div className="time-badge">{timeRemaining}</div>
+                <div className="featured-badge">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+                  </svg>
+                  Featured
+                </div>
+                <div className="time-badge">{timeRemaining}</div>
+
+                <div className="card-image-area" onClick={() => handleItemClick(item.id)}>
                   <img
                     src={
                       item.image_url ||
@@ -221,19 +305,11 @@ export default function FeaturedCollectibles() {
                 </div>
 
                 <div className="card-details">
-                  <h3 className="card-title">{item.title}</h3>
+                  <h3 className="card-title" onClick={() => handleItemClick(item.id)}>{item.title}</h3>
                   <div className="seller-row">
                     <span className="seller-label">By</span>
-                    <img
-                      src={
-                        item.seller_avatar ||
-                        'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'
-                      }
-                      alt={item.seller_username}
-                      className="seller-avatar"
-                    />
                     <span className="seller-name">{item.seller_username}</span>
-                    <svg className="verified-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <svg className="verified-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
                         stroke="#10b981"
@@ -248,12 +324,29 @@ export default function FeaturedCollectibles() {
                     <span className="bid-price">${item.current_bid.toFixed(0)}</span>
                     <span className="bid-divider">|</span>
                     <span className="bid-count">{item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}</span>
-                    <span className="auction-label">Auction</span>
+                    <button className="auction-button">Bid Now!</button>
                   </div>
                 </div>
               </div>
             );
           })}
+          </div>
+
+          <button
+            className={`carousel-nav-button right ${!canScrollRight ? 'hidden' : ''}`}
+            onClick={() => scrollCarousel('right')}
+            aria-label="Scroll right"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <div className="view-all-container">
+          <button className="view-all-button" onClick={() => navigate('/browse')}>
+            View All
+          </button>
         </div>
       </div>
     </section>

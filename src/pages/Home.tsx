@@ -8,6 +8,8 @@ import DashboardHeader from '../components/home/DashboardHeader';
 import DashboardSidebar from '../components/home/DashboardSidebar';
 import LiveStreams from '../components/home/LiveStreams';
 import FeaturedCollectibles from '../components/home/FeaturedCollectibles';
+import PopularShows from '../components/home/PopularShows';
+import Categories from '../components/home/Categories';
 
 export default function Home() {
   const { user } = useAuth();
@@ -39,6 +41,8 @@ export default function Home() {
       <div className="dashboard-content">
         <FeaturedCollectibles />
         <LiveStreams />
+        <PopularShows />
+        <Categories />
       </div>
     </div>
   );

@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../api/supabase/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/home/LiveStreams.css';
 
 interface LiveStream {
   id: string;
   title: string;
+  description?: string;
   image_url: string;
-  current_bid: number;
-  buy_now_price: number | null;
-  end_time: string;
   seller_id: string;
   is_live: boolean;
   category: string;
-  condition: string;
+  viewer_count: number;
 }
 
 interface Seller {
@@ -30,120 +27,83 @@ export default function LiveStreams() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchLiveStreams() {
-      setLoading(true);
+    // Use dummy data only
+    const dummyStreams: LiveStream[] = [
+      {
+        id: 'stream-1',
+        title: 'BASE SET BREAKS! CHARIZARD SLAB GIVVY!!',
+        description: 'Opening vintage Pokemon packs and graded slabs',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-1',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 69,
+      },
+      {
+        id: 'stream-2',
+        title: 'Milwaukee Flash Sale! Bids Start at a $1, some Sudden Death',
+        description: 'Power tools auction starting at $1',
+        image_url: 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=800',
+        seller_id: 'seller-2',
+        is_live: true,
+        category: 'Tools',
+        viewer_count: 103,
+      },
+      {
+        id: 'stream-3',
+        title: '$1 RTYH',
+        description: 'Random card breaks and auctions',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-3',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 375,
+      },
+      {
+        id: 'stream-4',
+        title: '$1 Auction WOTC Holos ALL',
+        description: 'Wizards of the Coast holographic cards',
+        image_url: 'https://i.ebayimg.com/images/g/yMUAAOSwnTdaRUQg/s-l1200.jpg',
+        seller_id: 'seller-4',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 86,
+      },
+      {
+        id: 'stream-5',
+        title: '💎FREE SLABS & BOOSTER BOXES',
+        description: 'Giveaways and premium card openings',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-5',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 202,
+      },
+      {
+        id: 'stream-6',
+        title: 'Fridays fun 😁🎄',
+        description: 'Weekly special collectibles showcase',
+        image_url: 'https://images.unsplash.com/photo-1542779283-429940ce8336?w=800',
+        seller_id: 'seller-6',
+        is_live: true,
+        category: 'Collectibles',
+        viewer_count: 151,
+      },
+    ];
 
-      // Only fetch live streams
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('*')
-        .eq('is_live', true)
-        .order('created_at', { ascending: false })
-        .limit(24);
+    const dummySellers: Record<string, Seller> = {
+      'seller-1': { id: 'seller-1', username: 'hitmarketlive', avatar_url: null, is_verified: true },
+      'seller-2': { id: 'seller-2', username: 'carrillopowertools', avatar_url: null, is_verified: true },
+      'seller-3': { id: 'seller-3', username: 'adventurers_guild', avatar_url: null, is_verified: true },
+      'seller-4': { id: 'seller-4', username: 'wincondition', avatar_url: null, is_verified: true },
+      'seller-5': { id: 'seller-5', username: 'idistrocollectibles', avatar_url: null, is_verified: true },
+      'seller-6': { id: 'seller-6', username: 'eaglereserve', avatar_url: null, is_verified: true },
+    };
 
-      if (error) {
-        console.error('Error fetching live streams:', error);
-        setLoading(false);
-        return;
-      }
-
-      // If no data, use dummy data
-      if (!data || data.length === 0) {
-        const dummyStreams: LiveStream[] = [
-          {
-            id: 'stream-1',
-            title: 'Marvel Rivals Psylocke #1',
-            image_url: 'https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=400',
-            current_bid: 500,
-            buy_now_price: 800,
-            end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'seller-1',
-            is_live: true,
-            category: 'Comic',
-            condition: 'Brand New',
-          },
-          {
-            id: 'stream-2',
-            title: 'Ultimate X-Men',
-            image_url: 'https://images.unsplash.com/photo-1601645191163-3fc0d5d64e35?w=400',
-            current_bid: 100,
-            buy_now_price: 325,
-            end_time: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'seller-2',
-            is_live: true,
-            category: 'Comic',
-            condition: 'Like New',
-          },
-          {
-            id: 'stream-3',
-            title: 'Galactus Marvel Rivals',
-            image_url: 'https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=400',
-            current_bid: 32,
-            buy_now_price: 69,
-            end_time: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'seller-3',
-            is_live: true,
-            category: 'Comics',
-            condition: 'Brand New',
-          },
-        ];
-
-        const dummySellers: Record<string, Seller> = {
-          'seller-1': { id: 'seller-1', username: 'jlara18', avatar_url: null, is_verified: true },
-          'seller-2': { id: 'seller-2', username: 'falcon', avatar_url: null, is_verified: true },
-          'seller-3': { id: 'seller-3', username: 'dynamixjl', avatar_url: null, is_verified: true },
-        };
-
-        setStreams(dummyStreams);
-        setSellers(dummySellers);
-        setLoading(false);
-        return;
-      }
-
-      setStreams(data || []);
-
-      // Fetch seller info
-      const sellerIds = [...new Set(data?.map(a => a.seller_id))];
-      if (sellerIds.length > 0) {
-        const { data: sellersData } = await supabase
-          .from('users')
-          .select('id, username, avatar_url')
-          .in('id', sellerIds);
-
-        if (sellersData) {
-          const sellersMap = sellersData.reduce((acc, seller) => {
-            acc[seller.id] = { ...seller, is_verified: true };
-            return acc;
-          }, {} as Record<string, Seller>);
-          setSellers(sellersMap);
-        }
-      }
-
-      setLoading(false);
-    }
-
-    fetchLiveStreams();
+    setStreams(dummyStreams);
+    setSellers(dummySellers);
+    setLoading(false);
   }, []);
-
-  const calculateTimeRemaining = (endTime: string) => {
-    const now = new Date().getTime();
-    const end = new Date(endTime).getTime();
-    const diff = end - now;
-
-    if (diff <= 0) return { text: 'Ended', urgency: 'ended' };
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (diff < 60 * 60 * 1000) {
-      return { text: `${minutes}m`, urgency: 'critical' };
-    }
-    if (diff < 24 * 60 * 60 * 1000) {
-      return { text: `${hours}h ${minutes}m`, urgency: 'high' };
-    }
-    return { text: `${days}d ${hours}h`, urgency: 'normal' };
-  };
 
   const handleStreamClick = (streamId: string) => {
     navigate(`/auctions/${streamId}`);
@@ -159,7 +119,13 @@ export default function LiveStreams() {
           <div className="grid-container">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="stream-card loading">
-                <div className="card-image loading-shimmer"></div>
+                <div className="stream-header">
+                  <div className="loading-avatar"></div>
+                  <div className="loading-username"></div>
+                </div>
+                <div className="card-image-wrapper">
+                  <div className="loading-shimmer"></div>
+                </div>
                 <div className="card-content">
                   <div className="loading-line"></div>
                   <div className="loading-line short"></div>
@@ -198,81 +164,55 @@ export default function LiveStreams() {
 
         <div className="grid-container">
           {streams.map((stream) => {
-            const timeInfo = calculateTimeRemaining(stream.end_time);
             const seller = sellers[stream.seller_id];
 
             return (
               <div key={stream.id} className="stream-card">
-                <div className="card-image-wrapper">
-                  <div className="live-badge">
-                    <span className="pulse-dot"></span>
-                    LIVE
+                <div
+                  className="stream-header"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/seller/${stream.seller_id}`);
+                  }}
+                >
+                  <img
+                    src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+                    alt={seller?.username}
+                    className="stream-avatar"
+                  />
+                  <span className="stream-username">{seller?.username}</span>
+                </div>
+
+                <div className="card-image-wrapper" onClick={() => handleStreamClick(stream.id)}>
+                  <div className="live-badge-container">
+                    <div className="live-badge">
+                      <span className="pulse-dot"></span>
+                      Live
+                    </div>
+                    {stream.description && (
+                      <span className="stream-description">{stream.description}</span>
+                    )}
                   </div>
                   <img
                     src={stream.image_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
                     alt={stream.title}
                     className="card-image"
-                    onClick={() => handleStreamClick(stream.id)}
                   />
-                  <div className={`time-badge ${timeInfo.urgency}`}>
-                    {timeInfo.text}
-                  </div>
                 </div>
 
-                <div className="card-content">
-                  <h3 className="card-title" onClick={() => handleStreamClick(stream.id)}>
-                    {stream.title}
-                  </h3>
-
+                <div className="card-content" onClick={() => handleStreamClick(stream.id)}>
+                  <h3 className="card-title">{stream.title}</h3>
                   <div className="card-meta">
-                    <span className="condition-badge">{stream.condition}</span>
-                    <span className="category-tag">{stream.category}</span>
-                  </div>
-
-                  {seller && (
-                    <div className="seller-info">
-                      <img
-                        src={seller.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-                        alt={seller.username}
-                        className="seller-avatar"
-                      />
-                      <span className="seller-name">{seller.username}</span>
-                      {seller.is_verified && (
-                        <svg className="verified-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path
-                            d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
-                            stroke="#10b981"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <polyline points="22 4 12 14.01 9 11.01" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="card-footer">
-                    <div className="bid-info">
-                      <span className="bid-label">Current Bid</span>
-                      <span className="bid-amount">${stream.current_bid.toLocaleString()}</span>
-                    </div>
-                    <button
-                      className="bid-button"
-                      onClick={() => handleStreamClick(stream.id)}
+                    <span
+                      className="category-tag"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/browse?category=${stream.category}`);
+                      }}
                     >
-                      Bid
-                    </button>
+                      {stream.category}
+                    </span>
                   </div>
-
-                  {stream.buy_now_price && (
-                    <button
-                      className="buy-now-button"
-                      onClick={() => handleStreamClick(stream.id)}
-                    >
-                      Buy Now - ${stream.buy_now_price.toLocaleString()}
-                    </button>
-                  )}
                 </div>
               </div>
             );
