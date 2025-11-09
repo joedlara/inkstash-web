@@ -1,0 +1,312 @@
+/* Profile Dropdown Overlay */
+.profile-dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Profile Dropdown Container */
+.profile-dropdown {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  width: 400px;
+  max-height: calc(100vh - 90px);
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  overflow-y: auto;
+  animation: slideDown 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Profile Header */
+.profile-dropdown-header {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.profile-avatar-large {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-avatar-large.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0078FF, #00BFFF);
+  color: white;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.profile-username {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  color: #000;
+}
+
+.profile-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.profile-stats strong {
+  color: #000;
+  font-weight: 600;
+}
+
+.stat-divider {
+  color: #ddd;
+}
+
+.profile-arrow {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.profile-arrow:hover {
+  background: #e5e5e5;
+  color: #000;
+}
+
+/* Action Cards Grid */
+.profile-actions-grid {
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 0.5rem;
+  background: white;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.action-card:hover {
+  border-color: #000;
+  background: #fafafa;
+  transform: translateY(-2px);
+}
+
+.action-card svg {
+  color: #000;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.action-card span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #000;
+  line-height: 1.2;
+}
+
+/* Menu Items */
+.profile-menu-items {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f8f8f8;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:hover {
+  opacity: 0.7;
+}
+
+.menu-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.menu-item-left svg {
+  color: #000;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.menu-item-left span {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #000;
+}
+
+.menu-item > svg {
+  color: #999;
+  flex-shrink: 0;
+}
+
+/* Sign Out Button */
+.sign-out-button {
+  width: calc(100% - 2.5rem);
+  margin: 1rem 1.25rem;
+  padding: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  background: white;
+  border: 2px solid #000;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.sign-out-button:hover {
+  background: #000;
+  color: white;
+}
+
+.sign-out-button svg {
+  color: currentColor;
+  width: 20px;
+  height: 20px;
+}
+
+/* Scrollbar Styling */
+.profile-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.profile-dropdown::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.profile-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .profile-dropdown {
+    right: 10px;
+    width: calc(100vw - 20px);
+    max-width: 400px;
+    top: 60px;
+  }
+
+  .profile-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .action-card {
+    padding: 1rem 0.5rem;
+  }
+
+  .action-card span {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-dropdown {
+    width: calc(100vw - 20px);
+    max-width: none;
+  }
+
+  .profile-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-card svg {
+    width: 28px;
+    height: 28px;
+  }
+}

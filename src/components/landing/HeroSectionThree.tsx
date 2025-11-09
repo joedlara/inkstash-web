@@ -2,11 +2,14 @@ import '../../styles/landing/HeroSectionThree.css';
 
 export default function HeroSectionThree() {
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const firstSection = document.getElementById('hero-section-one');
+    if (firstSection) {
+      firstSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   return (
-    <section className="hero-section-three">
+    <section className="hero-section-three" id="hero-section-three">
       <div className="hero-three-content">
         <div className="hero-three-left">
           <p className="hero-three-text">
