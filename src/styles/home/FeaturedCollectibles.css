@@ -237,13 +237,18 @@
 .card-image-area {
   position: relative;
   width: 100%;
+  aspect-ratio: 3 / 4;
   height: 200px;
   background: #ffffff;
   cursor: pointer;
   padding: 0.875rem;
+  flex-shrink: 0;
   border-radius: 14px 14px 0 0;
   overflow: hidden;
 }
+
+
+
 
 .card-image {
   width: 100%;
@@ -338,7 +343,7 @@
 .auction-button {
   margin-left: auto;
   padding: 0.4375rem 1rem;
-  background: #10b981;
+  background: #00C6A9;
   color: white;
   border: none;
   border-radius: 6px;
@@ -349,7 +354,8 @@
 }
 
 .auction-button:hover {
-  background: #059669;
+  background-color: #00AF96;
+  box-shadow: 0 2px 6px rgba(0, 198, 169, 0.4);
 }
 
 /* Loading States */

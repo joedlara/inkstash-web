@@ -60,14 +60,49 @@
   font-weight: 300;
 }
 
-/* ─── Shows Grid ──────────────────────────────────────── */
+/* ─── Shows Grid (Horizontal Carousel) ──────────────────────────────────────── */
 .shows-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  display: flex;
   gap: 1.25rem;
   width: 100%;
-  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  padding-bottom: 1rem;
   box-sizing: border-box;
+
+  /* Hide scrollbar by default */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.shows-grid::-webkit-scrollbar {
+  height: 8px;
+  display: none; /* Hide by default */
+}
+
+/* Show scrollbar on hover */
+.shows-grid:hover {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.shows-grid:hover::-webkit-scrollbar {
+  display: block;
+}
+
+.shows-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.shows-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.shows-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* ─── Show Card ───────────────────────────────────────── */
@@ -78,8 +113,9 @@
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  min-width: 0;
+  min-width: 200px;
+  max-width: 200px;
+  flex-shrink: 0;
 }
 
 /* Show Header */
@@ -199,20 +235,23 @@
 
 /* ─── Responsive Design ──────────────────────────────── */
 @media (max-width: 1400px) {
-  .shows-grid {
-    grid-template-columns: repeat(5, 1fr);
+  .show-card {
+    min-width: 180px;
+    max-width: 180px;
   }
 }
 
 @media (max-width: 1200px) {
-  .shows-grid {
-    grid-template-columns: repeat(4, 1fr);
+  .show-card {
+    min-width: 170px;
+    max-width: 170px;
   }
 }
 
 @media (max-width: 1024px) {
-  .shows-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .show-card {
+    min-width: 160px;
+    max-width: 160px;
   }
 }
 
@@ -227,6 +266,11 @@
 
   .shows-grid {
     gap: 1rem;
+  }
+
+  .show-card {
+    min-width: 150px;
+    max-width: 150px;
   }
 }
 
@@ -260,8 +304,12 @@
 
 @media (max-width: 560px) {
   .shows-grid {
-    grid-template-columns: repeat(3, 1fr);
     gap: 0.75rem;
+  }
+
+  .show-card {
+    min-width: 140px;
+    max-width: 140px;
   }
 
   .show-title {
@@ -271,8 +319,12 @@
 
 @media (max-width: 480px) {
   .shows-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: 0.625rem;
+  }
+
+  .show-card {
+    min-width: 130px;
+    max-width: 130px;
   }
 
   .show-header {

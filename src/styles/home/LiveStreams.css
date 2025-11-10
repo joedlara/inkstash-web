@@ -15,11 +15,10 @@
   box-sizing: border-box;
 }
 
-.streams-container {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 0;
-  overflow-x: hidden;
+/* Container with vertical padding */
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .live-streams .section-header {
@@ -45,23 +44,24 @@
 /* ─── Grid Container ──────────────────────────────────── */
 .live-streams .grid-container {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 1.25rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* ─── Stream Card ───────────────────────────────────── */
+/* ─── Stream Card (Section Element) ───────────────────────────────── */
 .stream-card {
   background: transparent;
   border-radius: 0;
   overflow: visible;
   transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 2.25rem max-content auto;
   width: 100%;
   min-width: 0;
+  height: 100%;
 }
 
 .stream-card.loading {
@@ -103,6 +103,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
+  height: 320px;
   overflow: hidden;
   background: #000000;
   border-radius: 12px;
@@ -214,7 +215,7 @@
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: var(--primary-500);
+  background: #3395FF;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -329,9 +330,15 @@
 }
 
 /* ─── Responsive Design ──────────────────────────────── */
-@media (max-width: 1200px) {
+@media (max-width: 1600px) {
   .live-streams .grid-container {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1400px) {
+  .live-streams .grid-container {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -347,7 +354,7 @@
   }
 
   .live-streams .grid-container {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
 
@@ -392,7 +399,7 @@
 
 @media (max-width: 560px) {
   .live-streams .grid-container {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
   }
 
@@ -414,6 +421,11 @@
   .live-streams .grid-container {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.625rem;
+  }
+  .card-image-wrapper {
+
+    max-height: 230px;
+
   }
 
   .stream-header {
