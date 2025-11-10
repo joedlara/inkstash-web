@@ -284,9 +284,6 @@
   transition: color 0.2s ease;
 }
 
-.card-title:hover {
-  color: #0078FF;
-}
 
 /* Seller Row */
 .seller-row {
