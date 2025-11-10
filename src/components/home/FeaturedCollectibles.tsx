@@ -345,7 +345,7 @@ export default function FeaturedCollectibles() {
 
         <div className="view-all-container">
           <button className="view-all-button" onClick={() => navigate('/browse')}>
-            View All
+            Show All
           </button>
         </div>
       </div>

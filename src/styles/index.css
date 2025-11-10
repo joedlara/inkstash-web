@@ -86,6 +86,7 @@ h1 {
 .dashboard-content {
   margin-top: 70px;
   margin-left: 280px;
+
 }
 
 @media (max-width: 1024px) {
@@ -137,7 +138,7 @@ h1 {
   --primary-200: #bfdbfe;
   --primary-300: #93c5fd;
   --primary-400: #60a5fa;
-  --primary-500: #3b82f6;
+  --primary-500: #0078FF;
   --primary-600: #2563eb;
   --primary-700: #1d4ed8;
 

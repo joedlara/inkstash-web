@@ -37,19 +37,56 @@
   margin: 0;
 }
 
-/* ─── Categories Grid ──────────────────────────────────── */
+/* ─── Categories Grid (Horizontal Carousel) ──────────────────────────────────── */
 .categories-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  display: flex;
   gap: 1rem;
   width: 100%;
-  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  padding-bottom: 1rem;
   box-sizing: border-box;
+
+  /* Hide scrollbar by default */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.categories-grid::-webkit-scrollbar {
+  height: 8px;
+  display: none; /* Hide by default */
+}
+
+/* Show scrollbar on hover */
+.categories-grid:hover {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.categories-grid:hover::-webkit-scrollbar {
+  display: block;
+}
+
+.categories-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.categories-grid::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.categories-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* ─── Category Card ───────────────────────────────────── */
 .category-card {
   position: relative;
+  min-width: 280px;
+  max-width: 280px;
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
@@ -58,6 +95,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .category-card:hover {
@@ -128,14 +166,16 @@
 
 /* ─── Responsive Design ──────────────────────────────── */
 @media (max-width: 1200px) {
-  .categories-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  .category-card {
+    min-width: 250px;
+    max-width: 250px;
   }
 }
 
 @media (max-width: 1024px) {
-  .categories-grid {
-    grid-template-columns: repeat(4, 1fr);
+  .category-card {
+    min-width: 230px;
+    max-width: 230px;
   }
 }
 
@@ -149,8 +189,12 @@
   }
 
   .categories-grid {
-    grid-template-columns: repeat(3, 1fr);
     gap: 0.875rem;
+  }
+
+  .category-card {
+    min-width: 220px;
+    max-width: 220px;
   }
 }
 
@@ -170,8 +214,12 @@
 
 @media (max-width: 560px) {
   .categories-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
+  }
+
+  .category-card {
+    min-width: 200px;
+    max-width: 200px;
   }
 
   .category-name {
@@ -191,6 +239,11 @@
 @media (max-width: 480px) {
   .categories-grid {
     gap: 0.625rem;
+  }
+
+  .category-card {
+    min-width: 180px;
+    max-width: 180px;
   }
 
   .category-name {

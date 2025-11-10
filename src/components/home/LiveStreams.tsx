@@ -89,6 +89,47 @@ export default function LiveStreams() {
         category: 'Collectibles',
         viewer_count: 151,
       },
+      {
+        id: 'stream-7',
+        title: '💎FREE SLABS & BOOSTER BOXES',
+        description: 'Giveaways and premium card openings',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-7',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 202,
+      },
+      {
+        id: 'stream-8',
+        title: '💎FREE SLABS & BOOSTER BOXES',
+        description: 'Giveaways and premium card openings',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-8',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 202,
+      },
+      {
+        id: 'stream-9',
+        title: '💎FREE SLABS & BOOSTER BOXES',
+        description: 'Giveaways and premium card openings',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-9',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 202,
+      },
+      {
+        id: 'stream-10',
+        title: '💎FREE SLABS & BOOSTER BOXES',
+        description: 'Giveaways and premium card openings',
+        image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=800',
+        seller_id: 'seller-10',
+        is_live: true,
+        category: 'Cards',
+        viewer_count: 202,
+      },
+
     ];
 
     const dummySellers: Record<string, Seller> = {
@@ -98,6 +139,10 @@ export default function LiveStreams() {
       'seller-4': { id: 'seller-4', username: 'wincondition', avatar_url: null, is_verified: true },
       'seller-5': { id: 'seller-5', username: 'idistrocollectibles', avatar_url: null, is_verified: true },
       'seller-6': { id: 'seller-6', username: 'eaglereserve', avatar_url: null, is_verified: true },
+      'seller-7': { id: 'seller-6', username: 'asrock', avatar_url: null, is_verified: true },
+      'seller-9': { id: 'seller-6', username: 'danyells', avatar_url: null, is_verified: true },
+      'seller-8': { id: 'seller-6', username: 'mike_hunt', avatar_url: null, is_verified: true },
+      'seller-10': { id: 'seller-6', username: 'pumpkinPie', avatar_url: null, is_verified: true },
     };
 
     setStreams(dummyStreams);
@@ -111,14 +156,14 @@ export default function LiveStreams() {
 
   if (loading) {
     return (
-      <section className="live-streams">
-        <div className="streams-container">
-          <div className="section-header">
-            <h2>Live Streams</h2>
-          </div>
+      <div className="live-streams">
+        <div className="section-header">
+          <h2>Live Streams</h2>
+        </div>
+        <div className="py-4">
           <div className="grid-container">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="stream-card loading">
+              <section key={i} className="stream-card loading">
                 <div className="stream-header">
                   <div className="loading-avatar"></div>
                   <div className="loading-username"></div>
@@ -130,44 +175,44 @@ export default function LiveStreams() {
                   <div className="loading-line"></div>
                   <div className="loading-line short"></div>
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </div>
-      </section>
+      </div>
     );
   }
 
   if (streams.length === 0) {
     return (
-      <section className="live-streams">
-        <div className="streams-container">
-          <div className="section-header">
-            <h2>Live Streams</h2>
-          </div>
+      <div className="live-streams">
+        <div className="section-header">
+          <h2>Live Streams</h2>
+        </div>
+        <div className="py-4">
           <div className="empty-state">
             <div className="empty-icon">📡</div>
             <h3>No live streams right now</h3>
             <p>Check back later for live auctions</p>
           </div>
         </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section className="live-streams">
-      <div className="streams-container">
-        <div className="section-header">
-          <h2>Live Streams</h2>
-        </div>
+    <div className="live-streams">
+      <div className="section-header">
+        <h2>Live Streams</h2>
+      </div>
 
+      <div className="py-4">
         <div className="grid-container">
           {streams.map((stream) => {
             const seller = sellers[stream.seller_id];
 
             return (
-              <div key={stream.id} className="stream-card">
+              <section key={stream.id} className="stream-card">
                 <div
                   className="stream-header"
                   onClick={(e) => {
@@ -214,11 +259,11 @@ export default function LiveStreams() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
