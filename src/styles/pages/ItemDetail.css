@@ -147,13 +147,6 @@
   transform: translateY(-2px);
 }
 
-.stat-item svg {
-  color: #3395FF;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-}
-
 .stat-content {
   display: flex;
   flex-direction: row;
@@ -162,15 +155,22 @@
   justify-content: center;
 }
 
+.stat-content svg {
+  color: #3395FF;
+  flex-shrink: 0;
+  width: max(24px, calc(1.5rem + 0.5vw));
+  height: max(24px, calc(1.5rem + 0.5vw));
+}
+
 .stat-value {
-  font-size: 1.75rem;
+  font-size: max(1.5rem, calc(1.25rem + 0.75vw));
   font-weight: 700;
   color: #1e293b;
   line-height: 1;
 }
 
 .stat-label {
-  font-size: 0.8125rem;
+  font-size: max(0.75rem, calc(0.6875rem + 0.25vw));
   color: #64748b;
   font-weight: 500;
   white-space: nowrap;
@@ -640,16 +640,16 @@
   }
 
   .stat-value {
-    font-size: 1.5rem;
+    font-size: max(1.25rem, calc(1rem + 0.75vw));
   }
 
   .stat-label {
-    font-size: 0.75rem;
+    font-size: max(0.6875rem, calc(0.625rem + 0.25vw));
   }
 
-  .stat-item svg {
-    width: 28px;
-    height: 28px;
+  .stat-content svg {
+    width: max(22px, calc(1.375rem + 0.5vw));
+    height: max(22px, calc(1.375rem + 0.5vw));
   }
 
   .add-to-calendar-section {
