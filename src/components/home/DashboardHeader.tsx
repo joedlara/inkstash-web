@@ -32,7 +32,7 @@ export default function DashboardHeader() {
 
           {/* Navigation Links */}
           <div className="dashboard-nav-links">
-            <button className="nav-link-btn active">Home</button>
+            <button className="nav-link-btn active" onClick={() => navigate('/')}>Home</button>
             <button className="nav-link-btn">Browse</button>
           </div>
 
