@@ -26,20 +26,54 @@ export default function FeaturedCollectibles() {
 
   useEffect(() => {
     async function fetchFeaturedCollectibles() {
-      const { data: auctionData, error } = await supabase
-        .from('auctions')
-        .select('id, title, image_url, current_bid, end_time, seller_id')
-        .order('current_bid', { ascending: false })
-        .limit(6);
+      try {
+        const { data: auctionData, error } = await supabase
+          .from('auctions')
+          .select('id, title, image_url, current_bid, end_time, seller_id, bid_count')
+          .order('current_bid', { ascending: false })
+          .limit(6);
 
-      if (error) {
-        console.error('Error loading featured collectibles:', error);
+        if (error) {
+          console.error('Error loading featured collectibles:', error);
+          throw error;
+        }
+
+        // If no data, use dummy data
+        if (!auctionData || auctionData.length === 0) {
+          throw new Error('No auction data available');
+        }
+
+        // Fetch seller info for each item
+        const sellerIds = [...new Set(auctionData.map(item => item.seller_id))];
+        const { data: sellersData } = await supabase
+          .from('users')
+          .select('id, username, avatar_url')
+          .in('id', sellerIds);
+
+        // Create a map of seller data
+        const sellersMap: Record<string, { username: string; avatar_url: string | null }> = {};
+        if (sellersData) {
+          sellersData.forEach((seller) => {
+            sellersMap[seller.id] = {
+              username: seller.username || 'Unknown',
+              avatar_url: seller.avatar_url || null,
+            };
+          });
+        }
+
+        // Map items with seller info
+        const itemsWithDetails = auctionData.map((item) => ({
+          ...item,
+          seller_username: sellersMap[item.seller_id]?.username || 'Unknown',
+          seller_avatar: sellersMap[item.seller_id]?.avatar_url || null,
+          bid_count: item.bid_count || 0,
+        }));
+
+        setItems(itemsWithDetails);
         setLoading(false);
-        return;
-      }
-
-      // If no data, use dummy data
-      if (!auctionData || auctionData.length === 0) {
+      } catch (error) {
+        console.error('Using dummy data for featured collectibles:', error);
+        // Use dummy data as fallback
         const dummyData: FeaturedCollectible[] = [
           {
             id: 'dummy-1',
@@ -110,32 +144,7 @@ export default function FeaturedCollectibles() {
         ];
         setItems(dummyData);
         setLoading(false);
-        return;
       }
-
-      // Fetch seller info and bid count for each item
-      const itemsWithDetails = await Promise.all(
-        (auctionData || []).map(async (item) => {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('username, avatar_url')
-            .eq('id', item.seller_id)
-            .single();
-
-          // Get bid count (mock for now - you can add actual bid counting later)
-          const bid_count = Math.floor(Math.random() * 50) + 1;
-
-          return {
-            ...item,
-            seller_username: userData?.username || 'Unknown',
-            seller_avatar: userData?.avatar_url || null,
-            bid_count,
-          };
-        })
-      );
-
-      setItems(itemsWithDetails);
-      setLoading(false);
     }
 
     fetchFeaturedCollectibles();
@@ -158,7 +167,7 @@ export default function FeaturedCollectibles() {
   };
 
   const handleItemClick = (itemId: string) => {
-    navigate(`/auction/${itemId}`);
+    navigate(`/item/${itemId}`);
   };
 
   const checkScrollButtons = () => {
@@ -324,7 +333,7 @@ export default function FeaturedCollectibles() {
                     <span className="bid-price">${item.current_bid.toFixed(0)}</span>
                     <span className="bid-divider">|</span>
                     <span className="bid-count">{item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}</span>
-                    <button className="auction-button">Bid Now!</button>
+                    <button className="auction-button">Bid</button>
                   </div>
                 </div>
               </div>
