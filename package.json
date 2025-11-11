@@ -12,6 +12,7 @@
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
     "@supabase/supabase-js": "^2.53.0",
+    "add-to-calendar-button": "^2.12.13",
     "axios": "^1.11.0",
     "dotenv": "^17.2.1",
     "lucide-react": "^0.535.0",

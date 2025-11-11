@@ -205,35 +205,77 @@ export default function ItemDetail() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="item-stats">
-            <div className="stat-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="12" r="3" strokeWidth="2"/>
-              </svg>
-              <div>
-                <div className="stat-value">{item.total_views}</div>
-                <div className="stat-label">Total Views</div>
+          {/* Stats and Calendar */}
+          <div className="stats-calendar-container">
+            {/* Stats */}
+            <div className="item-stats">
+              <div className="stat-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="3" strokeWidth="2"/>
+                </svg>
+                <div className="stat-content">
+                  <div className="stat-value">{item.total_views}</div>
+                  <div className="stat-label">Total Views</div>
+                </div>
+              </div>
+              <div className="stat-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M9 11l3 3L22 4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div className="stat-content">
+                  <div className="stat-value">{item.total_bids}</div>
+                  <div className="stat-label">Bids</div>
+                </div>
+              </div>
+              <div className="stat-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div className="stat-content">
+                  <div className="stat-value">{item.watchers}</div>
+                  <div className="stat-label">Watchers</div>
+                </div>
               </div>
             </div>
-            <div className="stat-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M9 11l3 3L22 4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <div>
-                <div className="stat-value">{item.total_bids}</div>
-                <div className="stat-label">Bids</div>
-              </div>
-            </div>
-            <div className="stat-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <div>
-                <div className="stat-value">{item.watchers}</div>
-                <div className="stat-label">Watchers</div>
+
+            {/* Add to Calendar */}
+            <div className="add-to-calendar-section">
+              <div className="add-to-calendar-title">Add to Calendar</div>
+              <div className="calendar-options">
+                <a
+                  href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(`Auction ending: ${item.description}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="calendar-option"
+                  title="Add to Google Calendar"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>
+                  </svg>
+                </a>
+                <a
+                  href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
+                  download={`${item.title.replace(/\s+/g, '_')}.ics`}
+                  className="calendar-option"
+                  title="Download for Apple Calendar"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 2c.55 0 1 .45 1 1v1h1c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h1V3c0-.55.45-1 1-1s1 .45 1 1v1h8V3c0-.55.45-1 1-1zm2 18V10H5v10h14zm-8-8h4v4h-4v-4z"/>
+                  </svg>
+                </a>
+                <a
+                  href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="calendar-option"
+                  title="Add to Outlook Calendar"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                  </svg>
+                </a>
               </div>
             </div>
           </div>
