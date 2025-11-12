@@ -108,8 +108,7 @@ class AuthManager {
 
       // Set up auth listener (only once)
       this.setupAuthListener();
-    } catch (error) {
-      console.error('💥 AuthManager - Init error:', error);
+    } catch {
       this.updateState({
         user: null,
         session: null,
@@ -180,10 +179,7 @@ class AuthManager {
       let userData: UserData;
 
       if (error || !data) {
-        console.warn(
-          '⚠️ AuthManager - User data fetch failed, using fallback:',
-          error?.message
-        );
+        // User data fetch failed, using fallback
         // Create fallback user data
         userData = {
           id: session.user.id,
@@ -225,8 +221,8 @@ class AuthManager {
         initialized: true,
         isAuthenticated: true,
       });
-    } catch (error) {
-      console.error('💥 AuthManager - User data fetch exception:', error);
+    } catch {
+      // User data fetch exception
       // Still set as authenticated with basic user data
       const userData: UserData = {
         id: session.user.id,
@@ -256,8 +252,8 @@ class AuthManager {
     this.listeners.forEach(listener => {
       try {
         listener(this.state);
-      } catch (error) {
-        console.error('💥 AuthManager - Listener error:', error);
+      } catch {
+        // Listener error
       }
     });
   }
@@ -295,7 +291,6 @@ class AuthManager {
       await this.refreshUser();
       return data;
     } catch (error) {
-      console.error('Error updating profile:', error);
       throw error;
     }
   }
@@ -316,7 +311,6 @@ class AuthManager {
       await this.refreshUser();
       return data;
     } catch (error) {
-      console.error('Error updating preferences:', error);
       throw error;
     }
   }
@@ -337,7 +331,6 @@ class AuthManager {
       await this.refreshUser();
       return data;
     } catch (error) {
-      console.error('Error adding favorite character:', error);
       throw error;
     }
   }
@@ -358,7 +351,6 @@ class AuthManager {
       await this.refreshUser();
       return data;
     } catch (error) {
-      console.error('Error removing favorite character:', error);
       throw error;
     }
   }
@@ -379,7 +371,6 @@ class AuthManager {
       await this.refreshUser();
       return data;
     } catch (error) {
-      console.error('Error adding XP:', error);
       throw error;
     }
   }

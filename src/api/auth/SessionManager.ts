@@ -57,7 +57,6 @@ export class SessionManager {
       } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('Session initialization error:', error);
         return;
       }
 
@@ -84,8 +83,8 @@ export class SessionManager {
             break;
         }
       });
-    } catch (error) {
-      console.error('SessionManager initialization failed:', error);
+    } catch {
+      // SessionManager initialization failed
     }
   }
 
@@ -162,7 +161,6 @@ export class SessionManager {
       const { data, error } = await supabase.auth.refreshSession();
 
       if (error) {
-        console.error('Session refresh failed:', error);
         this.handleSessionExpiry();
         return false;
       }
@@ -173,8 +171,7 @@ export class SessionManager {
       }
 
       return false;
-    } catch (error) {
-      console.error('Session refresh error:', error);
+    } catch {
       this.handleSessionExpiry();
       return false;
     } finally {
@@ -221,16 +218,16 @@ export class SessionManager {
       };
 
       localStorage.setItem('inkstash_session', JSON.stringify(sessionData));
-    } catch (error) {
-      console.warn('Failed to persist session data:', error);
+    } catch {
+      // Failed to persist session data
     }
   }
 
   private clearPersistedData(): void {
     try {
       localStorage.removeItem('inkstash_session');
-    } catch (error) {
-      console.warn('Failed to clear persisted session data:', error);
+    } catch {
+      // Failed to clear persisted session data
     }
   }
 
@@ -250,8 +247,8 @@ export class SessionManager {
   public async signOut(): Promise<void> {
     try {
       await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Sign out error:', error);
+    } catch {
+      // Sign out error
       // Force clear local session even if server signout fails
       this.clearSession();
     }
@@ -328,10 +325,9 @@ export const globalSessionManager = new SessionManager({
   },
   onSessionWarning: timeRemaining => {
     // Show warning toast/modal
-    console.warn(`Session expires in ${timeRemaining} minutes`);
   },
   onSessionRefresh: session => {
-    console.log('Session refreshed successfully');
+    // Session refreshed successfully
   },
 });
 

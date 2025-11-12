@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import LoadingSpinner from '../ui/LoadingSpinner';
-import '../../styles/auth/routeGuard.css';
+import { useAuth } from "../hooks/useAuth"
+import '../styles/auth/routeGuard.css';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -50,6 +49,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/sell',
     '/messages',
     '/notifications',
+    '/saved-items',
   ];
 
   const isPublicRoute = (path: string): boolean => {
@@ -101,7 +101,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   if (!initialized || (loading && !hasCheckedAuth)) {
     return (
       <div className="route-guard-loading">
-        <LoadingSpinner size="large" />
+        <div className="loading-spinner"></div>
         <p className="loading-message">Initializing application...</p>
       </div>
     );
@@ -111,7 +111,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   if (loading && isProtectedRoute(location.pathname)) {
     return (
       <div className="route-guard-loading">
-        <LoadingSpinner size="large" />
+        <div className="loading-spinner"></div>
         <p className="loading-message">Loading...</p>
       </div>
     );

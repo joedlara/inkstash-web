@@ -24,7 +24,6 @@ export default function FeaturedCreators() {
         .limit(12);
 
       if (error) {
-        console.error('Error loading creators:', error);
         setLoading(false);
         return;
       }

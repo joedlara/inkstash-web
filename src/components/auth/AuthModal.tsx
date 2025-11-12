@@ -80,7 +80,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
           ]);
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
+          // Profile creation error
         }
 
         onClose();

@@ -21,7 +21,6 @@ export default function LandingNavbar() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const sectionId = entry.target.id;
-          console.log('Visible section:', sectionId);
 
           // Set theme based on which section is visible
           if (sectionId === 'hero-section-two') {

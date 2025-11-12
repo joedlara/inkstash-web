@@ -6,7 +6,9 @@ import {
   checkUserLiked,
   checkUserSaved,
   toggleLike,
-  toggleSave
+  toggleSave,
+  recordAuctionView,
+  getAuctionInteractionCounts
 } from '../api/auctions/auctionInteractions';
 import DashboardHeader from '../components/home/DashboardHeader';
 import '../styles/pages/ItemDetail.css';
@@ -44,6 +46,7 @@ export default function ItemDetail() {
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
+  const [interactionCounts, setInteractionCounts] = useState({ likes: 0, saves: 0, views: 0 });
 
   useEffect(() => {
     async function fetchItemDetails() {
@@ -62,7 +65,6 @@ export default function ItemDetail() {
           .single();
 
         if (auctionError) {
-          console.error('Error fetching auction:', auctionError);
           setError('Auction not found');
           setLoading(false);
           return;
@@ -74,8 +76,6 @@ export default function ItemDetail() {
           return;
         }
 
-        console.log('Auction data:', auctionData); // Debug log
-
         // Fetch seller data separately
         let sellerData = null;
         if (auctionData.seller_id) {
@@ -85,14 +85,10 @@ export default function ItemDetail() {
             .eq('id', auctionData.seller_id)
             .single();
 
-          if (sellerError) {
-            console.error('Error fetching seller:', sellerError);
-          } else {
+          if (!sellerError) {
             sellerData = seller;
           }
         }
-
-        console.log('Seller data:', sellerData); // Debug log
 
         // Map the data to ItemDetails interface
         const itemDetails: ItemDetails = {
@@ -117,10 +113,8 @@ export default function ItemDetail() {
           international_shipping: auctionData.international_shipping || 0,
         };
 
-        console.log('Item details:', itemDetails); // Debug log
         setItem(itemDetails);
-      } catch (err) {
-        console.error('Error fetching item details:', err);
+      } catch {
         setError('Failed to load item details');
       } finally {
         setLoading(false);
@@ -157,21 +151,31 @@ export default function ItemDetail() {
     return () => clearInterval(interval);
   }, [item]);
 
-  // Load user interaction status (like/save)
+  // Load user interaction status (like/save) and record view
   useEffect(() => {
     async function loadInteractionStatus() {
-      if (!user || !id) return;
+      if (!id) return;
 
       try {
-        const [liked, saved] = await Promise.all([
-          checkUserLiked(user.id, id),
-          checkUserSaved(user.id, id)
-        ]);
+        // Record the view
+        await recordAuctionView(id, user?.id);
 
-        setIsLiked(liked);
-        setIsSaved(saved);
-      } catch (error) {
-        console.error('Error loading interaction status:', error);
+        // Load interaction counts
+        const counts = await getAuctionInteractionCounts(id);
+        setInteractionCounts(counts);
+
+        // Load user-specific interaction status if logged in
+        if (user) {
+          const [liked, saved] = await Promise.all([
+            checkUserLiked(user.id, id),
+            checkUserSaved(user.id, id)
+          ]);
+
+          setIsLiked(liked);
+          setIsSaved(saved);
+        }
+      } catch {
+        // Error loading interaction status
       }
     }
 
@@ -186,8 +190,12 @@ export default function ItemDetail() {
     try {
       const newLikeState = await toggleLike(user.id, id);
       setIsLiked(newLikeState);
-    } catch (error) {
-      console.error('Error toggling like:', error);
+
+      // Refresh counts
+      const counts = await getAuctionInteractionCounts(id);
+      setInteractionCounts(counts);
+    } catch {
+      // Error toggling like
     } finally {
       setIsLoadingInteractions(false);
     }
@@ -200,8 +208,12 @@ export default function ItemDetail() {
     try {
       const newSaveState = await toggleSave(user.id, id);
       setIsSaved(newSaveState);
-    } catch (error) {
-      console.error('Error toggling save:', error);
+
+      // Refresh counts
+      const counts = await getAuctionInteractionCounts(id);
+      setInteractionCounts(counts);
+    } catch {
+      // Error toggling save
     } finally {
       setIsLoadingInteractions(false);
     }
@@ -218,19 +230,15 @@ export default function ItemDetail() {
           text: `Check out ${item?.title || 'this auction'} on InkStash!`,
           url: url,
         });
-      } catch (error) {
+      } catch {
         // User cancelled or error occurred
-        if ((error as Error).name !== 'AbortError') {
-          console.error('Error sharing:', error);
-        }
       }
     } else {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url);
         alert('Link copied to clipboard!');
-      } catch (error) {
-        console.error('Error copying to clipboard:', error);
+      } catch {
         alert('Could not copy link. Please copy manually: ' + url);
       }
     }
@@ -319,7 +327,7 @@ export default function ItemDetail() {
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     <circle cx="12" cy="12" r="3" strokeWidth="2"/>
                   </svg>
-                  <div className="stat-value">{item.total_views}</div>
+                  <div className="stat-value">{interactionCounts.views}</div>
                 </div>
                 <div className="stat-label">Total Views</div>
               </div>
@@ -338,9 +346,9 @@ export default function ItemDetail() {
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <div className="stat-value">{item.watchers}</div>
+                  <div className="stat-value">{interactionCounts.saves}</div>
                 </div>
-                <div className="stat-label">Watchers</div>
+                <div className="stat-label">Saves</div>
               </div>
             </div>
 
