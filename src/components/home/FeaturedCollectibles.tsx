@@ -30,11 +30,11 @@ export default function FeaturedCollectibles() {
         const { data: auctionData, error } = await supabase
           .from('auctions')
           .select('id, title, image_url, current_bid, end_time, seller_id, bid_count')
+          .eq('is_featured', true)
           .order('current_bid', { ascending: false })
           .limit(6);
 
         if (error) {
-          console.error('Error loading featured collectibles:', error);
           throw error;
         }
 
@@ -72,77 +72,6 @@ export default function FeaturedCollectibles() {
         setItems(itemsWithDetails);
         setLoading(false);
       } catch (error) {
-        console.error('Using dummy data for featured collectibles:', error);
-        // Use dummy data as fallback
-        const dummyData: FeaturedCollectible[] = [
-          {
-            id: 'dummy-1',
-            title: 'Marvel Rivals Psylocke #1',
-            image_url: 'https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=400',
-            current_bid: 500,
-            end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'jlara18',
-            seller_avatar: null,
-            bid_count: 16,
-          },
-          {
-            id: 'dummy-2',
-            title: 'Ultimate X-Men',
-            image_url: 'https://images.unsplash.com/photo-1601645191163-3fc0d5d64e35?w=400',
-            current_bid: 100,
-            end_time: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'falcon',
-            seller_avatar: null,
-            bid_count: 8,
-          },
-          {
-            id: 'dummy-3',
-            title: 'Galactus Marvel Rivals',
-            image_url: 'https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=400',
-            current_bid: 32,
-            end_time: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'dynamixjl',
-            seller_avatar: null,
-            bid_count: 3,
-          },
-          {
-            id: 'dummy-4',
-            title: 'Spider-Man Graded Comic',
-            image_url: 'https://images.unsplash.com/photo-1588497859490-85d1c17db96d?w=400',
-            current_bid: 750,
-            end_time: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'collectibles_pro',
-            seller_avatar: null,
-            bid_count: 24,
-          },
-          {
-            id: 'dummy-5',
-            title: 'Rare Pokemon Card Set',
-            image_url: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?w=400',
-            current_bid: 1200,
-            end_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'pokemon_master',
-            seller_avatar: null,
-            bid_count: 45,
-          },
-          {
-            id: 'dummy-6',
-            title: 'Vintage Action Figure',
-            image_url: 'https://images.unsplash.com/photo-1530032623160-77f431a91ff8?w=400',
-            current_bid: 350,
-            end_time: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
-            seller_id: 'dummy',
-            seller_username: 'vintage_toys',
-            seller_avatar: null,
-            bid_count: 12,
-          },
-        ];
-        setItems(dummyData);
         setLoading(false);
       }
     }
@@ -353,7 +282,7 @@ export default function FeaturedCollectibles() {
         </div>
 
         <div className="view-all-container">
-          <button className="view-all-button" onClick={() => navigate('/browse')}>
+          <button className="view-all-button" onClick={() => navigate('/browse-featured')}>
             Show All
           </button>
         </div>

@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/supabaseClient';
+import { cache } from '../../utils/cache';
 
 /**
  * Check if user has liked an auction
@@ -13,13 +14,11 @@ export const checkUserLiked = async (userId: string, auctionId: string): Promise
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error checking like status:', error);
       return false;
     }
 
     return !!data;
-  } catch (error) {
-    console.error('Error in checkUserLiked:', error);
+  } catch {
     return false;
   }
 };
@@ -37,13 +36,11 @@ export const checkUserSaved = async (userId: string, auctionId: string): Promise
       .single();
 
     if (error && error.code !== 'PGRST116') {
-      console.error('Error checking save status:', error);
       return false;
     }
 
     return !!data;
-  } catch (error) {
-    console.error('Error in checkUserSaved:', error);
+  } catch {
     return false;
   }
 };
@@ -65,7 +62,6 @@ export const toggleLike = async (userId: string, auctionId: string): Promise<boo
         .eq('auction_id', auctionId);
 
       if (error) {
-        console.error('Error removing like:', error);
         return isLiked;
       }
 
@@ -80,14 +76,12 @@ export const toggleLike = async (userId: string, auctionId: string): Promise<boo
         });
 
       if (error) {
-        console.error('Error adding like:', error);
         return isLiked;
       }
 
       return true;
     }
-  } catch (error) {
-    console.error('Error in toggleLike:', error);
+  } catch {
     return false;
   }
 };
@@ -109,9 +103,11 @@ export const toggleSave = async (userId: string, auctionId: string): Promise<boo
         .eq('auction_id', auctionId);
 
       if (error) {
-        console.error('Error removing save:', error);
         return isSaved;
       }
+
+      // Invalidate saved items cache
+      cache.remove(`saved-items-${userId}`);
 
       return false;
     } else {
@@ -124,14 +120,15 @@ export const toggleSave = async (userId: string, auctionId: string): Promise<boo
         });
 
       if (error) {
-        console.error('Error adding save:', error);
         return isSaved;
       }
 
+      // Invalidate saved items cache
+      cache.remove(`saved-items-${userId}`);
+
       return true;
     }
-  } catch (error) {
-    console.error('Error in toggleSave:', error);
+  } catch {
     return false;
   }
 };
@@ -141,23 +138,70 @@ export const toggleSave = async (userId: string, auctionId: string): Promise<boo
  */
 export const getAuctionInteractionCounts = async (auctionId: string) => {
   try {
-    const [likesResult, savesResult] = await Promise.all([
+    const [likesResult, savesResult, viewsResult] = await Promise.all([
       supabase
         .from('auction_likes')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .eq('auction_id', auctionId),
       supabase
         .from('auction_saves')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
+        .eq('auction_id', auctionId),
+      supabase
+        .from('auction_views')
+        .select('*', { count: 'exact', head: true })
         .eq('auction_id', auctionId),
     ]);
 
     return {
       likes: likesResult.count || 0,
       saves: savesResult.count || 0,
+      views: viewsResult.count || 0,
     };
+  } catch {
+    return { likes: 0, saves: 0, views: 0 };
+  }
+};
+
+/**
+ * Record a view for an auction
+ */
+export const recordAuctionView = async (auctionId: string, userId?: string): Promise<void> => {
+  try {
+    const { error } = await supabase.rpc('record_auction_view', {
+      p_auction_id: auctionId,
+      p_user_id: userId || null,
+    });
+
+    if (error) {
+      // Error recording view
+    }
+  } catch {
+    // Error in recordAuctionView
+  }
+};
+
+/**
+ * Get saved auctions for a user
+ */
+export const getUserSavedAuctions = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('auction_saves')
+      .select(`
+        auction_id,
+        created_at,
+        auctions (*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
-    console.error('Error getting interaction counts:', error);
-    return { likes: 0, saves: 0 };
+    throw error;
   }
 };

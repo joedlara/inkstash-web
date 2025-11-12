@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { cache } from '../../utils/cache';
 import '../../styles/home/PopularShows.css';
 
 interface PopularShow {
@@ -26,19 +27,39 @@ export default function PopularShows() {
   const [sellers, setSellers] = useState<Record<string, Seller>>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const hasFetched = useRef(false);
 
   useEffect(() => {
     async function fetchPopularShows() {
+      // Check cache first
+      const showsCacheKey = 'popular-shows';
+      const sellersCacheKey = 'popular-shows-sellers';
+      const cachedShows = cache.get<PopularShow[]>(showsCacheKey);
+      const cachedSellers = cache.get<Record<string, Seller>>(sellersCacheKey);
+
+      if (cachedShows && cachedSellers) {
+        setShows(cachedShows);
+        setSellers(cachedSellers);
+        setLoading(false);
+        return;
+      }
+
+      // Prevent multiple fetches
+      if (hasFetched.current) {
+        return;
+      }
+
+      hasFetched.current = true;
+
       try {
         // Fetch from database
         const { data: auctionData, error } = await supabase
           .from('auctions')
-          .select('id, title, description, image_url, seller_id, category, viewer_count')
+          .select('id, title, description, image_url, seller_id, category')
           .order('current_bid', { ascending: false })
           .limit(6);
 
         if (error) {
-          console.error('Error loading popular shows:', error);
           throw error;
         }
 
@@ -52,31 +73,34 @@ export default function PopularShows() {
             seller_id: auction.seller_id,
             is_live: true,
             category: auction.category || 'General',
-            viewer_count: auction.viewer_count || 0,
+            viewer_count: 0,
           }));
-
-          setShows(shows);
 
           // Fetch seller data for each show
           const sellerIds = [...new Set(shows.map(s => s.seller_id))];
           const { data: sellersData } = await supabase
             .from('users')
-            .select('id, username, avatar_url, verified')
+            .select('*')
             .in('id', sellerIds);
 
+          const sellersMap: Record<string, Seller> = {};
           if (sellersData) {
-            const sellersMap: Record<string, Seller> = {};
-            sellersData.forEach((seller) => {
+            sellersData.forEach((seller: any) => {
               sellersMap[seller.id] = {
                 id: seller.id,
-                username: seller.username || 'Unknown',
-                avatar_url: seller.avatar_url,
-                is_verified: seller.verified || false,
+                username: seller.username || seller.email?.split('@')[0] || 'Unknown',
+                avatar_url: seller.avatar_url || null,
+                is_verified: seller.is_verified || seller.verified || false,
               };
             });
-            setSellers(sellersMap);
           }
 
+          // Cache the data for 5 minutes
+          cache.set(showsCacheKey, shows, 5 * 60 * 1000);
+          cache.set(sellersCacheKey, sellersMap, 5 * 60 * 1000);
+
+          setShows(shows);
+          setSellers(sellersMap);
           setLoading(false);
           return;
         } else {
@@ -84,7 +108,6 @@ export default function PopularShows() {
           throw new Error('No data returned from database');
         }
       } catch (error) {
-        console.error('Using dummy data for popular shows:', error);
         // Use dummy data as fallback
         const dummyShows: PopularShow[] = [
           {
@@ -180,7 +203,7 @@ export default function PopularShows() {
       <div className="popular-shows-container">
         <div className="section-header">
           <h2>Popular Shows</h2>
-          <button className="show-all-btn" onClick={() => navigate('/browse?sort=popular')}>
+          <button className="show-all-btn" onClick={() => navigate('/browse-popular-lives')}>
             Show All <span className="arrow">›</span>
           </button>
         </div>
