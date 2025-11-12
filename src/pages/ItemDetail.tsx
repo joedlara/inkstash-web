@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabase/supabaseClient';
+import { useAuth } from '../hooks/useAuth';
+import {
+  checkUserLiked,
+  checkUserSaved,
+  toggleLike,
+  toggleSave
+} from '../api/auctions/auctionInteractions';
 import DashboardHeader from '../components/home/DashboardHeader';
 import '../styles/pages/ItemDetail.css';
 
@@ -29,10 +36,14 @@ interface ItemDetails {
 export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [isLiked, setIsLiked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
 
   useEffect(() => {
     async function fetchItemDetails() {
@@ -146,6 +157,85 @@ export default function ItemDetail() {
     return () => clearInterval(interval);
   }, [item]);
 
+  // Load user interaction status (like/save)
+  useEffect(() => {
+    async function loadInteractionStatus() {
+      if (!user || !id) return;
+
+      try {
+        const [liked, saved] = await Promise.all([
+          checkUserLiked(user.id, id),
+          checkUserSaved(user.id, id)
+        ]);
+
+        setIsLiked(liked);
+        setIsSaved(saved);
+      } catch (error) {
+        console.error('Error loading interaction status:', error);
+      }
+    }
+
+    loadInteractionStatus();
+  }, [user, id]);
+
+  // Handler functions
+  const handleLikeClick = async () => {
+    if (!user || !id || isLoadingInteractions) return;
+
+    setIsLoadingInteractions(true);
+    try {
+      const newLikeState = await toggleLike(user.id, id);
+      setIsLiked(newLikeState);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  };
+
+  const handleSaveClick = async () => {
+    if (!user || !id || isLoadingInteractions) return;
+
+    setIsLoadingInteractions(true);
+    try {
+      const newSaveState = await toggleSave(user.id, id);
+      setIsSaved(newSaveState);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  };
+
+  const handleShareClick = async () => {
+    const url = window.location.href;
+
+    // Try to use native Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: item?.title || 'Check out this auction',
+          text: `Check out ${item?.title || 'this auction'} on InkStash!`,
+          url: url,
+        });
+      } catch (error) {
+        // User cancelled or error occurred
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('Link copied to clipboard!');
+      } catch (error) {
+        console.error('Error copying to clipboard:', error);
+        alert('Could not copy link. Please copy manually: ' + url);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="home authenticated">
@@ -187,18 +277,32 @@ export default function ItemDetail() {
           <div className="item-image-wrapper">
             <img src={item.image_url} alt={item.title} className="item-image" />
             <div className="image-actions">
-              <button className="action-btn favorite-btn" aria-label="Add to favorites">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <button
+                className={`action-btn favorite-btn ${isLiked ? 'active' : ''}`}
+                onClick={handleLikeClick}
+                disabled={isLoadingInteractions || !user}
+                aria-label={isLiked ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <button className="action-btn play-btn" aria-label="Play video">
+              <button
+                className="action-btn share-btn"
+                onClick={handleShareClick}
+                aria-label="Share"
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11A2.99 2.99 0 0018 7.92 3 3 0 1015 5c0 .24.04.47.09.7L7.99 9.81A3.01 3.01 0 004 12c0 1.66 1.34 3 3 3 .76 0 1.47-.31 1.99-.81l7.13 4.17c-.05.21-.1.43-.1.64 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/>
                 </svg>
               </button>
-              <button className="action-btn bookmark-btn" aria-label="Bookmark">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <button
+                className={`action-btn bookmark-btn ${isSaved ? 'active' : ''}`}
+                onClick={handleSaveClick}
+                disabled={isLoadingInteractions || !user}
+                aria-label={isSaved ? 'Remove bookmark' : 'Bookmark'}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
