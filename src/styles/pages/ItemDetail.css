@@ -15,22 +15,6 @@
   max-width: 100%;
 }
 
-/* Desktop Grid Layout (>876px) */
-/* .item-image-section {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.stats-calendar-container {
-  grid-column: 1;
-  grid-row: 2;
-} */
-
-/* .item-details-section {
-  grid-column: 2;
-  grid-row: 1 / -1; /* Span all rows */
-} */
-
 /* ─── Left Side - Image Section ──────────────────────── */
 .item-image-section {
   position: relative;
@@ -101,12 +85,32 @@
   color: #ef4444;
 }
 
-.play-btn {
+.favorite-btn.active {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+}
+
+.favorite-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.share-btn {
   color: #3395FF;
 }
 
 .bookmark-btn {
   color: #64748b;
+}
+
+.bookmark-btn.active {
+  background: #f8fafc;
+  border: 2px solid #64748b;
+}
+
+.bookmark-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Stats and Calendar Container */
