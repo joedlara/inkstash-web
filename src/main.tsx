@@ -12,6 +12,7 @@ import Seller from './pages/Seller';
 import ItemDetail from './pages/ItemDetail';
 import SavedItems from './pages/SavedItems';
 import BrowseFeatured from './pages/BrowseFeatured';
+import PaymentAndShipping from './pages/PaymentAndShipping';
 import './styles/index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -27,6 +28,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/auction/:id" element={<ItemDetail />} />
             <Route path="/saved-items" element={<SavedItems />} />
             <Route path="/browse-featured" element={<BrowseFeatured />} />
+            <Route path="/payments" element={<PaymentAndShipping />} />
           </Routes>
         </RouteGuard>
       </BrowserRouter>

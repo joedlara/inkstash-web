@@ -11,13 +11,17 @@ export default function DashboardSidebar() {
       component="aside"
       sx={{
         position: 'fixed',
-        left: { xs: 0, md: '3.75rem' },
+        left: '3.75rem',
         top: '70px',
-        width: { xs: '100%', md: 280, lg: 280 },
+        paddingRight:'.5rem',
+        maxWidth: 380,
         height: 'calc(100vh - 70px)',
         zIndex: 10,
         overflowY: 'auto',
-        display: { xs: 'none', md: 'block' },
+        display: 'block',
+        '@media (max-width: 768px)': {
+          display: 'none',
+        },
       }}
     >
       <Box sx={{ p: { xs: 3, md: 4 } }}>
@@ -43,7 +47,6 @@ export default function DashboardSidebar() {
               py: 1.5,
               fontSize: '1rem',
               fontWeight: 600,
-              borderRadius: 2,
               textTransform: 'none',
               color: activeTab === 'for-you' ? 'primary.main' : 'text.secondary',
               bgcolor: activeTab === 'for-you' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
@@ -62,7 +65,6 @@ export default function DashboardSidebar() {
               py: 1.5,
               fontSize: '1rem',
               fontWeight: 600,
-              borderRadius: 2,
               textTransform: 'none',
               color: activeTab === 'following' ? 'primary.main' : 'text.secondary',
               bgcolor: activeTab === 'following' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
