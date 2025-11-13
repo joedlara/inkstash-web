@@ -1,8 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  Button,
+  IconButton,
+  InputBase,
+  Badge,
+  Avatar,
+  Stack,
+} from '@mui/material';
+import {
+  Search,
+  Bookmark,
+  Message,
+  Notifications,
+  CardGiftcard,
+} from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import ProfileDropdown from './ProfileDropdown';
-import '../../styles/home/DashboardHeader.css';
 
 export default function DashboardHeader() {
   const navigate = useNavigate();
@@ -17,89 +34,263 @@ export default function DashboardHeader() {
 
   return (
     <>
-      <header className="dashboard-header">
-        <div className="dashboard-header-container">
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          bgcolor: 'background.paper',
+          borderBottom: 1,
+          borderColor: 'divider',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+        }}
+      >
+        <Toolbar
+          sx={{
+            maxWidth: '1600px',
+            width: '100%',
+            mx: 'auto',
+            px: { xs: 2, md: 4 },
+            gap: { xs: 1, md: 2 },
+          }}
+        >
           {/* Logo */}
-          <div className="dashboard-logo" onClick={() => navigate('/')}>
+          <Box
+            onClick={() => navigate('/')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              cursor: 'pointer',
+              transition: 'opacity 0.2s',
+              flexShrink: 0,
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
+          >
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
               <circle cx="20" cy="20" r="18" fill="#000000"/>
               <path d="M20 10L25 15L20 20L15 15L20 10Z" fill="#0078FF"/>
               <path d="M20 20L25 25L20 30L15 25L20 20Z" fill="#0078FF"/>
             </svg>
-            <span className="dashboard-logo-text">inkstash</span>
-          </div>
+            <Box
+              component="span"
+              sx={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'text.primary',
+                display: { xs: 'none', sm: 'block' },
+              }}
+            >
+              inkstash
+            </Box>
+          </Box>
 
           {/* Navigation Links */}
-          <div className="dashboard-nav-links">
-            <button className="nav-link-btn active" onClick={() => navigate('/')}>Home</button>
-            <button className="nav-link-btn">Browse</button>
-          </div>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{
+              flexShrink: 0,
+              display: { xs: 'none', md: 'flex' },
+            }}
+          >
+            <Button
+              onClick={() => navigate('/')}
+              sx={{
+                px: 2.5,
+                py: 1,
+                borderRadius: 999,
+                fontWeight: 600,
+                color: 'white',
+                bgcolor: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                },
+              }}
+            >
+              Home
+            </Button>
+            <Button
+              sx={{
+                px: 2.5,
+                py: 1,
+                borderRadius: 999,
+                fontWeight: 600,
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
+                },
+              }}
+            >
+              Browse
+            </Button>
+          </Stack>
 
           {/* Search Bar */}
-          <form className="dashboard-search" onSubmit={handleSearch}>
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <input
-              type="text"
+          <Box
+            component="form"
+            onSubmit={handleSearch}
+            sx={{
+              flex: 1,
+              maxWidth: 500,
+              position: 'relative',
+              display: { xs: 'none', sm: 'flex' },
+              alignItems: 'center',
+            }}
+          >
+            <Search
+              sx={{
+                position: 'absolute',
+                left: 16,
+                color: 'text.disabled',
+                pointerEvents: 'none',
+              }}
+            />
+            <InputBase
               placeholder="Search InkStash"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              size='small'
+              sx={{
+                width: '100%',
+                pl: 3,
+                pr: 2,
+                py: 1,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 999,
+                fontSize: '0.9375rem',
+                bgcolor: 'grey.50',
+                transition: 'all 0.2s',
+                '&:focus-within': {
+                  borderColor: 'text.primary',
+                  bgcolor: 'background.paper',
+                },
+                '& input::placeholder': {
+                  color: 'text.disabled',
+                  opacity: 1,
+                },
+              }}
             />
-          </form>
+          </Box>
 
           {/* Right Side Actions */}
-          <div className="dashboard-actions">
-            <button className="nav-link-btn become-seller" onClick={() => navigate('/sell')}>
+          <Stack
+            direction="row"
+            spacing={{ xs: 0.5, md: 1 }}
+            alignItems="center"
+            sx={{ flexShrink: 0 }}
+          >
+            <Button
+              onClick={() => navigate('/sell')}
+              sx={{
+                px: 2.5,
+                py: 1,
+                borderRadius: 999,
+                fontWeight: 600,
+                bgcolor: 'grey.200',
+                color: 'text.primary',
+                display: { xs: 'none', md: 'inline-flex' },
+                '&:hover': {
+                  bgcolor: 'grey.300',
+                },
+              }}
+            >
               Become a Seller
-            </button>
+            </Button>
 
             {/* Action Icons */}
-            <button className="icon-button" aria-label="Saved Items" onClick={() => navigate('/saved-items')}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            <IconButton
+              aria-label="Saved Items"
+              onClick={() => navigate('/saved-items')}
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <Bookmark />
+            </IconButton>
 
-            <button className="icon-button" aria-label="Messages">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="notification-badge">2</span>
-            </button>
+            <IconButton
+              aria-label="Messages"
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <Badge badgeContent={2} color="error">
+                <Message />
+              </Badge>
+            </IconButton>
 
-            <button className="icon-button" aria-label="Notifications">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            <IconButton
+              aria-label="Notifications"
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <Notifications />
+            </IconButton>
 
-            <button className="icon-button" aria-label="Gifts">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="8" width="18" height="4" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <rect x="3" y="12" width="18" height="9" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <path d="M12 8V21M12 8H7.5a2.5 2.5 0 1 1 0-5C11 3 12 8 12 8zM12 8h4.5a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8z" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </button>
+            <IconButton
+              aria-label="Gifts"
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <CardGiftcard />
+            </IconButton>
 
             {/* Profile Picture */}
-            <button
-              className="profile-button"
+            <IconButton
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               aria-label="Profile menu"
+              sx={{
+                p: 0,
+                border: 2,
+                borderColor: 'divider',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: 'text.primary',
+                  transform: 'scale(1.05)',
+                },
+              }}
             >
               {user?.avatar_url ? (
-                <img src={user.avatar_url} alt={user.username} />
+                <Avatar
+                  src={user.avatar_url}
+                  alt={user.username}
+                  sx={{ width: 44, height: 44 }}
+                />
               ) : (
-                <div className="profile-avatar-placeholder">
+                <Avatar
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    background: 'linear-gradient(135deg, #0078FF, #00BFFF)',
+                    fontWeight: 700,
+                    fontSize: '1.125rem',
+                  }}
+                >
                   {user?.username?.charAt(0).toUpperCase() || 'U'}
-                </div>
+                </Avatar>
               )}
-            </button>
-          </div>
-        </div>
-      </header>
+            </IconButton>
+          </Stack>
+        </Toolbar>
+      </AppBar>
 
       {/* Profile Dropdown */}
       <ProfileDropdown

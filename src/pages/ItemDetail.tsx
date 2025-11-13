@@ -1,5 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Container,
+  Card,
+  CardMedia,
+  CardContent,
+  Typography,
+  Button,
+  IconButton,
+  Avatar,
+  Chip,
+  Paper,
+  Stack,
+  Divider,
+  Grid,
+} from '@mui/material';
+import {
+  Favorite,
+  FavoriteBorder,
+  Share,
+  BookmarkBorder,
+  Bookmark,
+  Visibility,
+  CheckBox,
+  CalendarMonth,
+} from '@mui/icons-material';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -11,7 +37,6 @@ import {
   getAuctionInteractionCounts
 } from '../api/auctions/auctionInteractions';
 import DashboardHeader from '../components/home/DashboardHeader';
-import '../styles/pages/ItemDetail.css';
 
 interface ItemDetails {
   id: string;
@@ -108,7 +133,7 @@ export default function ItemDetail() {
           total_bids: auctionData.bid_count || 0,
           watchers: auctionData.watchers || 0,
           artist: auctionData.artist,
-          seller_location: 'United States', // Default location since column doesn't exist
+          seller_location: 'United States',
           us_shipping: auctionData.us_shipping || 0,
           international_shipping: auctionData.international_shipping || 0,
         };
@@ -151,20 +176,15 @@ export default function ItemDetail() {
     return () => clearInterval(interval);
   }, [item]);
 
-  // Load user interaction status (like/save) and record view
   useEffect(() => {
     async function loadInteractionStatus() {
       if (!id) return;
 
       try {
-        // Record the view
         await recordAuctionView(id, user?.id);
-
-        // Load interaction counts
         const counts = await getAuctionInteractionCounts(id);
         setInteractionCounts(counts);
 
-        // Load user-specific interaction status if logged in
         if (user) {
           const [liked, saved] = await Promise.all([
             checkUserLiked(user.id, id),
@@ -182,7 +202,6 @@ export default function ItemDetail() {
     loadInteractionStatus();
   }, [user, id]);
 
-  // Handler functions
   const handleLikeClick = async () => {
     if (!user || !id || isLoadingInteractions) return;
 
@@ -191,7 +210,6 @@ export default function ItemDetail() {
       const newLikeState = await toggleLike(user.id, id);
       setIsLiked(newLikeState);
 
-      // Refresh counts
       const counts = await getAuctionInteractionCounts(id);
       setInteractionCounts(counts);
     } catch {
@@ -209,7 +227,6 @@ export default function ItemDetail() {
       const newSaveState = await toggleSave(user.id, id);
       setIsSaved(newSaveState);
 
-      // Refresh counts
       const counts = await getAuctionInteractionCounts(id);
       setInteractionCounts(counts);
     } catch {
@@ -222,7 +239,6 @@ export default function ItemDetail() {
   const handleShareClick = async () => {
     const url = window.location.href;
 
-    // Try to use native Web Share API if available
     if (navigator.share) {
       try {
         await navigator.share({
@@ -234,7 +250,6 @@ export default function ItemDetail() {
         // User cancelled or error occurred
       }
     } else {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url);
         alert('Link copied to clipboard!');
@@ -246,261 +261,332 @@ export default function ItemDetail() {
 
   if (loading) {
     return (
-      <div className="home authenticated">
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <DashboardHeader />
-        <div className="detail-content">
-          <div className="item-detail-loading">
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </div>
+        <Container maxWidth="xl" sx={{ mt: 10 }}>
+          <Typography variant="h4">Loading...</Typography>
+        </Container>
+      </Box>
     );
   }
 
   if (error || !item) {
     return (
-      <div className="home authenticated">
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <DashboardHeader />
-        <div className="detail-content">
-          <div className="item-detail-error">
-            <h2>{error || 'Item not found'}</h2>
-            <p>The auction item you're looking for doesn't exist or has been removed.</p>
-            <button onClick={() => navigate('/')} className="back-home-btn">
+        <Container maxWidth="xl" sx={{ mt: 10 }}>
+          <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h4" gutterBottom>{error || 'Item not found'}</Typography>
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              The auction item you're looking for doesn't exist or has been removed.
+            </Typography>
+            <Button variant="contained" onClick={() => navigate('/')} sx={{ mt: 2 }}>
               Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </Paper>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <div className="home authenticated">
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
-      <div className="detail-content">
-        <div className="item-detail-container">
-        {/* Left Side - Image */}
-        <div className="item-image-section">
-          <div className="viewer-count">0 viewers now</div>
-          <div className="item-image-wrapper">
-            <img src={item.image_url} alt={item.title} className="item-image" />
-            <div className="image-actions">
-              <button
-                className={`action-btn favorite-btn ${isLiked ? 'active' : ''}`}
-                onClick={handleLikeClick}
-                disabled={isLoadingInteractions || !user}
-                aria-label={isLiked ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <button
-                className="action-btn share-btn"
-                onClick={handleShareClick}
-                aria-label="Share"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11A2.99 2.99 0 0018 7.92 3 3 0 1015 5c0 .24.04.47.09.7L7.99 9.81A3.01 3.01 0 004 12c0 1.66 1.34 3 3 3 .76 0 1.47-.31 1.99-.81l7.13 4.17c-.05.21-.1.43-.1.64 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/>
-                </svg>
-              </button>
-              <button
-                className={`action-btn bookmark-btn ${isSaved ? 'active' : ''}`}
-                onClick={handleSaveClick}
-                disabled={isLoadingInteractions || !user}
-                aria-label={isSaved ? 'Remove bookmark' : 'Bookmark'}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+      <Container maxWidth="xl" sx={{ mt: { xs: 10, md: 12 }, mb: 4 }}>
+        <Grid container spacing={4}>
+          {/* Left Side - Image and Stats */}
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Card elevation={2}>
+              <Box sx={{ position: 'relative' }}>
+                <Chip
+                  label="0 viewers now"
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    top: 16,
+                    left: 16,
+                    zIndex: 1,
+                    bgcolor: 'rgba(0, 0, 0, 0.7)',
+                    color: 'white'
+                  }}
+                />
+                <CardMedia
+                  component="img"
+                  image={item.image_url}
+                  alt={item.title}
+                  sx={{
+                    width: '100%',
+                    height: { xs: 400, sm: 500, md: 600, lg: 700 },
+                    objectFit: 'cover',
+                    bgcolor: '#f5f5f5'
+                  }}
+                />
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    position: 'absolute',
+                    bottom: 16,
+                    right: 16,
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: 2,
+                    p: 1
+                  }}
+                >
+                  <IconButton
+                    onClick={handleLikeClick}
+                    disabled={isLoadingInteractions || !user}
+                    color={isLiked ? 'error' : 'default'}
+                    size="small"
+                  >
+                    {isLiked ? <Favorite /> : <FavoriteBorder />}
+                  </IconButton>
+                  <IconButton onClick={handleShareClick} size="small">
+                    <Share />
+                  </IconButton>
+                  <IconButton
+                    onClick={handleSaveClick}
+                    disabled={isLoadingInteractions || !user}
+                    color={isSaved ? 'primary' : 'default'}
+                    size="small"
+                  >
+                    {isSaved ? <Bookmark /> : <BookmarkBorder />}
+                  </IconButton>
+                </Stack>
+              </Box>
+            </Card>
 
-          {/* Stats and Calendar */}
-          <div className="stats-calendar-container">
-            {/* Stats */}
-            <div className="item-stats">
-              <div className="stat-item">
-                <div className="stat-content">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <circle cx="12" cy="12" r="3" strokeWidth="2"/>
-                  </svg>
-                  <div className="stat-value">{interactionCounts.views}</div>
-                </div>
-                <div className="stat-label">Total Views</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-content">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M9 11l3 3L22 4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <div className="stat-value">{item.total_bids}</div>
-                </div>
-                <div className="stat-label">Bids</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-content">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <div className="stat-value">{interactionCounts.saves}</div>
-                </div>
-                <div className="stat-label">Saves</div>
-              </div>
-            </div>
+            {/* Stats Section */}
+            <Grid container spacing={2} sx={{ mt: 2 }}>
+              <Grid size={{ xs: 4 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+                  <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                    <Visibility color="action" />
+                    <Typography variant="h6">{interactionCounts.views}</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">Total Views</Typography>
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+                  <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                    <CheckBox color="action" />
+                    <Typography variant="h6">{item.total_bids}</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">Bids</Typography>
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+                  <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                    <Bookmark color="action" />
+                    <Typography variant="h6">{interactionCounts.saves}</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">Saves</Typography>
+                </Paper>
+              </Grid>
+            </Grid>
 
-            {/* Add to Calendar */}
-            <div className="add-to-calendar-section">
-              <div className="add-to-calendar-title">Add to Calendar</div>
-              <div className="calendar-options">
-                <a
-                  href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(`Auction ending: ${item.description}`)}`}
+            {/* Calendar Section */}
+            <Paper elevation={1} sx={{ p: 3, mt: 2 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                <CalendarMonth color="primary" />
+                <Typography variant="h6">Add to Calendar</Typography>
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(item.description)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="calendar-option"
-                  title="Add to Google Calendar"
                 >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>
-                  </svg>
-                </a>
-                <a
+                  Google
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
                   href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
                   download={`${item.title.replace(/\s+/g, '_')}.ics`}
-                  className="calendar-option"
-                  title="Download for Apple Calendar"
                 >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17 2c.55 0 1 .45 1 1v1h1c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h1V3c0-.55.45-1 1-1s1 .45 1 1v1h8V3c0-.55.45-1 1-1zm2 18V10H5v10h14zm-8-8h4v4h-4v-4z"/>
-                  </svg>
-                </a>
-                <a
+                  Apple
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
                   href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="calendar-option"
-                  title="Add to Outlook Calendar"
                 >
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
+                  Outlook
+                </Button>
+              </Stack>
+            </Paper>
+          </Grid>
 
-        {/* Right Side - Details */}
-        <div className="item-details-section">
-          <h1 className="item-title">{item.title}</h1>
+          {/* Right Side - Details */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Card elevation={2}>
+              <CardContent>
+                <Typography variant="h4" gutterBottom fontWeight="bold">
+                  {item.title}
+                </Typography>
 
-          {/* Seller Info */}
-          <div className="seller-info" onClick={() => navigate(`/seller/${item.seller_id}`)}>
-            <img
-              src={item.seller_avatar || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-              alt={item.seller_name}
-              className="seller-avatar"
-            />
-            <span className="seller-name">{item.seller_name}</span>
-            {item.seller_verified && (
-              <svg className="verified-badge" width="16" height="16" viewBox="0 0 24 24" fill="#3395FF">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            )}
-          </div>
+                {/* Seller Info */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={2}
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    bgcolor: 'background.default',
+                    borderRadius: 2,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => navigate(`/seller/${item.seller_id}`)}
+                >
+                  <Avatar
+                    src={item.seller_avatar || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+                    alt={item.seller_name}
+                    sx={{ width: 48, height: 48 }}
+                  />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      {item.seller_name}
+                      {item.seller_verified && (
+                        <Chip
+                          label="Verified"
+                          size="small"
+                          color="primary"
+                          sx={{ ml: 1, height: 20 }}
+                        />
+                      )}
+                    </Typography>
+                  </Box>
+                </Stack>
 
-          {/* Bid Section */}
-          <div className="bid-section">
-            <div className="current-bid">
-              <span className="bid-label">Current Bid:</span>
-              <span className="bid-amount">${item.current_bid}</span>
-            </div>
+                {/* Bid Section */}
+                <Paper elevation={0} sx={{ bgcolor: 'primary.50', p: 3, mb: 3, borderRadius: 3 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Current Bid
+                  </Typography>
+                  <Typography variant="h3" color="primary" fontWeight="bold" gutterBottom>
+                    ${item.current_bid}
+                  </Typography>
 
-            {/* Countdown Timer */}
-            <div className="countdown-section">
-              <div className="countdown-label">Auction ends in</div>
-              <div className="countdown-timer">
-                <div className="time-unit">
-                  <div className="time-value">{timeRemaining.days}</div>
-                  <div className="time-label">Days</div>
-                </div>
-                <div className="time-unit">
-                  <div className="time-value">{timeRemaining.hours}</div>
-                  <div className="time-label">Hours</div>
-                </div>
-                <div className="time-unit">
-                  <div className="time-value">{timeRemaining.minutes}</div>
-                  <div className="time-label">Minutes</div>
-                </div>
-                <div className="time-unit">
-                  <div className="time-value">{timeRemaining.seconds}</div>
-                  <div className="time-label">Seconds</div>
-                </div>
-              </div>
-            </div>
+                  {/* Countdown Timer */}
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Auction ends in
+                  </Typography>
+                  <Grid container spacing={1} sx={{ mb: 3 }}>
+                    <Grid size={{ xs: 3 }}>
+                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold">{timeRemaining.days}</Typography>
+                        <Typography variant="caption" color="text.secondary">Days</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid size={{ xs: 3 }}>
+                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold">{timeRemaining.hours}</Typography>
+                        <Typography variant="caption" color="text.secondary">Hours</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid size={{ xs: 3 }}>
+                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold">{timeRemaining.minutes}</Typography>
+                        <Typography variant="caption" color="text.secondary">Mins</Typography>
+                      </Paper>
+                    </Grid>
+                    <Grid size={{ xs: 3 }}>
+                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight="bold">{timeRemaining.seconds}</Typography>
+                        <Typography variant="caption" color="text.secondary">Secs</Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
 
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              <button className="bid-btn">Place Bid</button>
-              {item.buy_now_price && (
-                <button className="buy-now-btn">Buy Now - ${item.buy_now_price}</button>
-              )}
-            </div>
-          </div>
+                  {/* Action Buttons */}
+                  <Stack spacing={2}>
+                    <Button variant="contained" size="large" fullWidth>
+                      Place Bid
+                    </Button>
+                    {item.buy_now_price && (
+                      <Button variant="outlined" size="large" fullWidth>
+                        Buy Now - ${item.buy_now_price}
+                      </Button>
+                    )}
+                  </Stack>
+                </Paper>
 
-          {/* Description */}
-          <div className="description-section">
-            <h2 className="section-title">Description</h2>
-            <p className="description-text">{item.description}</p>
-          </div>
+                <Divider sx={{ my: 3 }} />
 
-          {/* Item Details */}
-          <div className="details-grid">
-            <div className="detail-row">
-              <span className="detail-label">End Date:</span>
-              <span className="detail-value">{new Date(item.end_date).toLocaleString()}</span>
-            </div>
-            {item.artist && (
-              <div className="detail-row">
-                <span className="detail-label">Artist:</span>
-                <span className="detail-value detail-link">{item.artist}</span>
-              </div>
-            )}
-            <div className="detail-row">
-              <span className="detail-label">Category:</span>
-              <span className="detail-value detail-link">{item.category}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Seller Location:</span>
-              <span className="detail-value">{item.seller_location}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">US Shipping:</span>
-              <span className="detail-value">${item.us_shipping.toFixed(2)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">International Shipping:</span>
-              <span className="detail-value">${item.international_shipping.toFixed(2)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Payment:</span>
-              <span className="detail-value">Buyer picks a payment method to deposit funds in Escrow. Bidders must have a default payment method and shipping address on file to bid. Local tax and fees will be charged if applicable. <span className="learn-more">Learn more</span></span>
-            </div>
-          </div>
+                {/* Description */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    Description
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    {item.description}
+                  </Typography>
+                </Box>
 
-          {/* Payment Methods */}
-          <div className="payment-methods">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="American Express" />
-          </div>
-        </div>
-      </div>
-    </div>
-</div>
+                <Divider sx={{ my: 3 }} />
+
+                {/* Item Details */}
+                <Box>
+                  <Typography variant="h6" gutterBottom fontWeight={600}>
+                    Item Details
+                  </Typography>
+                  <Stack spacing={2}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">End Date:</Typography>
+                      <Typography variant="body2">{new Date(item.end_date).toLocaleString()}</Typography>
+                    </Stack>
+                    {item.artist && (
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">Artist:</Typography>
+                        <Typography variant="body2" color="primary" sx={{ cursor: 'pointer' }}>{item.artist}</Typography>
+                      </Stack>
+                    )}
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">Category:</Typography>
+                      <Chip label={item.category} size="small" />
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">Seller Location:</Typography>
+                      <Typography variant="body2">{item.seller_location}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">US Shipping:</Typography>
+                      <Typography variant="body2">${item.us_shipping.toFixed(2)}</Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">International Shipping:</Typography>
+                      <Typography variant="body2">${item.international_shipping.toFixed(2)}</Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* Payment Methods */}
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Accepted Payment Methods
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                    <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" sx={{ height: 24 }} />
+                    <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" sx={{ height: 24 }} />
+                    <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" sx={{ height: 24 }} />
+                    <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="American Express" sx={{ height: 24 }} />
+                  </Stack>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
+    </Box>
   );
 }

@@ -35,6 +35,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/contact',
     '/privacy',
     '/terms',
+    '/sell',
   ];
 
   // Routes that should redirect authenticated users away
@@ -46,7 +47,6 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/profile',
     '/settings',
     '/collection',
-    '/sell',
     '/messages',
     '/notifications',
     '/saved-items',

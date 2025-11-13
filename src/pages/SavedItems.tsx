@@ -1,10 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  Card,
+  CardMedia,
+  CardContent,
+  Button,
+  CircularProgress,
+  Grid,
+  Chip,
+  Stack,
+} from '@mui/material';
+import { Bookmark } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { getUserSavedAuctions } from '../api/auctions/auctionInteractions';
 import DashboardHeader from '../components/home/DashboardHeader';
 import { cache } from '../utils/cache';
-import '../styles/pages/SavedItems.css';
 
 interface Auction {
   id: string;
@@ -101,127 +113,233 @@ export default function SavedItems() {
 
   if (!user) {
     return (
-      <div className="home authenticated">
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <DashboardHeader />
-        <div className="saved-items-container">
-          <div className="saved-items-empty">
-            <h2>Please Log In</h2>
-            <p>You need to be logged in to view your saved items.</p>
-          </div>
-        </div>
-      </div>
+        <Box
+          sx={{
+            maxWidth: 1600,
+            mx: 'auto',
+            px: { xs: 2, md: 4 },
+            py: 8,
+            mt: '70px',
+          }}
+        >
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Please Log In
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              You need to be logged in to view your saved items.
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
   if (loading) {
     return (
-      <div className="home authenticated">
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <DashboardHeader />
-        <div className="saved-items-container">
-          <div className="saved-items-loading">
-            <div className="loading-spinner"></div>
-          </div>
-        </div>
-      </div>
+        <Box
+          sx={{
+            maxWidth: 1600,
+            mx: 'auto',
+            px: { xs: 2, md: 4 },
+            py: 8,
+            mt: '70px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: 'calc(100vh - 70px)',
+          }}
+        >
+          <CircularProgress size={60} />
+        </Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="home authenticated">
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <DashboardHeader />
-        <div className="saved-items-container">
-          <div className="saved-items-error">
-            <h2>Error</h2>
-            <p>{error}</p>
-            <button onClick={() => navigate('/')} className="back-home-btn">
+        <Box
+          sx={{
+            maxWidth: 1600,
+            mx: 'auto',
+            px: { xs: 2, md: 4 },
+            py: 8,
+            mt: '70px',
+          }}
+        >
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Error
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              {error}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/')}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
               Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="home authenticated">
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
-      <div className="saved-items-container">
-        <div className="saved-items-header">
-          <h1>Saved Items</h1>
-          <p className="saved-items-count">
+      <Box
+        sx={{
+          maxWidth: 1600,
+          mx: 'auto',
+          px: { xs: 2, md: 4 },
+          py: 8,
+          mt: '70px',
+        }}
+      >
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h3" fontWeight={700} gutterBottom>
+            Saved Items
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
             {savedItems.length} {savedItems.length === 1 ? 'item' : 'items'}
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
         {savedItems.length === 0 ? (
-          <div className="saved-items-empty">
-            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <h2>No Saved Items Yet</h2>
-            <p>Start saving items you're interested in by clicking the bookmark icon on any auction.</p>
-            <button onClick={() => navigate('/')} className="browse-btn">
+          <Box
+            sx={{
+              textAlign: 'center',
+              py: 12,
+              px: 4,
+            }}
+          >
+            <Bookmark
+              sx={{
+                fontSize: 120,
+                color: 'text.disabled',
+                mb: 3,
+              }}
+            />
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              No Saved Items Yet
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 500, mx: 'auto' }}>
+              Start saving items you're interested in by clicking the bookmark icon on any auction.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/')}
+              sx={{
+                px: 4,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            >
               Browse Auctions
-            </button>
-          </div>
+            </Button>
+          </Box>
         ) : (
-          <div className="saved-items-grid">
+          <Grid container spacing={3}>
             {savedItems.map((item) => {
               const auction = Array.isArray(item.auctions) ? item.auctions[0] : item.auctions;
               if (!auction) return null;
 
               return (
-                <div
-                  key={item.auction_id}
-                  className="saved-item-card"
-                  onClick={() => navigate(`/item/${item.auction_id}`)}
-                >
-                  <div className="saved-item-image-wrapper">
-                    <img
-                      src={auction.image_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
-                      alt={auction.title}
-                      className="saved-item-image"
-                    />
-                    <div className="saved-item-time-remaining">
-                      {calculateTimeRemaining(auction.end_time)}
-                    </div>
-                  </div>
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.auction_id}>
+                  <Card
+                    onClick={() => navigate(`/item/${item.auction_id}`)}
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    <Box sx={{ position: 'relative' }}>
+                      <CardMedia
+                        component="img"
+                        height="370"
+                        image={
+                          auction.image_url ||
+                          'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'
+                        }
+                        alt={auction.title}
+                        sx={{ objectFit: 'cover', bgcolor: 'grey.100', width: '100%' }}
+                      />
+                      <Chip
+                        label={calculateTimeRemaining(auction.end_time)}
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          bgcolor: 'rgba(0, 0, 0, 0.7)',
+                          color: 'white',
+                          fontWeight: 600,
+                        }}
+                      />
+                    </Box>
 
-                  <div className="saved-item-details">
-                    <h3 className="saved-item-title">{auction.title}</h3>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight={600} gutterBottom noWrap>
+                        {auction.title}
+                      </Typography>
 
-                    {auction.artist && (
-                      <p className="saved-item-artist">{auction.artist}</p>
-                    )}
-
-                    <div className="saved-item-pricing">
-                      <div className="saved-item-current-bid">
-                        <span className="bid-label">Current Bid</span>
-                        <span className="bid-amount">${auction.current_bid}</span>
-                      </div>
-
-                      {auction.buy_now_price && (
-                        <div className="saved-item-buy-now">
-                          <span className="buy-now-label">Buy Now</span>
-                          <span className="buy-now-amount">${auction.buy_now_price}</span>
-                        </div>
+                      {auction.artist && (
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          {auction.artist}
+                        </Typography>
                       )}
-                    </div>
 
-                    <div className="saved-item-meta">
-                      <span className="saved-item-category">{auction.category}</span>
-                      <span className="saved-item-date">
-                        Saved {new Date(item.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                      <Stack spacing={1.5} sx={{ mt: 2 }}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Current Bid
+                          </Typography>
+                          <Typography variant="h6" color="primary" fontWeight={700}>
+                            ${auction.current_bid}
+                          </Typography>
+                        </Box>
+
+                        {auction.buy_now_price && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Buy Now
+                            </Typography>
+                            <Typography variant="h6" fontWeight={600}>
+                              ${auction.buy_now_price}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+
+                      <Stack direction="row" spacing={1} sx={{ mt: 2 }} alignItems="center">
+                        <Chip label={auction.category} size="small" variant="outlined" />
+                        <Typography variant="caption" color="text.secondary">
+                          Saved {new Date(item.created_at).toLocaleDateString()}
+                        </Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
               );
             })}
-          </div>
+          </Grid>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
