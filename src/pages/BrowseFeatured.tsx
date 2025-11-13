@@ -1,9 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  Card,
+  CardMedia,
+  CardContent,
+  Button,
+  Chip,
+  Grid,
+  Stack,
+  Skeleton,
+  ToggleButtonGroup,
+  ToggleButton,
+} from '@mui/material';
+import { Star, Verified } from '@mui/icons-material';
 import { supabase } from '../api/supabase/supabaseClient';
 import { cache } from '../utils/cache';
 import DashboardHeader from '../components/home/DashboardHeader';
-import '../styles/pages/BrowseFeatured.css';
 
 interface FeaturedItem {
   id: string;
@@ -132,119 +146,204 @@ export default function BrowseFeatured() {
   };
 
   return (
-    <div className="home authenticated">
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
-      <div className="browse-featured-container">
-        <div className="browse-header">
-          <h1>Featured Collectibles</h1>
-          <p className="browse-subtitle">Discover handpicked items from verified sellers</p>
-        </div>
+      <Box
+        sx={{
+          maxWidth: 1600,
+          mx: 'auto',
+          px: { xs: 2, md: 4 },
+          py: 8,
+          mt: '70px',
+        }}
+      >
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h3" fontWeight={700} gutterBottom>
+            Featured Collectibles
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Discover handpicked items from verified sellers
+          </Typography>
+        </Box>
 
-        <div className="browse-controls">
-          <div className="sort-buttons">
-            <button
-              className={`sort-button ${sortBy === 'price' ? 'active' : ''}`}
-              onClick={() => setSortBy('price')}
-            >
-              Highest Price
-            </button>
-            <button
-              className={`sort-button ${sortBy === 'ending' ? 'active' : ''}`}
-              onClick={() => setSortBy('ending')}
-            >
-              Ending Soon
-            </button>
-            <button
-              className={`sort-button ${sortBy === 'bids' ? 'active' : ''}`}
-              onClick={() => setSortBy('bids')}
-            >
-              Most Bids
-            </button>
-          </div>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+          sx={{ mb: 4 }}
+        >
+          <ToggleButtonGroup
+            value={sortBy}
+            exclusive
+            onChange={(_, newValue) => {
+              if (newValue !== null) setSortBy(newValue);
+            }}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 2.5,
+                py: 1,
+              },
+            }}
+          >
+            <ToggleButton value="price">Highest Price</ToggleButton>
+            <ToggleButton value="ending">Ending Soon</ToggleButton>
+            <ToggleButton value="bids">Most Bids</ToggleButton>
+          </ToggleButtonGroup>
 
-          <div className="items-count">
+          <Typography variant="body2" color="text.secondary" fontWeight={600}>
             {loading ? 'Loading...' : `${items.length} items`}
-          </div>
-        </div>
+          </Typography>
+        </Stack>
 
         {loading ? (
-          <div className="browse-grid">
+          <Grid container spacing={3}>
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="featured-card loading">
-                <div className="card-image-skeleton">
-                  <div className="loading-shimmer"></div>
-                </div>
-                <div className="card-details-skeleton">
-                  <div className="loading-line title"></div>
-                  <div className="loading-line seller"></div>
-                  <div className="loading-line price"></div>
-                </div>
-              </div>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
+                <Card>
+                  <Skeleton variant="rectangular" height={370} />
+                  <CardContent>
+                    <Skeleton width="80%" height={24} sx={{ mb: 1 }} />
+                    <Skeleton width="60%" height={20} sx={{ mb: 2 }} />
+                    <Skeleton width="40%" height={28} />
+                  </CardContent>
+                </Card>
+              </Grid>
             ))}
-          </div>
+          </Grid>
         ) : items.length === 0 ? (
-          <div className="browse-empty">
-            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <h2>No Featured Items</h2>
-            <p>Check back later for featured collectibles</p>
-            <button onClick={() => navigate('/')} className="back-home-btn">
+          <Box sx={{ textAlign: 'center', py: 12 }}>
+            <Star
+              sx={{
+                fontSize: 120,
+                color: 'text.disabled',
+                mb: 3,
+              }}
+            />
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              No Featured Items
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              Check back later for featured collectibles
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate('/')}
+              sx={{
+                px: 4,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 999,
+              }}
+            >
               Back to Home
-            </button>
-          </div>
+            </Button>
+          </Box>
         ) : (
-          <div className="browse-grid">
+          <Grid container spacing={3}>
             {items.map((item) => (
-              <div
-                key={item.id}
-                className="featured-card"
-                onClick={() => navigate(`/item/${item.id}`)}
-              >
-                <div className="card-image-wrapper">
-                  <img
-                    src={item.image_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
-                    alt={item.title}
-                    className="card-image"
-                  />
-                  <div className="featured-badge">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                    </svg>
-                  </div>
-                  <div className="time-badge">{calculateTimeRemaining(item.end_time)}</div>
-                </div>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
+                <Card
+                  onClick={() => navigate(`/item/${item.id}`)}
+                  sx={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <CardMedia
+                      component="img"
+                      height="370"
+                      image={
+                        item.image_url ||
+                        'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'
+                      }
+                      alt={item.title}
+                      sx={{ objectFit: 'cover', bgcolor: 'grey.100', width: '100%' }}
+                    />
+                    <Chip
+                      icon={<Star sx={{ fontSize: 14 }} />}
+                      label="Featured"
+                      size="small"
+                      color="warning"
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        fontWeight: 600,
+                      }}
+                    />
+                    <Chip
+                      label={calculateTimeRemaining(item.end_time)}
+                      size="small"
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        color: 'white',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
 
-                <div className="card-details">
-                  <h3 className="card-title">{item.title}</h3>
-                  <div className="seller-row">
-                    <span className="seller-label">By</span>
-                    <span className="seller-name">{item.seller_username}</span>
-                    {item.seller_verified && (
-                      <svg className="verified-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
-                          stroke="#10b981"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <polyline points="22 4 12 14.01 9 11.01" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  <div className="bid-row">
-                    <span className="bid-price">${item.current_bid.toFixed(0)}</span>
-                    <span className="bid-divider">|</span>
-                    <span className="bid-count">{item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}</span>
-                    <button className="auction-button">Bid</button>
-                  </div>
-                </div>
-              </div>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} gutterBottom noWrap>
+                      {item.title}
+                    </Typography>
+
+                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        By
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {item.seller_username}
+                      </Typography>
+                      {item.seller_verified && (
+                        <Verified sx={{ fontSize: 14, color: 'success.main' }} />
+                      )}
+                    </Stack>
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      spacing={1}
+                    >
+                      <Box>
+                        <Typography variant="h6" color="primary" fontWeight={700}>
+                          ${item.current_bid.toFixed(0)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Bid
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
             ))}
-          </div>
+          </Grid>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

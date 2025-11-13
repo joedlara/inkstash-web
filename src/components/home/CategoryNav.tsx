@@ -1,4 +1,4 @@
-import '../../styles/home/CategoryNav.css';
+import { Box, Chip, Stack } from '@mui/material';
 
 export type CategoryType = 'all' | 'comics' | 'manga' | 'trading-cards' | 'figures' | 'original-art' | 'graded' | 'prints';
 
@@ -58,21 +58,60 @@ const categories: Category[] = [
 
 export default function CategoryNav({ activeCategory, onCategoryChange }: CategoryNavProps) {
   return (
-    <section className="category-nav">
-      <div className="category-nav-container">
-        <div className="category-scroll">
+    <Box
+      component="section"
+      sx={{
+        py: 3,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        position: 'sticky',
+        top: 70,
+        zIndex: 10,
+      }}
+    >
+      <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            overflowX: 'auto',
+            '&::-webkit-scrollbar': {
+              display: 'none',
+            },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          }}
+        >
           {categories.map((category) => (
-            <button
+            <Chip
               key={category.id}
-              className={`category-pill ${activeCategory === category.id ? 'active' : ''}`}
+              icon={<Box sx={{ display: 'flex', alignItems: 'center' }}>{category.icon}</Box>}
+              label={category.label}
               onClick={() => onCategoryChange(category.id)}
-            >
-              <span className="category-icon">{category.icon}</span>
-              <span className="category-label">{category.label}</span>
-            </button>
+              variant={activeCategory === category.id ? 'filled' : 'outlined'}
+              color={activeCategory === category.id ? 'primary' : 'default'}
+              sx={{
+                px: 1,
+                height: 40,
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                borderRadius: 999,
+                flexShrink: 0,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  bgcolor: activeCategory === category.id ? 'primary.dark' : 'action.hover',
+                },
+                '& .MuiChip-icon': {
+                  ml: 1,
+                  mr: -0.5,
+                },
+              }}
+            />
           ))}
-        </div>
-      </div>
-    </section>
+        </Stack>
+      </Box>
+    </Box>
   );
 }

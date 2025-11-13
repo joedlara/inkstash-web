@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  Box,
+  Typography,
+  Tabs,
+  Tab,
+  TextField,
+  Button,
+  IconButton,
+  InputAdornment,
+  Alert,
+  Link,
+  Fade,
+} from '@mui/material';
+import {
+  Close,
+  Visibility,
+  VisibilityOff,
+} from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
-import '../../styles/auth/AuthModal.css';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -135,172 +154,246 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
   };
 
   return (
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="auth-modal-close" onClick={onClose}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      TransitionComponent={Fade}
+      PaperProps={{
+        sx: {
+          borderRadius: 4,
+          p: { xs: 3, sm: 5 },
+          maxHeight: '90vh',
+        },
+      }}
+    >
+      <IconButton
+        onClick={onClose}
+        sx={{
+          position: 'absolute',
+          right: 20,
+          top: 20,
+          color: 'text.primary',
+          '&:hover': {
+            bgcolor: 'action.hover',
+          },
+        }}
+      >
+        <Close />
+      </IconButton>
 
-        <h2 className="auth-modal-title">Join InkStash!</h2>
+      <DialogContent sx={{ p: 0 }}>
+        <Typography variant="h4" fontWeight={700} mb={3}>
+          Join InkStash!
+        </Typography>
 
-        <div className="auth-tabs">
-          <button
-            className={`auth-tab ${activeTab === 'signup' ? 'active' : ''}`}
-            onClick={() => setActiveTab('signup')}
-          >
-            Sign up
-          </button>
-          <button
-            className={`auth-tab ${activeTab === 'login' ? 'active' : ''}`}
-            onClick={() => setActiveTab('login')}
-          >
-            Log in
-          </button>
-        </div>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 4,
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontSize: '1.125rem',
+              fontWeight: 500,
+              color: 'text.disabled',
+              '&.Mui-selected': {
+                color: 'text.primary',
+                fontWeight: 600,
+              },
+            },
+          }}
+        >
+          <Tab label="Sign up" value="signup" />
+          <Tab label="Log in" value="login" />
+        </Tabs>
 
-        {error && <div className="auth-error">{error}</div>}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-        <div className="auth-content">
-          {/* OAuth Buttons */}
-          <button className="oauth-button google" onClick={handleGoogleSignIn} disabled={loading}>
+        {/* OAuth Buttons */}
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          startIcon={
             <svg width="24" height="24" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Continue with Google
-          </button>
+          }
+          sx={{
+            py: 1.75,
+            mb: 1.5,
+            borderColor: 'divider',
+            color: 'text.primary',
+            fontWeight: 600,
+            textTransform: 'none',
+            fontSize: '1rem',
+            '&:hover': {
+              borderColor: 'text.secondary',
+              bgcolor: 'action.hover',
+            },
+          }}
+        >
+          Continue with Google
+        </Button>
 
+        {/* Sign Up Form */}
+        {activeTab === 'signup' && (
+          <Box component="form" onSubmit={handleEmailSignUp} sx={{ mt: 3 }}>
+            <TextField
+              fullWidth
+              label="Full name"
+              placeholder="First and last name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              sx={{ mb: 2.5 }}
+            />
 
-          {/* Sign Up Form */}
-          {activeTab === 'signup' && (
-            <form className="auth-form" onSubmit={handleEmailSignUp}>
-              <div className="form-group">
-                <label>Full name</label>
-                <input
-                  type="text"
-                  placeholder="First and last name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
+            <TextField
+              fullWidth
+              type="email"
+              label="Email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              sx={{ mb: 2.5 }}
+            />
 
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+            <TextField
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              label="Password"
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2.5 }}
+            />
 
-              <div className="form-group">
-                <label>Password</label>
-                <div className="password-input">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="********"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      {showPassword ? (
-                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" strokeWidth="2" strokeLinecap="round"/>
-                      ) : (
-                        <>
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2"/>
-                          <circle cx="12" cy="12" r="3" strokeWidth="2"/>
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.5 }}>
+              By continuing, you agree to our{' '}
+              <Link href="/terms" target="_blank" color="primary">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" target="_blank" color="primary">
+                Privacy Policy
+              </Link>
+              .
+            </Typography>
 
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+              sx={{
+                py: 2,
+                fontSize: '1rem',
+                fontWeight: 700,
+                textTransform: 'none',
+              }}
+            >
+              {loading ? 'Signing up...' : 'Sign up'}
+            </Button>
+          </Box>
+        )}
 
-              <p className="terms-text">
-                By continuing, you agree to our{' '}
-                <a href="/terms" target="_blank">Terms of Service</a> and{' '}
-                <a href="/privacy" target="_blank">Privacy Policy</a>.
-              </p>
+        {/* Login Form */}
+        {activeTab === 'login' && (
+          <Box component="form" onSubmit={handleEmailSignIn} sx={{ mt: 3 }}>
+            <TextField
+              fullWidth
+              type="email"
+              label="Email or username"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              sx={{ mb: 2.5 }}
+            />
 
-              <button type="submit" className="submit-button" disabled={loading}>
-                {loading ? 'Signing up...' : 'Sign up'}
-              </button>
-            </form>
-          )}
+            <TextField
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              label="Password"
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2.5 }}
+            />
 
-          {/* Login Form */}
-          {activeTab === 'login' && (
-            <form className="auth-form" onSubmit={handleEmailSignIn}>
-              <div className="form-group">
-                <label>Email or username</label>
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+              sx={{
+                py: 2,
+                fontSize: '1rem',
+                fontWeight: 700,
+                textTransform: 'none',
+              }}
+            >
+              {loading ? 'Logging in...' : 'Log in'}
+            </Button>
 
-              <div className="form-group">
-                <label>Password</label>
-                <div className="password-input">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="********"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      {showPassword ? (
-                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" strokeWidth="2" strokeLinecap="round"/>
-                      ) : (
-                        <>
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="2"/>
-                          <circle cx="12" cy="12" r="3" strokeWidth="2"/>
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" className="submit-button" disabled={loading}>
-                {loading ? 'Logging in...' : 'Log in'}
-              </button>
-
-              <button
-                type="button"
-                className="forgot-password"
-                onClick={handleForgotPassword}
-                disabled={loading}
-              >
-                Forgot your password?
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+            <Button
+              fullWidth
+              onClick={handleForgotPassword}
+              disabled={loading}
+              sx={{
+                mt: 2,
+                color: 'primary.main',
+                textTransform: 'none',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              Forgot your password?
+            </Button>
+          </Box>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

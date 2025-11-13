@@ -1,31 +1,80 @@
 import { useState } from 'react';
+import { Box, Typography, Stack, Button } from '@mui/material';
 import { useAuth } from '../../hooks/useAuth';
-import '../../styles/home/DashboardSidebar.css';
 
 export default function DashboardSidebar() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'for-you' | 'following'>('for-you');
 
   return (
-    <aside className="dashboard-sidebar">
-      <div className="sidebar-content">
-        <h1 className="greeting">Hi {user?.user_metadata?.username || 'there'}!</h1>
+    <Box
+      component="aside"
+      sx={{
+        position: 'fixed',
+        left: { xs: 0, md: '3.75rem' },
+        top: '70px',
+        width: { xs: '100%', md: 280, lg: 280 },
+        height: 'calc(100vh - 70px)',
+        zIndex: 10,
+        overflowY: 'auto',
+        display: { xs: 'none', md: 'block' },
+      }}
+    >
+      <Box sx={{ p: { xs: 3, md: 4 } }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 700,
+            color: 'text.primary',
+            mb: 4,
+            lineHeight: 1.2,
+            fontSize: { xs: '1.75rem', md: '2rem' },
+          }}
+        >
+          Hi {user?.username || 'there'}!
+        </Typography>
 
-        <div className="sidebar-tabs">
-          <button
-            className={`sidebar-tab ${activeTab === 'for-you' ? 'active' : ''}`}
+        <Stack spacing={0.5}>
+          <Button
             onClick={() => setActiveTab('for-you')}
+            sx={{
+              justifyContent: 'flex-start',
+              px: 2,
+              py: 1.5,
+              fontSize: '1rem',
+              fontWeight: 600,
+              borderRadius: 2,
+              textTransform: 'none',
+              color: activeTab === 'for-you' ? 'primary.main' : 'text.secondary',
+              bgcolor: activeTab === 'for-you' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
+              '&:hover': {
+                bgcolor: activeTab === 'for-you' ? 'rgba(0, 120, 255, 0.12)' : 'action.hover',
+              },
+            }}
           >
             For You
-          </button>
-          <button
-            className={`sidebar-tab ${activeTab === 'following' ? 'active' : ''}`}
+          </Button>
+          <Button
             onClick={() => setActiveTab('following')}
+            sx={{
+              justifyContent: 'flex-start',
+              px: 2,
+              py: 1.5,
+              fontSize: '1rem',
+              fontWeight: 600,
+              borderRadius: 2,
+              textTransform: 'none',
+              color: activeTab === 'following' ? 'primary.main' : 'text.secondary',
+              bgcolor: activeTab === 'following' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
+              '&:hover': {
+                bgcolor: activeTab === 'following' ? 'rgba(0, 120, 255, 0.12)' : 'action.hover',
+              },
+            }}
           >
             Following
-          </button>
-        </div>
-      </div>
-    </aside>
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
   );
 }

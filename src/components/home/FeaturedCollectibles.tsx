@@ -1,7 +1,26 @@
 import { useEffect, useState, useRef } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardMedia,
+  CardContent,
+  Button,
+  Chip,
+  IconButton,
+  Tabs,
+  Tab,
+  Skeleton,
+  Stack,
+} from '@mui/material';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Verified,
+} from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import '../../styles/home/FeaturedCollectibles.css';
 
 interface FeaturedCollectible {
   id: string;
@@ -138,42 +157,42 @@ export default function FeaturedCollectibles() {
 
   if (loading) {
     return (
-      <section className="featured-collectibles">
-        <div className="featured-container">
-          <div className="tab-navigation">
-            <button className="tab-button active">
-              For You
-            </button>
-            <button className="tab-button">
-              Following
-            </button>
-          </div>
+      <Box component="section" sx={{ py: 4 }}>
+        <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
+          <Tabs
+            value={0}
+            sx={{
+              mb: 2,
+              display: { xs: 'flex', md: 'none' },
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Tab label="For You" />
+            <Tab label="Following" />
+          </Tabs>
 
-          <div className="section-header">
-            <h2>Featured Collectibles</h2>
-          </div>
-          <div className="collectibles-carousel">
+          <Typography variant="h5" fontWeight={700} mb={2}>
+            Featured Collectibles
+          </Typography>
+
+          <Stack direction="row" spacing={2} sx={{ overflowX: 'auto' }}>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="collectible-card loading">
-                <div className="card-image-area">
-                  <div className="loading-shimmer"></div>
-                </div>
-                <div className="card-details">
-                  <div className="loading-line"></div>
-                  <div className="loading-seller">
-                    <div className="loading-avatar"></div>
-                    <div className="loading-seller-text"></div>
-                  </div>
-                  <div className="loading-bid-row">
-                    <div className="loading-price"></div>
-                    <div className="loading-button"></div>
-                  </div>
-                </div>
-              </div>
+              <Card key={i} sx={{ width: 240, flexShrink: 0, borderRadius: 1 }}>
+                <Skeleton variant="rectangular" height={150} />
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton width="80%" height={20} />
+                  <Skeleton width="60%" height={16} sx={{ mt: 1 }} />
+                  <Skeleton width="40%" height={24} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
             ))}
-          </div>
-        </div>
-      </section>
+          </Stack>
+        </Box>
+      </Box>
     );
   }
 
@@ -182,111 +201,245 @@ export default function FeaturedCollectibles() {
   }
 
   return (
-    <section className="featured-collectibles">
-      <div className="featured-container">
-        <div className="tab-navigation">
-          <button
-            className={`tab-button ${activeTab === 'forYou' ? 'active' : ''}`}
-            onClick={() => setActiveTab('forYou')}
+    <Box component="section" sx={{ py: 4 }}>
+      <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
+        <Tabs
+          value={activeTab === 'forYou' ? 0 : 1}
+          onChange={(_, newValue) => setActiveTab(newValue === 0 ? 'forYou' : 'following')}
+          sx={{
+            mb: 2,
+            display: { xs: 'flex', md: 'none' },
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: 600,
+            },
+          }}
+        >
+          <Tab label="For You" />
+          <Tab label="Following" />
+        </Tabs>
+
+        <Typography variant="h5" fontWeight={700} mb={2}>
+          Featured Collectibles
+        </Typography>
+
+        <Box sx={{ position: 'relative' }}>
+          {canScrollLeft && (
+            <IconButton
+              onClick={() => scrollCarousel('left')}
+              sx={{
+                position: 'absolute',
+                left: -20,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 2,
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                '&:hover': {
+                  bgcolor: 'background.paper',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <ChevronLeft />
+            </IconButton>
+          )}
+
+          <Box
+            ref={carouselRef}
+            sx={{
+              display: 'flex',
+              gap: 2,
+              overflowX: 'auto',
+              scrollBehavior: 'smooth',
+              '&::-webkit-scrollbar': {
+                display: 'none',
+              },
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+            }}
           >
-            For You
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
-            onClick={() => setActiveTab('following')}
+            {items.map((item) => {
+              const timeRemaining = calculateTimeRemaining(item.end_time);
+
+              return (
+                <Card
+                  key={item.id}
+                  sx={{
+                    width: 240,
+                    flexShrink: 0,
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    border: '2px solid #0078FF',
+                    borderRadius: 1,
+                    marginTop:'.5rem',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: 2,
+                    },
+                  }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <Chip
+                      icon={<Star sx={{ fontSize: 12, color: 'white' }} />}
+                      label="Featured"
+                      size="small"
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        zIndex: 2,
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 24,
+                        bgcolor: '#0078FF',
+                        color: 'white',
+                        '& .MuiChip-icon': {
+                          color: 'white',
+                        },
+                      }}
+                    />
+                    <Chip
+                      label={timeRemaining}
+                      size="small"
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        zIndex: 2,
+                        bgcolor: '#00C6A9',
+                        color: 'white',
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 24,
+                      }}
+                    />
+
+                    <CardMedia
+                      component="img"
+                      height="150"
+                      image={
+                        item.image_url ||
+                        'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'
+                      }
+                      alt={item.title}
+                      onClick={() => handleItemClick(item.id)}
+                      sx={{
+                        objectFit: 'cover',
+                        bgcolor: 'grey.100',
+                        width: '100%',
+                      }}
+                    />
+                  </Box>
+
+                  <CardContent sx={{ p: 2 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={600}
+                      onClick={() => handleItemClick(item.id)}
+                      sx={{
+                        mb: 0.5,
+                        cursor: 'pointer',
+                        fontSize: '0.95rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          color: 'primary.main',
+                        },
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+
+                    <Stack direction="row" alignItems="center" spacing={0.5} mb={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        By
+                      </Typography>
+                      <Typography variant="caption" fontWeight={600}>
+                        {item.seller_username}
+                      </Typography>
+                      <Verified sx={{ fontSize: 12, color: 'success.main' }} />
+                    </Stack>
+
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="h6" fontWeight={700} color="primary" sx={{ fontSize: '1.1rem' }}>
+                          ${item.current_bid.toFixed(0)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          {item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: '.95rem',
+                          bgcolor: '#00C6A9',
+                          color: 'white',
+                          '&:hover': {
+                            bgcolor: '#00B399',
+                          },
+                        }}
+                      >
+                        Bid
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </Box>
+
+          {canScrollRight && (
+            <IconButton
+              onClick={() => scrollCarousel('right')}
+              sx={{
+                position: 'absolute',
+                right: -20,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 2,
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                '&:hover': {
+                  bgcolor: 'background.paper',
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <ChevronRight />
+            </IconButton>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/browse-featured')}
+            sx={{
+              px: 2.5,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              borderColor: '#0078FF',
+              color: '#0078FF',
+              '&:hover': {
+                borderColor: '#0078FF',
+                bgcolor: 'rgba(0, 120, 255, 0.08)',
+              },
+            }}
           >
-            Following
-          </button>
-        </div>
-
-        <div className="section-header">
-          <h2>Featured Collectibles</h2>
-        </div>
-
-        <div className="carousel-wrapper">
-          <button
-            className={`carousel-nav-button left ${!canScrollLeft ? 'hidden' : ''}`}
-            onClick={() => scrollCarousel('left')}
-            aria-label="Scroll left"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-
-          <div className="collectibles-carousel" ref={carouselRef}>
-          {items.map((item) => {
-            const timeRemaining = calculateTimeRemaining(item.end_time);
-
-            return (
-              <div
-                key={item.id}
-                className="collectible-card"
-              >
-                <div className="featured-badge">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                  </svg>
-                  Featured
-                </div>
-                <div className="time-badge">{timeRemaining}</div>
-
-                <div className="card-image-area" onClick={() => handleItemClick(item.id)}>
-                  <img
-                    src={
-                      item.image_url ||
-                      'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'
-                    }
-                    alt={item.title}
-                    className="card-image"
-                  />
-                </div>
-
-                <div className="card-details">
-                  <h3 className="card-title" onClick={() => handleItemClick(item.id)}>{item.title}</h3>
-                  <div className="seller-row">
-                    <span className="seller-label">By</span>
-                    <span className="seller-name">{item.seller_username}</span>
-                    <svg className="verified-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <polyline points="22 4 12 14.01 9 11.01" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className="bid-row">
-                    <span className="bid-price">${item.current_bid.toFixed(0)}</span>
-                    <span className="bid-divider">|</span>
-                    <span className="bid-count">{item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}</span>
-                    <button className="auction-button">Bid</button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          </div>
-
-          <button
-            className={`carousel-nav-button right ${!canScrollRight ? 'hidden' : ''}`}
-            onClick={() => scrollCarousel('right')}
-            aria-label="Scroll right"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-
-        <div className="view-all-container">
-          <button className="view-all-button" onClick={() => navigate('/browse-featured')}>
             Show All
-          </button>
-        </div>
-      </div>
-    </section>
+          </Button>
+        </Box>
+      </Box>
+    </Box>
   );
 }
