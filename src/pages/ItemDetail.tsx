@@ -62,6 +62,7 @@ interface ItemDetails {
   seller_location: string;
   us_shipping: number;
   international_shipping: number;
+  status?: 'active' | 'sold' | 'ended' | 'cancelled';
 }
 
 export default function ItemDetail() {
@@ -143,6 +144,7 @@ export default function ItemDetail() {
           seller_location: 'United States',
           us_shipping: auctionData.us_shipping || 0,
           international_shipping: auctionData.international_shipping || 0,
+          status: auctionData.status || 'active',
         };
 
         setItem(itemDetails);
@@ -297,6 +299,11 @@ export default function ItemDetail() {
   };
 
   const handleBuyNow = () => {
+    if (item?.status === 'sold') {
+      alert('This item has already been sold');
+      return;
+    }
+
     if (!user) {
       alert('Please log in to purchase this item');
       return;
@@ -306,8 +313,8 @@ export default function ItemDetail() {
       return;
     }
 
-    // Navigate to payments page with buy now details
-    navigate('/payments', {
+    // Navigate to checkout page with buy now details
+    navigate('/checkout', {
       state: {
         auctionId: id,
         itemTitle: item.title,
@@ -315,11 +322,16 @@ export default function ItemDetail() {
         imageUrl: item.image_url,
         type: 'buy_now',
         sellerId: item.seller_id,
+        shippingCost: item.us_shipping,
       },
     });
   };
 
   const getBidButtonState = () => {
+    if (item?.status === 'sold') {
+      return { disabled: true, text: 'Item Sold' };
+    }
+
     if (!user) {
       return { disabled: false, text: 'Place Bid (Login Required)' };
     }
@@ -510,6 +522,19 @@ export default function ItemDetail() {
           <Grid size={{ xs: 12, md: 5 }}>
             <Card elevation={2}>
               <CardContent>
+                {item.status === 'sold' && (
+                  <Chip
+                    label="SOLD"
+                    color="error"
+                    sx={{
+                      mb: 2,
+                      fontWeight: 'bold',
+                      fontSize: '1rem',
+                      px: 2,
+                      py: 2.5,
+                    }}
+                  />
+                )}
                 <Typography variant="h4" gutterBottom fontWeight="bold">
                   {item.title}
                 </Typography>
@@ -613,9 +638,9 @@ export default function ItemDetail() {
                         fullWidth
                         startIcon={<ShoppingCart />}
                         onClick={handleBuyNow}
-                        disabled={isAuctionEnded || item.seller_id === user?.id}
+                        disabled={item.status === 'sold' || isAuctionEnded || item.seller_id === user?.id}
                       >
-                        Buy Now - ${item.buy_now_price}
+                        {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
                       </Button>
                     )}
                   </Stack>

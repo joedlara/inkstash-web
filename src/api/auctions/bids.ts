@@ -7,6 +7,15 @@ export interface Bid {
   username?: string;
   amount: number;
   created_at: string;
+  // Joined auction data
+  auctions?: {
+    id: string;
+    title: string;
+    image_url: string;
+    current_bid: number;
+    end_time: string;
+    status?: string;
+  };
 }
 
 export interface BidResult {
@@ -122,4 +131,40 @@ export function generateBidOptions(currentPrice: number): number[] {
     currentPrice + increment * 3,
     currentPrice + increment * 5,
   ].map(price => Math.round(price * 100) / 100); // Round to 2 decimal places
+}
+
+/**
+ * Get all bids for the current user
+ */
+export async function getMyBids(): Promise<Bid[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        *,
+        auctions (
+          id,
+          title,
+          image_url,
+          current_bid,
+          end_time,
+          status
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting user bids:', error);
+      throw error;
+    }
+
+    return (data as Bid[]) || [];
+  } catch (error) {
+    console.error('Error getting user bids:', error);
+    return [];
+  }
 }

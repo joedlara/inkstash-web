@@ -10,6 +10,10 @@ import {
   Badge,
   Avatar,
   Stack,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Search,
@@ -17,19 +21,41 @@ import {
   Message,
   Notifications,
   CardGiftcard,
+  KeyboardArrowDown,
+  AutoAwesome,
+  Palette,
+  TrendingUp,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+import { useCart } from '../../contexts/CartContext';
 import ProfileDropdown from './ProfileDropdown';
 
 export default function DashboardHeader() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { getItemCount } = useCart();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [browseAnchorEl, setBrowseAnchorEl] = useState<null | HTMLElement>(null);
+
+  const cartItemCount = getItemCount();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle search functionality
+  };
+
+  const handleBrowseClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setBrowseAnchorEl(event.currentTarget);
+  };
+
+  const handleBrowseClose = () => {
+    setBrowseAnchorEl(null);
+  };
+
+  const handleBrowseNavigation = (path: string) => {
+    navigate(path);
+    handleBrowseClose();
   };
 
   return (
@@ -112,6 +138,8 @@ export default function DashboardHeader() {
               Home
             </Button>
             <Button
+              onClick={handleBrowseClick}
+              endIcon={<KeyboardArrowDown />}
               sx={{
                 px: 2.5,
                 py: 1,
@@ -253,44 +281,99 @@ export default function DashboardHeader() {
               <CardGiftcard />
             </IconButton>
 
-            {/* Profile Picture */}
-            <IconButton
-              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              aria-label="Profile menu"
+            {/* Profile Picture with Cart Badge */}
+            <Badge
+              badgeContent={cartItemCount > 0 ? cartItemCount : null}
+              color="primary"
               sx={{
-                p: 0,
-                border: 2,
-                borderColor: 'divider',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  borderColor: 'text.primary',
-                  transform: 'scale(1.05)',
+                '& .MuiBadge-badge': {
+                  top: 4,
+                  right: 4,
+                  border: '2px solid',
+                  borderColor: 'background.paper',
                 },
               }}
             >
-              {user?.avatar_url ? (
-                <Avatar
-                  src={user.avatar_url}
-                  alt={user.username}
-                  sx={{ width: 44, height: 44 }}
-                />
-              ) : (
-                <Avatar
-                  sx={{
-                    width: 44,
-                    height: 44,
-                    background: 'linear-gradient(135deg, #0078FF, #00BFFF)',
-                    fontWeight: 700,
-                    fontSize: '1.125rem',
-                  }}
-                >
-                  {user?.username?.charAt(0).toUpperCase() || 'U'}
-                </Avatar>
-              )}
-            </IconButton>
+              <IconButton
+                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                aria-label="Profile menu"
+                sx={{
+                  p: 0,
+                  border: 2,
+                  borderColor: 'divider',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: 'text.primary',
+                    transform: 'scale(1.05)',
+                  },
+                }}
+              >
+                {user?.avatar_url ? (
+                  <Avatar
+                    src={user.avatar_url}
+                    alt={user.username}
+                    sx={{ width: 44, height: 44 }}
+                  />
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      background: 'linear-gradient(135deg, #0078FF, #00BFFF)',
+                      fontWeight: 700,
+                      fontSize: '1.125rem',
+                    }}
+                  >
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                  </Avatar>
+                )}
+              </IconButton>
+            </Badge>
           </Stack>
         </Toolbar>
       </AppBar>
+
+      {/* Browse Dropdown Menu */}
+      <Menu
+        anchorEl={browseAnchorEl}
+        open={Boolean(browseAnchorEl)}
+        onClose={handleBrowseClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        sx={{
+          mt: 1,
+          '& .MuiPaper-root': {
+            borderRadius: 2,
+            minWidth: 220,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          },
+        }}
+      >
+        <MenuItem onClick={() => handleBrowseNavigation('/browse-featured')}>
+          <ListItemIcon>
+            <AutoAwesome fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Featured Collectibles</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleBrowseNavigation('/featured-artists')}>
+          <ListItemIcon>
+            <Palette fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Featured Artists</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleBrowseNavigation('/popular-shows')}>
+          <ListItemIcon>
+            <TrendingUp fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Popular Shows</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Profile Dropdown */}
       <ProfileDropdown

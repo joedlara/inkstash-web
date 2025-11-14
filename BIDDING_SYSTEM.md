@@ -204,11 +204,19 @@ User clicks "Buy Now"
   ↓
 Check if logged in
   ├─ No → Show alert
-  └─ Yes → Navigate to /payments with details
+  └─ Yes → Navigate to /checkout with details
            ↓
-       Payment & Shipping page
+       Step 1: Select Shipping Address
            ↓
-       Complete purchase
+       Step 2: Select Payment Method
+           ↓
+       Step 3: Review Order
+           ↓
+       Place Order
+           ↓
+       Payment Processing (Stripe)
+           ↓
+       Order Success Page
 ```
 
 ### Bid Validation Flow
@@ -298,6 +306,7 @@ Potential improvements to consider:
 - `supabase/migrations/004_create_bids_table.sql`
 - `src/api/auctions/bids.ts`
 - `src/components/auctions/BidModal.tsx`
+- `src/pages/Checkout.tsx`
 - `BIDDING_SYSTEM.md` (this file)
 
 ### Modified
@@ -305,8 +314,12 @@ Potential improvements to consider:
   - Added imports for bidding functions and BidModal
   - Added state for bid modal, highest bidder, auction ended
   - Added bid button state logic
-  - Added buy now handler
+  - Added buy now handler (navigates to `/checkout`)
   - Integrated BidModal component
+- `src/pages/SavedItems.tsx`
+  - Updated layout to show current bid and buy now price on same row
+- `src/main.tsx`
+  - Added `/checkout` route
 
 ## Database Schema Reference
 

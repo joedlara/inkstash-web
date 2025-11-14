@@ -89,12 +89,12 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>Saved</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/bids')}>
+          <button className="action-card" onClick={() => handleNavigation('/my-bids')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
               <path d="M12 1v6m0 6v6M23 12h-6m-6 0H1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            <span>Bids & Offers</span>
+            <span>My Bids</span>
           </button>
 
           <button className="action-card" onClick={() => handleNavigation('/purchases')}>
@@ -105,12 +105,12 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>Purchases</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/account-health')}>
+          <button className="action-card" onClick={() => handleNavigation('/cart')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 6h18M16 10a4 4 0 0 1-8 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span>Account Health</span>
+            <span>Shopping Cart</span>
           </button>
         </div>
 
