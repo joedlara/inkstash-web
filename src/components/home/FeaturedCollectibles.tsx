@@ -90,7 +90,7 @@ export default function FeaturedCollectibles() {
 
         setItems(itemsWithDetails);
         setLoading(false);
-      } catch (error) {
+      } catch {
         setLoading(false);
       }
     }
@@ -163,7 +163,10 @@ export default function FeaturedCollectibles() {
             value={0}
             sx={{
               mb: 2,
-              display: { xs: 'flex', md: 'none' },
+              display: 'none',
+              '@media (max-width: 768px)': {
+                display: 'flex',
+              },
               '& .MuiTab-root': {
                 textTransform: 'none',
                 fontSize: '1rem',
@@ -201,14 +204,17 @@ export default function FeaturedCollectibles() {
   }
 
   return (
-    <Box component="section" sx={{ py: 4 }}>
+    <Box component="section" sx={{ pt: 4 }}>
       <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
         <Tabs
           value={activeTab === 'forYou' ? 0 : 1}
           onChange={(_, newValue) => setActiveTab(newValue === 0 ? 'forYou' : 'following')}
           sx={{
             mb: 2,
-            display: { xs: 'flex', md: 'none' },
+            display: 'none',
+            '@media (max-width: 768px)': {
+              display: 'flex',
+            },
             '& .MuiTab-root': {
               textTransform: 'none',
               fontSize: '1rem',
@@ -253,6 +259,8 @@ export default function FeaturedCollectibles() {
               gap: 2,
               overflowX: 'auto',
               scrollBehavior: 'smooth',
+              paddingTop: '16px',
+              marginTop: '-16px',
               '&::-webkit-scrollbar': {
                 display: 'none',
               },
@@ -264,58 +272,64 @@ export default function FeaturedCollectibles() {
               const timeRemaining = calculateTimeRemaining(item.end_time);
 
               return (
-                <Card
+                <Box
                   key={item.id}
                   sx={{
+                    position: 'relative',
                     width: 240,
                     flexShrink: 0,
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    border: '2px solid #0078FF',
-                    borderRadius: 1,
-                    marginTop:'.5rem',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 2,
-                    },
                   }}
                 >
+                  <Chip
+                    icon={<Star sx={{ fontSize: 12, color: 'white' }} />}
+                    label="Featured"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 4,
+                      left: 12,
+                      zIndex: 2,
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      height: 24,
+                      bgcolor: '#0078FF',
+                      color: 'white',
+                      '& .MuiChip-icon': {
+                        color: 'white',
+                      },
+                    }}
+                  />
+                  <Chip
+                    label={timeRemaining}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 12,
+                      zIndex: 2,
+                      bgcolor: '#00C6A9',
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      height: 24,
+                    }}
+                  />
+                  <Card
+                    sx={{
+                      width: '100%',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      border: '2px solid #0078FF',
+                      borderRadius: 1,
+                      marginTop: '16px',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 2,
+                      },
+                    }}
+                  >
+
                   <Box sx={{ position: 'relative' }}>
-                    <Chip
-                      icon={<Star sx={{ fontSize: 12, color: 'white' }} />}
-                      label="Featured"
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 12,
-                        left: 12,
-                        zIndex: 2,
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 24,
-                        bgcolor: '#0078FF',
-                        color: 'white',
-                        '& .MuiChip-icon': {
-                          color: 'white',
-                        },
-                      }}
-                    />
-                    <Chip
-                      label={timeRemaining}
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 12,
-                        right: 12,
-                        zIndex: 2,
-                        bgcolor: '#00C6A9',
-                        color: 'white',
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 24,
-                      }}
-                    />
 
                     <CardMedia
                       component="img"
@@ -364,7 +378,7 @@ export default function FeaturedCollectibles() {
                       <Verified sx={{ fontSize: 12, color: 'success.main' }} />
                     </Stack>
 
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" borderTop="1px solid rgba(0, 0, 0, 0.1)" paddingTop='10px'>
                       <Box>
                         <Typography variant="h6" fontWeight={700} color="primary" sx={{ fontSize: '1.1rem' }}>
                           ${item.current_bid.toFixed(0)}
@@ -392,6 +406,7 @@ export default function FeaturedCollectibles() {
                     </Stack>
                   </CardContent>
                 </Card>
+                </Box>
               );
             })}
           </Box>

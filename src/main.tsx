@@ -12,24 +12,43 @@ import Seller from './pages/Seller';
 import ItemDetail from './pages/ItemDetail';
 import SavedItems from './pages/SavedItems';
 import BrowseFeatured from './pages/BrowseFeatured';
+import PaymentAndShipping from './pages/PaymentAndShipping';
+import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
+import Purchases from './pages/Purchases';
+import FeaturedArtists from './pages/FeaturedArtists';
+import PopularShows from './pages/PopularShows';
+import Cart from './pages/Cart';
+import MyBids from './pages/MyBids';
+import { CartProvider } from './contexts/CartContext';
 import './styles/index.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
-        <RouteGuard>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/sell" element={<Seller />} />
-            <Route path="/item/:id" element={<ItemDetail />} />
-            <Route path="/auction/:id" element={<ItemDetail />} />
-            <Route path="/saved-items" element={<SavedItems />} />
-            <Route path="/browse-featured" element={<BrowseFeatured />} />
-          </Routes>
-        </RouteGuard>
-      </BrowserRouter>
+      <CartProvider>
+        <BrowserRouter>
+          <RouteGuard>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/sell" element={<Seller />} />
+              <Route path="/item/:id" element={<ItemDetail />} />
+              <Route path="/auction/:id" element={<ItemDetail />} />
+              <Route path="/saved-items" element={<SavedItems />} />
+              <Route path="/browse-featured" element={<BrowseFeatured />} />
+              <Route path="/featured-artists" element={<FeaturedArtists />} />
+              <Route path="/popular-shows" element={<PopularShows />} />
+              <Route path="/payments" element={<PaymentAndShipping />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
+              <Route path="/purchases" element={<Purchases />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/my-bids" element={<MyBids />} />
+            </Routes>
+          </RouteGuard>
+        </BrowserRouter>
+      </CartProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

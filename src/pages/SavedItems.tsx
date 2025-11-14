@@ -31,6 +31,7 @@ interface Auction {
   seller_id: string;
   us_shipping: number;
   international_shipping: number;
+  status?: 'active' | 'sold' | 'ended' | 'cancelled';
 }
 
 interface SavedAuction {
@@ -279,18 +280,33 @@ export default function SavedItems() {
                         alt={auction.title}
                         sx={{ objectFit: 'cover', bgcolor: 'grey.100', width: '100%' }}
                       />
-                      <Chip
-                        label={calculateTimeRemaining(auction.end_time)}
-                        size="small"
-                        sx={{
-                          position: 'absolute',
-                          top: 12,
-                          right: 12,
-                          bgcolor: 'rgba(0, 0, 0, 0.7)',
-                          color: 'white',
-                          fontWeight: 600,
-                        }}
-                      />
+                      {auction.status === 'sold' ? (
+                        <Chip
+                          label="SOLD"
+                          size="small"
+                          color="error"
+                          sx={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label={calculateTimeRemaining(auction.end_time)}
+                          size="small"
+                          sx={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            bgcolor: 'rgba(0, 0, 0, 0.7)',
+                            color: 'white',
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
                     </Box>
 
                     <CardContent>
@@ -304,7 +320,7 @@ export default function SavedItems() {
                         </Typography>
                       )}
 
-                      <Stack spacing={1.5} sx={{ mt: 2 }}>
+                      <Stack direction="row" spacing={2} sx={{ mt: 2 }} justifyContent="space-between">
                         <Box>
                           <Typography variant="caption" color="text.secondary" display="block">
                             Current Bid
@@ -315,7 +331,7 @@ export default function SavedItems() {
                         </Box>
 
                         {auction.buy_now_price && (
-                          <Box>
+                          <Box sx={{ textAlign: 'right' }}>
                             <Typography variant="caption" color="text.secondary" display="block">
                               Buy Now
                             </Typography>

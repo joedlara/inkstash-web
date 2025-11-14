@@ -25,6 +25,8 @@ import {
   Visibility,
   CheckBox,
   CalendarMonth,
+  Gavel,
+  ShoppingCart,
 } from '@mui/icons-material';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
@@ -36,7 +38,9 @@ import {
   recordAuctionView,
   getAuctionInteractionCounts
 } from '../api/auctions/auctionInteractions';
+import { getHighestBid, placeBid } from '../api/auctions/bids';
 import DashboardHeader from '../components/home/DashboardHeader';
+import BidModal from '../components/auctions/BidModal';
 
 interface ItemDetails {
   id: string;
@@ -58,6 +62,7 @@ interface ItemDetails {
   seller_location: string;
   us_shipping: number;
   international_shipping: number;
+  status?: 'active' | 'sold' | 'ended' | 'cancelled';
 }
 
 export default function ItemDetail() {
@@ -72,6 +77,9 @@ export default function ItemDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
   const [interactionCounts, setInteractionCounts] = useState({ likes: 0, saves: 0, views: 0 });
+  const [bidModalOpen, setBidModalOpen] = useState(false);
+  const [highestBidUserId, setHighestBidUserId] = useState<string | null>(null);
+  const [isAuctionEnded, setIsAuctionEnded] = useState(false);
 
   useEffect(() => {
     async function fetchItemDetails() {
@@ -136,6 +144,7 @@ export default function ItemDetail() {
           seller_location: 'United States',
           us_shipping: auctionData.us_shipping || 0,
           international_shipping: auctionData.international_shipping || 0,
+          status: auctionData.status || 'active',
         };
 
         setItem(itemDetails);
@@ -159,9 +168,11 @@ export default function ItemDetail() {
 
       if (distance < 0) {
         setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        setIsAuctionEnded(true);
         return;
       }
 
+      setIsAuctionEnded(false);
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
       const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
@@ -193,6 +204,12 @@ export default function ItemDetail() {
 
           setIsLiked(liked);
           setIsSaved(saved);
+        }
+
+        // Get the highest bidder information
+        const highestBid = await getHighestBid(id);
+        if (highestBid) {
+          setHighestBidUserId(highestBid.user_id);
         }
       } catch {
         // Error loading interaction status
@@ -258,6 +275,83 @@ export default function ItemDetail() {
       }
     }
   };
+
+  const handlePlaceBid = async (amount: number) => {
+    if (!user || !id) {
+      return { success: false, error: 'You must be logged in to bid' };
+    }
+
+    const result = await placeBid(id, user.id, amount);
+
+    if (result.success && item) {
+      // Update the current bid in the UI
+      setItem({
+        ...item,
+        current_bid: amount,
+        total_bids: item.total_bids + 1,
+      });
+
+      // Update highest bidder
+      setHighestBidUserId(user.id);
+    }
+
+    return result;
+  };
+
+  const handleBuyNow = () => {
+    if (item?.status === 'sold') {
+      alert('This item has already been sold');
+      return;
+    }
+
+    if (!user) {
+      alert('Please log in to purchase this item');
+      return;
+    }
+
+    if (!item?.buy_now_price) {
+      return;
+    }
+
+    // Navigate to checkout page with buy now details
+    navigate('/checkout', {
+      state: {
+        auctionId: id,
+        itemTitle: item.title,
+        price: item.buy_now_price,
+        imageUrl: item.image_url,
+        type: 'buy_now',
+        sellerId: item.seller_id,
+        shippingCost: item.us_shipping,
+      },
+    });
+  };
+
+  const getBidButtonState = () => {
+    if (item?.status === 'sold') {
+      return { disabled: true, text: 'Item Sold' };
+    }
+
+    if (!user) {
+      return { disabled: false, text: 'Place Bid (Login Required)' };
+    }
+
+    if (isAuctionEnded) {
+      return { disabled: true, text: 'Auction Ended' };
+    }
+
+    if (item?.seller_id === user.id) {
+      return { disabled: true, text: 'You Cannot Bid on Your Own Item' };
+    }
+
+    if (highestBidUserId === user.id) {
+      return { disabled: true, text: 'You Are the Highest Bidder' };
+    }
+
+    return { disabled: false, text: 'Place Bid' };
+  };
+
+  const bidButtonState = getBidButtonState();
 
   if (loading) {
     return (
@@ -428,6 +522,19 @@ export default function ItemDetail() {
           <Grid size={{ xs: 12, md: 5 }}>
             <Card elevation={2}>
               <CardContent>
+                {item.status === 'sold' && (
+                  <Chip
+                    label="SOLD"
+                    color="error"
+                    sx={{
+                      mb: 2,
+                      fontWeight: 'bold',
+                      fontSize: '1rem',
+                      px: 2,
+                      py: 2.5,
+                    }}
+                  />
+                )}
                 <Typography variant="h4" gutterBottom fontWeight="bold">
                   {item.title}
                 </Typography>
@@ -508,12 +615,32 @@ export default function ItemDetail() {
 
                   {/* Action Buttons */}
                   <Stack spacing={2}>
-                    <Button variant="contained" size="large" fullWidth>
-                      Place Bid
+                    <Button
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      startIcon={<Gavel />}
+                      disabled={bidButtonState.disabled}
+                      onClick={() => {
+                        if (!user) {
+                          navigate('/login');
+                        } else {
+                          setBidModalOpen(true);
+                        }
+                      }}
+                    >
+                      {bidButtonState.text}
                     </Button>
                     {item.buy_now_price && (
-                      <Button variant="outlined" size="large" fullWidth>
-                        Buy Now - ${item.buy_now_price}
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        fullWidth
+                        startIcon={<ShoppingCart />}
+                        onClick={handleBuyNow}
+                        disabled={item.status === 'sold' || isAuctionEnded || item.seller_id === user?.id}
+                      >
+                        {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
                       </Button>
                     )}
                   </Stack>
@@ -587,6 +714,17 @@ export default function ItemDetail() {
           </Grid>
         </Grid>
       </Container>
+
+      {/* Bid Modal */}
+      {item && (
+        <BidModal
+          open={bidModalOpen}
+          onClose={() => setBidModalOpen(false)}
+          currentBid={item.current_bid}
+          itemTitle={item.title}
+          onPlaceBid={handlePlaceBid}
+        />
+      )}
     </Box>
   );
 }
