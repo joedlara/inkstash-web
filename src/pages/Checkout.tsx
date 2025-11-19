@@ -25,6 +25,7 @@ import { ArrowBack, ShoppingCart, LocalShipping, Payment, CheckCircle } from '@m
 import { useAuth } from '../hooks/useAuth';
 import { type PaymentMethod, type ShippingAddress, paymentMethodsAPI, shippingAddressesAPI } from '../api/payments';
 import { ordersAPI } from '../api/orders';
+import { sendOrderConfirmationEmail } from '../api/email';
 import DashboardHeader from '../components/home/DashboardHeader';
 
 interface CheckoutState {
@@ -175,6 +176,26 @@ export default function Checkout() {
         throw new Error(orderResult.error || 'Failed to create order');
       }
 
+      // Send order confirmation email
+      try {
+        const orderData = await ordersAPI.getById(orderResult.order_id!);
+        if (orderData && user?.email) {
+          const emailResult = await sendOrderConfirmationEmail(
+            orderData,
+            user.email,
+            user.user_metadata?.full_name || user.email
+          );
+
+          if (!emailResult.success) {
+            console.error('Failed to send confirmation email:', emailResult.error);
+            // Don't fail the order if email fails
+          }
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Don't fail the order if email fails
+      }
+
       // Clear saved checkout session
       localStorage.removeItem('checkout_session');
 
@@ -185,9 +206,6 @@ export default function Checkout() {
           orderNumber: orderResult.order_number,
         },
       });
-
-      // TODO: Send order confirmation email
-      // This would be handled by a backend service or edge function
     } catch (err) {
       console.error('Order failed:', err);
       setError(

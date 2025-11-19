@@ -50,7 +50,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'InkStash <orders@inkstash.com>',
+        from: 'Acme <onboarding@resend.dev>', // Resend test domain - works without verification
         to: [payload.buyerEmail],
         subject: `Order Confirmation - ${payload.orderNumber}`,
         html: generateOrderConfirmationEmail(payload),

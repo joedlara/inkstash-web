@@ -161,6 +161,13 @@ export default function ItemDetail() {
   useEffect(() => {
     if (!item) return;
 
+    // If item is sold or ended, set timer to 0 and don't calculate
+    if (item.status === 'sold' || item.status === 'ended') {
+      setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      setIsAuctionEnded(true);
+      return;
+    }
+
     const calculateTimeRemaining = () => {
       const now = new Date().getTime();
       const end = new Date(item.end_date).getTime();
@@ -450,10 +457,10 @@ export default function ItemDetail() {
               </Box>
             </Card>
 
-            {/* Stats Section */}
+            {/* Stats and Calendar Section */}
             <Grid container spacing={2} sx={{ mt: 2 }}>
-              <Grid size={{ xs: 4 }}>
-                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+              <Grid size={{ xs: 4, sm: 3 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                     <Visibility color="action" />
                     <Typography variant="h6">{interactionCounts.views}</Typography>
@@ -461,8 +468,8 @@ export default function ItemDetail() {
                   <Typography variant="body2" color="text.secondary">Total Views</Typography>
                 </Paper>
               </Grid>
-              <Grid size={{ xs: 4 }}>
-                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+              <Grid size={{ xs: 4, sm: 3 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                     <CheckBox color="action" />
                     <Typography variant="h6">{item.total_bids}</Typography>
@@ -470,8 +477,8 @@ export default function ItemDetail() {
                   <Typography variant="body2" color="text.secondary">Bids</Typography>
                 </Paper>
               </Grid>
-              <Grid size={{ xs: 4 }}>
-                <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+              <Grid size={{ xs: 4, sm: 3 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                     <Bookmark color="action" />
                     <Typography variant="h6">{interactionCounts.saves}</Typography>
@@ -479,43 +486,79 @@ export default function ItemDetail() {
                   <Typography variant="body2" color="text.secondary">Saves</Typography>
                 </Paper>
               </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Add to Calendar</Typography>
+                  <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                    <Box
+                      component="a"
+                      href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(item.description)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.1)',
+                        }
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src="https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-03-512.png"
+                        alt="Google Calendar"
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    </Box>
+                    <Box
+                      component="a"
+                      href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
+                      download={`${item.title.replace(/\s+/g, '_')}.ics`}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.1)',
+                        }
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src="https://upload.wikimedia.org/wikipedia/commons/1/1c/MacOSCalendar.png"
+                        alt="Apple Calendar"
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    </Box>
+                    <Box
+                      component="a"
+                      href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.1)',
+                        }
+                      }}
+                    >
+                      <Box
+                        component="img"
+                        src="https://img.icons8.com/color/1200/outlook-calendar.jpg"
+                        alt="Outlook Calendar"
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    </Box>
+                  </Stack>
+                </Paper>
+              </Grid>
             </Grid>
-
-            {/* Calendar Section */}
-            <Paper elevation={1} sx={{ p: 3, mt: 2 }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                <CalendarMonth color="primary" />
-                <Typography variant="h6">Add to Calendar</Typography>
-              </Stack>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(item.description)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Google
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
-                  download={`${item.title.replace(/\s+/g, '_')}.ics`}
-                >
-                  Apple
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Outlook
-                </Button>
-              </Stack>
-            </Paper>
           </Grid>
 
           {/* Right Side - Details */}
@@ -583,35 +626,45 @@ export default function ItemDetail() {
                   </Typography>
 
                   {/* Countdown Timer */}
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Auction ends in
-                  </Typography>
-                  <Grid container spacing={1} sx={{ mb: 3 }}>
-                    <Grid size={{ xs: 3 }}>
-                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                        <Typography variant="h5" fontWeight="bold">{timeRemaining.days}</Typography>
-                        <Typography variant="caption" color="text.secondary">Days</Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid size={{ xs: 3 }}>
-                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                        <Typography variant="h5" fontWeight="bold">{timeRemaining.hours}</Typography>
-                        <Typography variant="caption" color="text.secondary">Hours</Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid size={{ xs: 3 }}>
-                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                        <Typography variant="h5" fontWeight="bold">{timeRemaining.minutes}</Typography>
-                        <Typography variant="caption" color="text.secondary">Mins</Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid size={{ xs: 3 }}>
-                      <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                        <Typography variant="h5" fontWeight="bold">{timeRemaining.seconds}</Typography>
-                        <Typography variant="caption" color="text.secondary">Secs</Typography>
-                      </Paper>
-                    </Grid>
-                  </Grid>
+                  {(item.status === 'sold' || item.status === 'ended' || isAuctionEnded) ? (
+                    <Paper elevation={1} sx={{ p: 3, mb: 3, textAlign: 'center', bgcolor: 'grey.100' }}>
+                      <Typography variant="h6" color="text.secondary" fontWeight="bold">
+                        {item.status === 'sold' ? 'Auction Ended - Item Sold' : 'Auction Ended'}
+                      </Typography>
+                    </Paper>
+                  ) : (
+                    <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Auction ends in
+                      </Typography>
+                      <Grid container spacing={1} sx={{ mb: 3 }}>
+                        <Grid size={{ xs: 3 }}>
+                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h5" fontWeight="bold">{timeRemaining.days}</Typography>
+                            <Typography variant="caption" color="text.secondary">Days</Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid size={{ xs: 3 }}>
+                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h5" fontWeight="bold">{timeRemaining.hours}</Typography>
+                            <Typography variant="caption" color="text.secondary">Hours</Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid size={{ xs: 3 }}>
+                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h5" fontWeight="bold">{timeRemaining.minutes}</Typography>
+                            <Typography variant="caption" color="text.secondary">Mins</Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid size={{ xs: 3 }}>
+                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                            <Typography variant="h5" fontWeight="bold">{timeRemaining.seconds}</Typography>
+                            <Typography variant="caption" color="text.secondary">Secs</Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    </>
+                  )}
 
                   {/* Action Buttons */}
                   <Stack spacing={2}>

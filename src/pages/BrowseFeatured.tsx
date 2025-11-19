@@ -86,10 +86,15 @@ export default function BrowseFeatured() {
 
         // Fetch seller info
         const sellerIds = [...new Set(auctionData.map(item => item.seller_id))];
-        const { data: sellersData } = await supabase
+        const { data: sellersData, error: sellersError } = await supabase
           .from('users')
           .select('*')
           .in('id', sellerIds);
+
+        if (sellersError) {
+          console.error('Error fetching sellers:', sellersError);
+          // Continue with auction data even if sellers fail to load
+        }
 
         // Create seller map
         const sellersMap: Record<string, { username: string; avatar_url: string | null; verified: boolean }> = {};
@@ -312,31 +317,11 @@ export default function BrowseFeatured() {
                       )}
                     </Stack>
 
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Box>
-                        <Typography variant="h6" color="primary" fontWeight={700}>
-                          ${item.current_bid.toFixed(0)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}
-                        </Typography>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Bid
-                      </Button>
-                    </Stack>
+                    <Box>
+                      <Typography variant="h6" color="primary" fontWeight={700}>
+                        ${item.current_bid.toFixed(0)}
+                      </Typography>
+                    </Box>
                   </CardContent>
                 </Card>
               </Grid>

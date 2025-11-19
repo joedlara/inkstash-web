@@ -1,82 +1,135 @@
 import { useState } from 'react';
-import { Box, Typography, Stack, Button } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Paper,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Avatar,
+} from '@mui/material';
+import { Home as HomeIcon, People } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+
+type TabType = 'for-you' | 'following';
+
+interface SidebarItem {
+  id: TabType;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const sidebarItems: SidebarItem[] = [
+  { id: 'for-you', label: 'For You', icon: <HomeIcon /> },
+  { id: 'following', label: 'Following', icon: <People /> },
+];
 
 export default function DashboardSidebar() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'for-you' | 'following'>('for-you');
+  const [activeTab, setActiveTab] = useState<TabType>('for-you');
+
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+  };
+
+  const sidebarContent = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* User Profile Header */}
+      <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <Avatar
+            src={user?.avatar_url}
+            sx={{
+              width: 48,
+              height: 48,
+              bgcolor: 'primary.main',
+            }}
+          >
+            {user?.username?.charAt(0).toUpperCase() || 'U'}
+          </Avatar>
+          <Box>
+            <Typography variant="body1" fontWeight="bold">
+              {user?.username || 'User'}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+            >
+              Welcome back!
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Feed Section */}
+      <Box sx={{ flex: 1, py: 2 }}>
+        <Typography
+          variant="caption"
+          fontWeight={700}
+          color="text.secondary"
+          sx={{ px: 3, mb: 1, display: 'block' }}
+        >
+          Feed
+        </Typography>
+        <List sx={{ px: 1 }}>
+          {sidebarItems.map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={activeTab === item.id}
+                onClick={() => handleTabChange(item.id)}
+                sx={{
+                  borderRadius: 1,
+                  '&.Mui-selected': {
+                    bgcolor: '#2e2e2e',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: '#3e3e3e',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: activeTab === item.id ? 'white' : 'text.secondary',
+                    minWidth: 40,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: activeTab === item.id ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    </Box>
+  );
 
   return (
-    <Box
-      component="aside"
+    <Paper
+      elevation={2}
       sx={{
         position: 'fixed',
         left: '3.75rem',
-        top: '70px',
-        paddingRight:'.5rem',
-        maxWidth: 380,
-        height: 'calc(100vh - 70px)',
-        zIndex: 10,
+        top: '100px',
+        width: 280,
+        height: 'fit-content',
+        maxHeight: 'calc(100vh - 120px)',
         overflowY: 'auto',
-        display: 'block',
-        '@media (max-width: 768px)': {
-          display: 'none',
-        },
+        display: { xs: 'none', md: 'block' },
       }}
     >
-      <Box sx={{ p: { xs: 3, md: 4 } }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 700,
-            color: 'text.primary',
-            mb: 4,
-            lineHeight: 1.2,
-            fontSize: { xs: '1.75rem', md: '2rem' },
-          }}
-        >
-          Hi {user?.username || 'there'}!
-        </Typography>
-
-        <Stack spacing={0.5}>
-          <Button
-            onClick={() => setActiveTab('for-you')}
-            sx={{
-              justifyContent: 'flex-start',
-              px: 2,
-              py: 1.5,
-              fontSize: '1rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              color: activeTab === 'for-you' ? 'primary.main' : 'text.secondary',
-              bgcolor: activeTab === 'for-you' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
-              '&:hover': {
-                bgcolor: activeTab === 'for-you' ? 'rgba(0, 120, 255, 0.12)' : 'action.hover',
-              },
-            }}
-          >
-            For You
-          </Button>
-          <Button
-            onClick={() => setActiveTab('following')}
-            sx={{
-              justifyContent: 'flex-start',
-              px: 2,
-              py: 1.5,
-              fontSize: '1rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              color: activeTab === 'following' ? 'primary.main' : 'text.secondary',
-              bgcolor: activeTab === 'following' ? 'rgba(0, 120, 255, 0.08)' : 'transparent',
-              '&:hover': {
-                bgcolor: activeTab === 'following' ? 'rgba(0, 120, 255, 0.12)' : 'action.hover',
-              },
-            }}
-          >
-            Following
-          </Button>
-        </Stack>
-      </Box>
-    </Box>
+      {sidebarContent}
+    </Paper>
   );
 }

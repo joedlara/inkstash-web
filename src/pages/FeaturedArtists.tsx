@@ -63,10 +63,14 @@ export default function FeaturedArtists() {
       // Get auction counts for each seller
       const artistsWithStats = await Promise.all(
         (users || []).map(async (user) => {
-          const { count } = await supabase
+          const { count, error: countError } = await supabase
             .from('auctions')
             .select('*', { count: 'exact', head: true })
             .eq('seller_id', user.id);
+
+          if (countError) {
+            console.error(`Error fetching auction count for user ${user.id}:`, countError);
+          }
 
           return {
             id: user.id,

@@ -232,7 +232,7 @@ export default function DashboardHeader() {
             {/* Action Icons */}
             <IconButton
               aria-label="Saved Items"
-              onClick={() => navigate('/saved-items')}
+              onClick={() => navigate('/my-stash?tab=saved')}
               sx={{
                 color: 'text.primary',
                 '&:hover': {
