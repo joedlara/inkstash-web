@@ -56,8 +56,8 @@ export default function ProfileTab() {
       setError('');
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('user-uploads')
@@ -85,7 +85,18 @@ export default function ProfileTab() {
       }
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      setError(err.message || 'Failed to upload avatar');
+
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to upload avatar';
+      if (err.message?.includes('row-level security')) {
+        errorMessage = 'Upload permission denied. Please contact support if this issue persists.';
+      } else if (err.message?.includes('violates row-level security policy')) {
+        errorMessage = 'Upload permission denied. Please contact support if this issue persists.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -107,7 +118,13 @@ export default function ProfileTab() {
         })
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // Check if it's a duplicate username error
+        if (updateError.code === '23505' && updateError.message.includes('users_username_key')) {
+          throw new Error('This username is already taken. Please choose a different username.');
+        }
+        throw updateError;
+      }
 
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
