@@ -149,10 +149,10 @@ export default function AccountSettings() {
                 sx={{
                   borderRadius: 1,
                   '&.Mui-selected': {
-                    bgcolor: '#2e2e2e',
+                    bgcolor: 'primary.main',
                     color: 'white',
                     '&:hover': {
-                      bgcolor: '#3e3e3e',
+                      bgcolor: 'primary.dark',
                     },
                     '& .MuiListItemIcon-root': {
                       color: 'white',
@@ -207,8 +207,8 @@ export default function AccountSettings() {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              {sidebarItems.find(item => item.id === activeTab)?.label || 'Settings'}
+            <Typography variant="h6" noWrap component="div" color="primary" fontWeight={700}>
+              Account Settings
             </Typography>
           </Toolbar>
         </AppBar>

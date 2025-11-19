@@ -185,8 +185,8 @@ export default function MyStash() {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              {sidebarItems.find(item => item.id === activeTab)?.label || 'My Stash'}
+            <Typography variant="h6" noWrap component="div" color="primary" fontWeight={700}>
+              My Stash
             </Typography>
           </Toolbar>
         </AppBar>

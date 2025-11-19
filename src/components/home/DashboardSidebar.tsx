@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -27,6 +28,7 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function DashboardSidebar() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('for-you');
 
@@ -55,9 +57,11 @@ export default function DashboardSidebar() {
             </Typography>
             <Typography
               variant="caption"
-              color="text.secondary"
+              color="primary"
+              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              onClick={() => navigate('/settings?tab=profile')}
             >
-              Welcome back!
+              View Profile
             </Typography>
           </Box>
         </Box>
@@ -82,10 +86,10 @@ export default function DashboardSidebar() {
                 sx={{
                   borderRadius: 1,
                   '&.Mui-selected': {
-                    bgcolor: '#2e2e2e',
+                    bgcolor: 'primary.main',
                     color: 'white',
                     '&:hover': {
-                      bgcolor: '#3e3e3e',
+                      bgcolor: 'primary.dark',
                     },
                     '& .MuiListItemIcon-root': {
                       color: 'white',
