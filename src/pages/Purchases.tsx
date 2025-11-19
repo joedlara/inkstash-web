@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Cancel,
   Visibility,
+  Settings,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { ordersAPI, type Order } from '../api/orders';
@@ -95,7 +96,7 @@ export default function Purchases() {
     }
   };
 
-  const OrderCard = ({ order }: { order: Order }) => {
+  const OrderCard = ({ order, isSeller = false }: { order: Order; isSeller?: boolean }) => {
     const auction = Array.isArray(order.auctions) ? order.auctions[0] : order.auctions;
 
     return (
@@ -172,14 +173,25 @@ export default function Purchases() {
                 <Typography variant="h6" color="primary" fontWeight="bold">
                   ${order.total.toFixed(2)}
                 </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Visibility />}
-                  onClick={() => navigate(`/order/${order.id}`, { state: { orderId: order.id } })}
-                >
-                  View Details
-                </Button>
+                {isSeller ? (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Settings />}
+                    onClick={() => navigate(`/order/${order.id}`)}
+                  >
+                    Manage Order
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Visibility />}
+                    onClick={() => navigate(`/order/${order.id}`)}
+                  >
+                    View Details
+                  </Button>
+                )}
               </Stack>
             </Stack>
           </Box>
@@ -259,7 +271,7 @@ export default function Purchases() {
             ) : (
               <Box>
                 {purchases.map((order) => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard key={order.id} order={order} isSeller={false} />
                 ))}
               </Box>
             )}
@@ -285,7 +297,7 @@ export default function Purchases() {
             ) : (
               <Box>
                 {sales.map((order) => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard key={order.id} order={order} isSeller={true} />
                 ))}
               </Box>
             )}

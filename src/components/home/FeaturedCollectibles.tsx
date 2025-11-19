@@ -64,10 +64,15 @@ export default function FeaturedCollectibles() {
 
         // Fetch seller info for each item
         const sellerIds = [...new Set(auctionData.map(item => item.seller_id))];
-        const { data: sellersData } = await supabase
+        const { data: sellersData, error: sellersError } = await supabase
           .from('users')
           .select('id, username, avatar_url')
           .in('id', sellerIds);
+
+        if (sellersError) {
+          console.error('Error fetching sellers:', sellersError);
+          // Continue with auction data even if sellers fail to load
+        }
 
         // Create a map of seller data
         const sellersMap: Record<string, { username: string; avatar_url: string | null }> = {};
@@ -368,7 +373,7 @@ export default function FeaturedCollectibles() {
                       {item.title}
                     </Typography>
 
-                    <Stack direction="row" alignItems="center" spacing={0.5} mb={1}>
+                    <Stack direction="row" alignItems="center">
                       <Typography variant="caption" color="text.secondary">
                         By
                       </Typography>
@@ -378,32 +383,11 @@ export default function FeaturedCollectibles() {
                       <Verified sx={{ fontSize: 12, color: 'success.main' }} />
                     </Stack>
 
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" borderTop="1px solid rgba(0, 0, 0, 0.1)" paddingTop='10px'>
-                      <Box>
-                        <Typography variant="h6" fontWeight={700} color="primary" sx={{ fontSize: '1.1rem' }}>
-                          ${item.current_bid.toFixed(0)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                          {item.bid_count} bid{item.bid_count !== 1 ? 's' : ''}
-                        </Typography>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          fontSize: '.95rem',
-                          bgcolor: '#00C6A9',
-                          color: 'white',
-                          '&:hover': {
-                            bgcolor: '#00B399',
-                          },
-                        }}
-                      >
-                        Bid
-                      </Button>
-                    </Stack>
+                    <Box borderTop="1px solid rgba(0, 0, 0, 0.1)" paddingTop='10px'>
+                      <Typography variant="h6" fontWeight={700} color="primary" sx={{ fontSize: '1.1rem' }}>
+                        ${item.current_bid.toFixed(0)}
+                      </Typography>
+                    </Box>
                   </CardContent>
                 </Card>
                 </Box>
