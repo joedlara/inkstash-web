@@ -8,6 +8,7 @@ interface UserData {
   email: string;
   username: string;
   full_name?: string;
+  bio?: string;
   avatar_url?: string;
   level?: number;
   xp?: number;
@@ -17,6 +18,8 @@ interface UserData {
     collectionFocus?: string[];
     priceRange?: { min: number; max: number };
   };
+  onboarding_completed?: boolean;
+  onboarding_completed_at?: string;
   created_at?: string;
 }
 
@@ -165,11 +168,14 @@ class AuthManager {
           email,
           username,
           full_name,
+          bio,
           avatar_url,
           level,
           xp,
           xp_to_next,
           preferences,
+          onboarding_completed,
+          onboarding_completed_at,
           created_at
         `
         )
@@ -201,6 +207,7 @@ class AuthManager {
           email: data.email,
           username: data.username,
           full_name: data.full_name,
+          bio: data.bio,
           avatar_url: data.avatar_url,
           level: data.level || 1,
           xp: data.xp || 0,
@@ -210,6 +217,8 @@ class AuthManager {
             collectionFocus: [],
             priceRange: { min: 10, max: 500 },
           },
+          onboarding_completed: data.onboarding_completed || false,
+          onboarding_completed_at: data.onboarding_completed_at,
           created_at: data.created_at,
         };
       }
@@ -268,6 +277,14 @@ class AuthManager {
 
     await this.loadUserData(this.state.session);
     return this.state.user;
+  }
+
+  getUser(): UserData | null {
+    return this.state.user;
+  }
+
+  needsOnboarding(): boolean {
+    return this.state.isAuthenticated && !this.state.user?.onboarding_completed;
   }
 
   async updateProfile(updates: Partial<UserData>): Promise<any> {

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -9,7 +8,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
 } from '@mui/material';
 import { Home as HomeIcon, People } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
@@ -28,7 +26,6 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function DashboardSidebar() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('for-you');
 
@@ -38,33 +35,14 @@ export default function DashboardSidebar() {
 
   const sidebarContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* User Profile Header */}
+      {/* Welcome Message */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <Avatar
-            src={user?.avatar_url}
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: 'primary.main',
-            }}
-          >
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
-          </Avatar>
-          <Box>
-            <Typography variant="body1" fontWeight="bold">
-              {user?.username || 'User'}
-            </Typography>
-            <Typography
-              variant="caption"
-              color="primary"
-              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-              onClick={() => navigate('/settings?tab=profile')}
-            >
-              View Profile
-            </Typography>
-          </Box>
-        </Box>
+        <Typography variant="body1" fontWeight="bold">
+          Hi {user?.username || 'User'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Welcome back!
+        </Typography>
       </Box>
 
       {/* Feed Section */}

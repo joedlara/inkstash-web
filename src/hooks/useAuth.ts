@@ -24,7 +24,11 @@ export const useAuth = () => {
     loading: authState.loading,
     initialized: authState.initialized,
     isAuthenticated: authState.isAuthenticated,
-    signOut: () => authManager.signOut(),
+    signOut: async () => {
+      await authManager.signOut();
+      // Force state update after sign out
+      setAuthState(authManager.getState());
+    },
     refreshUser: () => authManager.refreshUser(),
     updateProfile: (updates: any) => authManager.updateProfile(updates),
     updatePreferences: (preferences: any) =>

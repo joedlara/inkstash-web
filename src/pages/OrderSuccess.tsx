@@ -277,7 +277,7 @@ export default function OrderSuccess() {
             variant="contained"
             size="large"
             startIcon={<Receipt />}
-            onClick={() => navigate('/purchases')}
+            onClick={() => navigate('/my-stash?tab=history')}
             fullWidth
           >
             View My Purchases

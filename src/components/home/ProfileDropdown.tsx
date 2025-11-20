@@ -97,7 +97,7 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>My Stash</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/purchases')}>
+          <button className="action-card" onClick={() => handleNavigation('/my-stash?tab=history')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="2" y="5" width="20" height="12" rx="1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="12" cy="11" r="3" stroke="currentColor" strokeWidth="2"/>

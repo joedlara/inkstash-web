@@ -69,7 +69,7 @@ function SettingItem({ icon, title, description, checked, onChange }: SettingIte
       <Switch
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        color="success"
+        color="primary"
       />
     </Box>
   );

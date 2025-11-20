@@ -14,7 +14,6 @@ import BrowseFeatured from './pages/BrowseFeatured';
 import PaymentAndShipping from './pages/PaymentAndShipping';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
-import Purchases from './pages/Purchases';
 import OrderManagement from './pages/OrderManagement';
 import FeaturedArtists from './pages/FeaturedArtists';
 import PopularShows from './pages/PopularShows';
@@ -22,6 +21,7 @@ import Cart from './pages/Cart';
 import MyBids from './pages/MyBids';
 import MyStash from './pages/MyStash';
 import AccountSettings from './pages/AccountSettings';
+import Onboarding from './pages/Onboarding';
 import { CartProvider } from './contexts/CartContext';
 import './styles/index.css';
 
@@ -34,6 +34,7 @@ createRoot(document.getElementById('root')!).render(
           <RouteGuard>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/sell" element={<Seller />} />
               <Route path="/item/:id" element={<ItemDetail />} />
               <Route path="/auction/:id" element={<ItemDetail />} />
@@ -43,7 +44,6 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/payments" element={<PaymentAndShipping />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-success" element={<OrderSuccess />} />
-              <Route path="/purchases" element={<Purchases />} />
               <Route path="/order/:orderId" element={<OrderManagement />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/my-bids" element={<MyBids />} />
