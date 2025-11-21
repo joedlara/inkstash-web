@@ -164,25 +164,6 @@ export default function FeaturedCollectibles() {
     return (
       <Box component="section" sx={{ py: 4 }}>
         <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
-          <Tabs
-            value={0}
-            sx={{
-              mb: 2,
-              display: 'none',
-              '@media (max-width: 768px)': {
-                display: 'flex',
-              },
-              '& .MuiTab-root': {
-                textTransform: 'none',
-                fontSize: '1rem',
-                fontWeight: 600,
-              },
-            }}
-          >
-            <Tab label="For You" />
-            <Tab label="Following" />
-          </Tabs>
-
           <Typography variant="h5" fontWeight={700} mb={2}>
             Featured Collectibles
           </Typography>
@@ -211,26 +192,6 @@ export default function FeaturedCollectibles() {
   return (
     <Box component="section" sx={{ pt: 4 }}>
       <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
-        <Tabs
-          value={activeTab === 'forYou' ? 0 : 1}
-          onChange={(_, newValue) => setActiveTab(newValue === 0 ? 'forYou' : 'following')}
-          sx={{
-            mb: 2,
-            display: 'none',
-            '@media (max-width: 768px)': {
-              display: 'flex',
-            },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 600,
-            },
-          }}
-        >
-          <Tab label="For You" />
-          <Tab label="Following" />
-        </Tabs>
-
         <Typography variant="h5" fontWeight={700} mb={2}>
           Featured Collectibles
         </Typography>

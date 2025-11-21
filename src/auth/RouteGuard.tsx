@@ -75,9 +75,10 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     setHasCheckedAuth(true);
     const currentPath = location.pathname;
 
-    // Check if authenticated user needs onboarding (but not already on onboarding page)
-    if (isAuthenticated && user && !user.onboarding_completed && currentPath !== '/onboarding') {
-      navigate('/onboarding', { replace: true });
+    // If authenticated user needs onboarding and tries to visit /onboarding page, redirect to home
+    // The onboarding modal will show on the home page
+    if (isAuthenticated && user && !user.onboarding_completed && currentPath === '/onboarding') {
+      navigate('/', { replace: true });
       return;
     }
 

@@ -7,7 +7,20 @@
   box-sizing: border-box;
   border-top: 1px solid #e2e8f0;
   margin-top: 1.5rem;
+}
 
+/* Mobile-specific styling for Categories at top */
+@media (max-width: 768px) {
+  .categories-mobile-only .categories-section {
+    position: sticky;
+    top: 60px; /* Height of mobile header */
+    z-index: 100;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0.75rem;
+    border-top: none;
+    background: #f8fafc;
+  }
 }
 
 .categories-section *,
@@ -35,6 +48,80 @@
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+}
+
+/* ─── Category Tabs (Mobile Only) ──────────────────────────────── */
+.category-tabs-mobile {
+  display: none;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.category-tabs-mobile::-webkit-scrollbar {
+  display: none;
+}
+
+.category-tab {
+  min-width: 120px;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.category-tab:hover {
+  border-color: #cbd5e1;
+}
+
+.category-tab.active {
+  background: #000;
+  border-color: #000;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .categories-mobile-only .section-header {
+    display: none;
+  }
+
+  .categories-mobile-only .category-tabs-mobile {
+    display: flex;
+    padding: 0.5rem 0;
+  }
+
+  .categories-mobile-only .category-tab {
+    min-width: 100px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .categories-mobile-only .categories-grid {
+    padding: 0.5rem 0;
+  }
+
+  .categories-mobile-only .category-card {
+    min-width: 140px;
+    max-width: 140px;
+    aspect-ratio: 16 / 10;
+  }
+
+  .categories-mobile-only .category-name {
+    font-size: 0.875rem;
+  }
+
+  .categories-mobile-only .category-viewers {
+    font-size: 0.75rem;
+  }
 }
 
 /* ─── Categories Grid (Horizontal Carousel) ──────────────────────────────────── */

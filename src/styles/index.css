@@ -86,7 +86,15 @@ h1 {
 .dashboard-content {
   margin-top: 70px;
   margin-left: 280px;
+}
 
+/* Categories Position Control */
+.categories-mobile-only {
+  display: none;
+}
+
+.categories-desktop-only {
+  display: block;
 }
 
 @media (max-width: 1024px) {
@@ -104,10 +112,20 @@ h1 {
   .home.authenticated {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
+    padding-bottom: 80px; /* Space for mobile bottom nav */
   }
 
   .dashboard-content {
     margin-left: 0;
+  }
+
+  /* Show categories at top on mobile, hide on desktop */
+  .categories-mobile-only {
+    display: block;
+  }
+
+  .categories-desktop-only {
+    display: none;
   }
 }
 

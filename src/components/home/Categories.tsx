@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../styles/home/Categories.css';
 
@@ -70,9 +71,14 @@ const categories: Category[] = [
 
 export default function Categories() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
 
   const handleCategoryClick = (categoryId: string) => {
     navigate(`/browse?category=${categoryId}`);
+  };
+
+  const handleTabClick = (tab: 'forYou' | 'following') => {
+    setActiveTab(tab);
   };
 
   return (
@@ -80,6 +86,22 @@ export default function Categories() {
       <div className="categories-container">
         <div className="section-header">
           <h2>Categories You Might Like</h2>
+        </div>
+
+        {/* Mobile tabs (For You and Following) */}
+        <div className="category-tabs-mobile">
+          <button
+            className={`category-tab ${activeTab === 'forYou' ? 'active' : ''}`}
+            onClick={() => handleTabClick('forYou')}
+          >
+            For You
+          </button>
+          <button
+            className={`category-tab ${activeTab === 'following' ? 'active' : ''}`}
+            onClick={() => handleTabClick('following')}
+          >
+            Following
+          </button>
         </div>
 
         <div className="categories-grid">

@@ -245,7 +245,7 @@ const OnboardingInterestsStep: React.FC<OnboardingInterestsStepProps> = ({
         </Button>
         {onSkip && (
           <Button variant="text" size="large" onClick={onSkip} sx={{ minWidth: 120 }}>
-            Skip
+            Finish Later
           </Button>
         )}
       </Box>

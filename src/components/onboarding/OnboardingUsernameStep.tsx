@@ -14,13 +14,11 @@ import { supabase } from '../../api/supabase/supabaseClient';
 
 interface OnboardingUsernameStepProps {
   onNext: (username: string) => void;
-  onSkip?: () => void;
   initialUsername?: string;
 }
 
 const OnboardingUsernameStep: React.FC<OnboardingUsernameStepProps> = ({
   onNext,
-  onSkip,
   initialUsername = '',
 }) => {
   const [username, setUsername] = useState(initialUsername);
@@ -104,13 +102,6 @@ const OnboardingUsernameStep: React.FC<OnboardingUsernameStepProps> = ({
     }
   };
 
-  const handleSkip = () => {
-    if (onSkip) {
-      // Generate temporary username
-      const tempUsername = `user_${Date.now().toString().slice(-8)}`;
-      onSkip();
-    }
-  };
 
   const getEndAdornment = () => {
     if (checking) {
@@ -222,26 +213,9 @@ const OnboardingUsernameStep: React.FC<OnboardingUsernameStepProps> = ({
         size="large"
         onClick={handleContinue}
         disabled={!available || checking}
-        sx={{ mb: 2 }}
       >
-        Continue
+        Confirm Username
       </Button>
-
-      {onSkip && (
-        <Button
-          onClick={handleSkip}
-          sx={{
-            textTransform: 'none',
-            color: 'text.secondary',
-            '&:hover': {
-              bgcolor: 'transparent',
-              textDecoration: 'underline',
-            },
-          }}
-        >
-          Skip for now
-        </Button>
-      )}
     </Box>
   );
 };

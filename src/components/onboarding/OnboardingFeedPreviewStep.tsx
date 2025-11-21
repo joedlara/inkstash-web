@@ -27,6 +27,7 @@ interface PreviewItem {
 interface OnboardingFeedPreviewStepProps {
   onComplete: () => void;
   onBack?: () => void;
+  onSkip?: () => void;
   selectedInterests: string[];
   username: string;
 }
@@ -34,6 +35,7 @@ interface OnboardingFeedPreviewStepProps {
 const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
   onComplete,
   onBack,
+  onSkip,
   selectedInterests,
   username,
 }) => {
@@ -222,33 +224,39 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
       )}
 
       {/* Action Buttons */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 3 }}>
+        {onBack && (
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={onBack}
+            sx={{ minWidth: 120 }}
+          >
+            Back
+          </Button>
+        )}
         <Button
           variant="contained"
           size="large"
           onClick={onComplete}
-          sx={{ minWidth: 250 }}
+          sx={{ minWidth: 150 }}
         >
           Explore My Feed
         </Button>
-
-        {onBack && (
+        {onSkip && (
           <Button
             variant="text"
-            startIcon={<Edit />}
-            onClick={onBack}
-            sx={{
-              color: 'text.secondary',
-              textTransform: 'none',
-            }}
+            size="large"
+            onClick={onSkip}
+            sx={{ minWidth: 120 }}
           >
-            Edit Preferences
+            Finish Later
           </Button>
         )}
       </Box>
 
-      <Typography variant="caption" color="text.secondary" align="center" sx={{ mt: 3 }}>
-        Step 5 of 5 • All set! Let's start collecting
+      <Typography variant="caption" color="text.secondary" align="center" sx={{ mt: 2 }}>
+        Step 4 of 4 • All set! Let's start collecting
       </Typography>
     </Box>
   );

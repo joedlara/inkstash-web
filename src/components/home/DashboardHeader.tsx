@@ -164,7 +164,7 @@ export default function DashboardHeader() {
               flex: 1,
               maxWidth: 500,
               position: 'relative',
-              display: { xs: 'none', sm: 'flex' },
+              display: 'flex',
               alignItems: 'center',
             }}
           >
@@ -235,6 +235,10 @@ export default function DashboardHeader() {
               onClick={() => navigate('/my-stash?tab=saved')}
               sx={{
                 color: 'text.primary',
+                display: { xs: 'none', sm: 'inline-flex' },
+                '@media (max-width: 567px)': {
+                  display: 'none',
+                },
                 '&:hover': {
                   bgcolor: 'action.hover',
                 },
@@ -247,6 +251,7 @@ export default function DashboardHeader() {
               aria-label="Messages"
               sx={{
                 color: 'text.primary',
+                display: 'inline-flex',
                 '&:hover': {
                   bgcolor: 'action.hover',
                 },
@@ -261,6 +266,7 @@ export default function DashboardHeader() {
               aria-label="Notifications"
               sx={{
                 color: 'text.primary',
+                display: 'inline-flex',
                 '&:hover': {
                   bgcolor: 'action.hover',
                 },
@@ -271,21 +277,49 @@ export default function DashboardHeader() {
 
             <IconButton
               aria-label="Gifts"
+              onClick={() => navigate('/refer')}
               sx={{
                 color: 'text.primary',
+                display: 'inline-flex',
+                position: 'relative',
                 '&:hover': {
                   bgcolor: 'action.hover',
                 },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderRadius: '50%',
+                  background: 'rgba(0, 120, 255, 0.3)',
+                  animation: 'pulse 4s infinite',
+                },
+                '@keyframes pulse': {
+                  '0%, 100%': {
+                    transform: 'scale(1)',
+                    opacity: 1,
+                  },
+                  '50%': {
+                    transform: 'scale(1.3)',
+                    opacity: 0,
+                  },
+                },
               }}
             >
-              <CardGiftcard />
+              <CardGiftcard sx={{ color: '#0078FF' }} />
             </IconButton>
 
-            {/* Profile Picture with Cart Badge */}
+            {/* Profile Picture with Cart Badge - Hidden on mobile */}
             <Badge
               badgeContent={cartItemCount > 0 ? cartItemCount : null}
               color="primary"
               sx={{
+                display: { xs: 'none', sm: 'inline-flex' },
+                '@media (max-width: 567px)': {
+                  display: 'none',
+                },
                 '& .MuiBadge-badge': {
                   top: 4,
                   right: 4,

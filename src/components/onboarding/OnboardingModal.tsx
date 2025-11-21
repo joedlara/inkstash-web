@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, LinearProgress, Alert, Snackbar } from '@mui/material';
-import OnboardingUsernameStep from '../components/onboarding/OnboardingUsernameStep';
-import OnboardingInterestsStep from '../components/onboarding/OnboardingInterestsStep';
-import OnboardingNotificationsStep from '../components/onboarding/OnboardingNotificationsStep';
-import OnboardingFeedPreviewStep from '../components/onboarding/OnboardingFeedPreviewStep';
-import type { NotificationPreferences } from '../components/onboarding/OnboardingNotificationsStep';
-import { authManager } from '../api/auth/authManager';
-import { supabase } from '../api/supabase/supabaseClient';
+import {
+  Dialog,
+  Box,
+  LinearProgress,
+  Alert,
+  Snackbar,
+  IconButton,
+  Typography
+} from '@mui/material';
+import { Close } from '@mui/icons-material';
+import OnboardingUsernameStep from './OnboardingUsernameStep';
+import OnboardingInterestsStep from './OnboardingInterestsStep';
+import OnboardingNotificationsStep from './OnboardingNotificationsStep';
+import OnboardingFeedPreviewStep from './OnboardingFeedPreviewStep';
+import type { NotificationPreferences } from './OnboardingNotificationsStep';
+import { authManager } from '../../api/auth/authManager';
+import { supabase } from '../../api/supabase/supabaseClient';
+
+interface OnboardingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
 interface OnboardingData {
   username: string;
@@ -15,7 +29,7 @@ interface OnboardingData {
   notifications: NotificationPreferences;
 }
 
-const Onboarding: React.FC = () => {
+const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
@@ -25,45 +39,57 @@ const Onboarding: React.FC = () => {
   const totalSteps = 4;
   const progress = ((currentStep + 1) / totalSteps) * 100;
 
-  // Step 1: Username
+  // Step 1: Username (Mandatory - no skip)
   const handleUsernameNext = (username: string) => {
     setOnboardingData((prev) => ({ ...prev, username }));
     setCurrentStep(1);
   };
 
-  // Step 2: Interests
+  // Step 2: Interests (Can be skipped with "Finish Later")
   const handleInterestsNext = (interests: string[]) => {
     setOnboardingData((prev) => ({ ...prev, interests }));
     setCurrentStep(2);
   };
 
-  const handleInterestsSkip = () => {
-    // Skip interests selection, move to next step with empty array
-    setOnboardingData((prev) => ({ ...prev, interests: [] }));
-    setCurrentStep(2);
+  const handleInterestsFinishLater = async () => {
+    // Save username only and mark onboarding as complete
+    await saveOnboardingData(true);
   };
 
   const handleInterestsBack = () => {
     setCurrentStep(0);
   };
 
-  // Step 3: Notifications (was Step 4)
+  // Step 3: Notifications (Can be skipped with "Finish Later")
   const handleNotificationsNext = (notifications: NotificationPreferences) => {
     setOnboardingData((prev) => ({ ...prev, notifications }));
     setCurrentStep(3);
   };
 
-  const handleNotificationsSkip = () => {
-    // Skip notifications setup, move to next step with default values
-    setCurrentStep(3);
+  const handleNotificationsFinishLater = async () => {
+    // Save username and interests (if selected), mark onboarding as complete
+    await saveOnboardingData(true);
   };
 
   const handleNotificationsBack = () => {
     setCurrentStep(1);
   };
 
-  // Step 4: Complete (was Step 5)
+  // Step 4: Feed Preview / Complete (Can be skipped with "Finish Later")
   const handleComplete = async () => {
+    await saveOnboardingData(false);
+  };
+
+  const handleFeedPreviewFinishLater = async () => {
+    await saveOnboardingData(true);
+  };
+
+  const handleFeedPreviewBack = () => {
+    setCurrentStep(2);
+  };
+
+  // Save onboarding data to database
+  const saveOnboardingData = async (isPartialComplete: boolean) => {
     setSaving(true);
     setError('');
 
@@ -131,8 +157,8 @@ const Onboarding: React.FC = () => {
       // Refresh user data in authManager
       await authManager.refreshUser();
 
-      // Navigate to home page
-      navigate('/');
+      // Close modal
+      onClose();
     } catch (err: any) {
       console.error('Error completing onboarding:', err);
       setError(err.message || 'Failed to save your preferences. Please try again.');
@@ -140,18 +166,41 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  const handleFeedPreviewBack = () => {
-    setCurrentStep(2);
-  };
-
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        bgcolor: 'background.default',
-        pt: 2,
+    <Dialog
+      open={isOpen}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          maxHeight: '90vh',
+          position: 'relative',
+        },
       }}
+      // Prevent closing by clicking outside or pressing escape on username step
+      onClose={currentStep === 0 ? undefined : onClose}
+      disableEscapeKeyDown={currentStep === 0}
     >
+      {/* Close button - only show after username step */}
+      {currentStep > 0 && (
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            right: 16,
+            top: 16,
+            color: 'text.secondary',
+            zIndex: 1,
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
+          }}
+        >
+          <Close />
+        </IconButton>
+      )}
+
       {/* Progress Bar */}
       <LinearProgress
         variant="determinate"
@@ -165,8 +214,8 @@ const Onboarding: React.FC = () => {
         }}
       />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Step 1: Username */}
+      <Box sx={{ p: { xs: 3, sm: 4 } }}>
+        {/* Step 1: Username - MANDATORY */}
         {currentStep === 0 && (
           <OnboardingUsernameStep
             onNext={handleUsernameNext}
@@ -174,36 +223,37 @@ const Onboarding: React.FC = () => {
           />
         )}
 
-        {/* Step 2: Interests */}
+        {/* Step 2: Interests - OPTIONAL */}
         {currentStep === 1 && (
           <OnboardingInterestsStep
             onNext={handleInterestsNext}
-            onSkip={handleInterestsSkip}
+            onSkip={handleInterestsFinishLater}
             onBack={handleInterestsBack}
             initialInterests={onboardingData.interests}
           />
         )}
 
-        {/* Step 3: Notifications (was Step 4) */}
+        {/* Step 3: Notifications - OPTIONAL */}
         {currentStep === 2 && (
           <OnboardingNotificationsStep
             onNext={handleNotificationsNext}
-            onSkip={handleNotificationsSkip}
+            onSkip={handleNotificationsFinishLater}
             onBack={handleNotificationsBack}
             initialPreferences={onboardingData.notifications}
           />
         )}
 
-        {/* Step 4: Feed Preview (was Step 5) */}
+        {/* Step 4: Feed Preview / Complete - OPTIONAL */}
         {currentStep === 3 && (
           <OnboardingFeedPreviewStep
             onComplete={handleComplete}
+            onSkip={handleFeedPreviewFinishLater}
             onBack={handleFeedPreviewBack}
             selectedInterests={onboardingData.interests || []}
             username={onboardingData.username || 'there'}
           />
         )}
-      </Container>
+      </Box>
 
       {/* Error Snackbar */}
       <Snackbar
@@ -221,26 +271,27 @@ const Onboarding: React.FC = () => {
       {saving && (
         <Box
           sx={{
-            position: 'fixed',
+            position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            bgcolor: 'rgba(0, 0, 0, 0.5)',
+            bgcolor: 'rgba(0, 0, 0, 0.7)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
+            borderRadius: 2,
           }}
         >
           <Box sx={{ textAlign: 'center', color: 'white' }}>
             <LinearProgress sx={{ width: 200, mb: 2 }} />
-            <Box>Setting up your profile...</Box>
+            <Typography>Setting up your profile...</Typography>
           </Box>
         </Box>
       )}
-    </Box>
+    </Dialog>
   );
 };
 
-export default Onboarding;
+export default OnboardingModal;
