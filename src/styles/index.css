@@ -85,7 +85,7 @@ h1 {
 /* Dashboard Content Container */
 .dashboard-content {
   margin-top: 70px;
-  margin-left: 280px;
+  margin-left: 300px; /* Sidebar width (280px) + small gap (20px) */
 }
 
 /* Categories Position Control */
@@ -97,6 +97,7 @@ h1 {
   display: block;
 }
 
+/* Tablet and smaller desktop screens */
 @media (max-width: 1024px) {
   .home.authenticated {
     padding-left: 2rem;
@@ -104,11 +105,12 @@ h1 {
   }
 
   .dashboard-content {
-    margin-left: 240px;
+    margin-left: 300px; /* Keep same margin for consistency */
   }
 }
 
-@media (max-width: 768px) {
+/* Mobile - hide sidebar and adjust layout (below 600px) */
+@media (max-width: 599px) {
   .home.authenticated {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
@@ -119,7 +121,7 @@ h1 {
     margin-left: 0;
   }
 
-  /* Show categories at top on mobile, hide on desktop */
+  /* Show categories at top on mobile, hide at bottom on desktop */
   .categories-mobile-only {
     display: block;
   }

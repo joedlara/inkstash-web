@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { cache } from '../../utils/cache';
-import '../../styles/home/PopularShows.css';
+import { Box, Typography, Button, Skeleton, Stack } from '@mui/material';
 
 interface PopularShow {
   id: string;
@@ -125,62 +125,283 @@ export default function PopularShows() {
     navigate(`/item/${showId}`);
   };
 
-  if (loading || shows.length === 0) {
+  if (loading) {
+    return (
+      <Box
+        component="section"
+        sx={{
+          width: '100%',
+          py: 1.5,
+          bgcolor: '#1a1a1a',
+          mt: 1.5,
+          borderRadius: { xs: 0, sm: '1.5rem' },
+          ml: { xs: '-1.5rem', sm: 0 },
+          mr: { xs: '-1.5rem', sm: 0 },
+          width: { xs: 'calc(100% + 3rem)', sm: '100%' },
+        }}
+      >
+        <Box sx={{ maxWidth: '100%', mx: 'auto', px: { xs: 0, sm: 1.5 } }}>
+          <Box sx={{ px: { xs: 1.5, sm: 0 }, mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h5" fontWeight={700} color="#ffffff">
+              Popular Shows
+            </Typography>
+          </Box>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{
+              px: { xs: 1.5, sm: 0 },
+              overflowX: 'auto',
+              pb: 1,
+              '&::-webkit-scrollbar': { display: 'none' },
+              scrollbarWidth: 'none',
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Box key={i} sx={{ minWidth: 200, maxWidth: 200, flexShrink: 0 }}>
+                <Skeleton variant="circular" width={28} height={28} sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 0.5 }} />
+                <Skeleton variant="rectangular" height={267} sx={{ bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                <Skeleton width="80%" height={20} sx={{ bgcolor: 'rgba(255,255,255,0.1)', mt: 0.75 }} />
+                <Skeleton width="60%" height={16} sx={{ bgcolor: 'rgba(255,255,255,0.1)', mt: 0.25 }} />
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (shows.length === 0) {
     return null;
   }
 
   return (
-    <section className="popular-shows">
-      <div className="popular-shows-container">
-        <div className="section-header">
-          <h2>Popular Shows</h2>
-          <button className="show-all-btn" onClick={() => navigate('/browse-popular-lives')}>
-            Show All <span className="arrow">›</span>
-          </button>
-        </div>
+    <Box
+      component="section"
+      sx={{
+        width: '100%',
+        py: 1.5,
+        bgcolor: '#1a1a1a',
+        overflow: 'hidden',
+        mt: 1.5,
+        borderRadius: { xs: 0, sm: '1.5rem' },
+        ml: { xs: '-1.5rem', sm: 0 },
+        mr: { xs: '-1.5rem', sm: 0 },
+        width: { xs: 'calc(100% + 3rem)', sm: '100%' },
+      }}
+    >
+      <Box sx={{ maxWidth: '100%', mx: 'auto', px: { xs: 0, sm: 1.5 } }}>
+        <Box sx={{ px: { xs: 1.5, sm: 0 }, mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5" fontWeight={700} color="#ffffff">
+            Popular Shows
+          </Typography>
+          <Button
+            onClick={() => navigate('/browse-popular-lives')}
+            sx={{
+              color: '#ffffff',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              px: 1,
+              py: 0.5,
+              borderRadius: '6px',
+              transition: 'background 0.2s ease',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Show All <Box component="span" sx={{ fontSize: '1.5rem', fontWeight: 300, ml: 0.25 }}>›</Box>
+          </Button>
+        </Box>
 
-        <div className="shows-grid">
+        <Stack
+          direction="row"
+          spacing={1.25}
+          sx={{
+            px: { xs: 1.5, sm: 0 },
+            overflowX: 'auto',
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              height: '8px',
+              display: 'none',
+            },
+            '&:hover::-webkit-scrollbar': {
+              display: 'block',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'rgba(255, 255, 255, 0.3)',
+              borderRadius: '4px',
+              '&:hover': {
+                background: 'rgba(255, 255, 255, 0.5)',
+              },
+            },
+            scrollbarWidth: 'none',
+            '&:hover': {
+              scrollbarWidth: 'thin',
+            },
+          }}
+        >
           {shows.map((show) => {
             const seller = sellers[show.seller_id];
 
             return (
-              <div key={show.id} className="show-card">
-                <div
-                  className="show-header"
+              <Box
+                key={show.id}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minWidth: { xs: 130, sm: 140, md: 160, lg: 180, xl: 200 },
+                  maxWidth: { xs: 130, sm: 140, md: 160, lg: 180, xl: 200 },
+                  flexShrink: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    pb: 0.5,
+                    cursor: 'pointer',
+                    transition: 'opacity 0.2s ease',
+                    '&:hover': { opacity: 0.8 },
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/seller/${show.seller_id}`);
                   }}
                 >
-                  <img
+                  <Box
+                    component="img"
                     src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
                     alt={seller?.username}
-                    className="show-avatar"
+                    sx={{
+                      width: { xs: 24, sm: 28 },
+                      height: { xs: 24, sm: 28 },
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid rgba(255, 255, 255, 0.2)',
+                    }}
                   />
-                  <span className="show-username">{seller?.username}</span>
-                </div>
+                  <Typography
+                    sx={{
+                      fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                      fontWeight: 600,
+                      color: '#ffffff',
+                    }}
+                  >
+                    {seller?.username}
+                  </Typography>
+                </Box>
 
-                <div className="show-image-wrapper" onClick={() => handleShowClick(show.id)}>
-                  <div className="live-badge-top">
-                    <span className="pulse-dot"></span>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: '100%',
+                    aspectRatio: '3 / 4',
+                    overflow: 'hidden',
+                    bgcolor: '#000000',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    '&:hover img': {
+                      transform: 'scale(1.05)',
+                    },
+                  }}
+                  onClick={() => handleShowClick(show.id)}
+                >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '0.625rem',
+                      left: '0.625rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.25,
+                      px: 0.5,
+                      py: 0.25,
+                      bgcolor: 'rgba(239, 68, 68, 0.95)',
+                      color: 'white',
+                      borderRadius: '4px',
+                      fontSize: { xs: '0.5625rem', sm: '0.6875rem' },
+                      fontWeight: 700,
+                      zIndex: 2,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: { xs: 4, sm: 5 },
+                        height: { xs: 4, sm: 5 },
+                        borderRadius: '50%',
+                        bgcolor: 'white',
+                        animation: 'pulse-dot 1.5s infinite',
+                        '@keyframes pulse-dot': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.5 },
+                        },
+                      }}
+                    />
                     Live · {show.current_viewers.toLocaleString()}
-                  </div>
-                  <img
+                  </Box>
+                  <Box
+                    component="img"
                     src={show.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
                     alt={show.title}
-                    className="show-image"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transition: 'transform 0.3s ease',
+                      display: 'block',
+                    }}
                   />
-                </div>
+                </Box>
 
-                <div className="show-content" onClick={() => handleShowClick(show.id)}>
-                  <h3 className="show-title">{show.title}</h3>
-                  <p className="show-category">{show.category}</p>
-                </div>
-              </div>
+                <Box
+                  sx={{
+                    pt: 0.75,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.25,
+                    cursor: 'pointer',
+                    flex: 1,
+                  }}
+                  onClick={() => handleShowClick(show.id)}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem', lg: '0.9375rem' },
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      lineHeight: 1.3,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      wordBreak: 'break-word',
+                      minHeight: '2.438rem',
+                    }}
+                  >
+                    {show.title}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: { xs: '0.6875rem', sm: '0.75rem', md: '0.8125rem' },
+                      color: 'rgba(255, 255, 255, 0.6)',
+                    }}
+                  >
+                    {show.category}
+                  </Typography>
+                </Box>
+              </Box>
             );
           })}
-        </div>
-      </div>
-    </section>
+        </Stack>
+      </Box>
+    </Box>
   );
 }

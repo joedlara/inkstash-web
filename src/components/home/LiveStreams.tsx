@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { cache } from '../../utils/cache';
-import '../../styles/home/LiveStreams.css';
+import { Box, Typography, Chip, Skeleton, Grid } from '@mui/material';
 
 interface LiveStream {
   id: string;
@@ -122,114 +122,320 @@ export default function LiveStreams() {
 
   if (loading) {
     return (
-      <div className="live-streams">
-        <div className="section-header">
-          <h2>Live Streams</h2>
-        </div>
-        <div className="py-4">
-          <div className="grid-container">
+      <Box
+        sx={{
+          width: '100%',
+          pt: 2,
+          pb: 0,
+          bgcolor: '#f8fafc',
+          overflow: 'hidden',
+          borderTop: '1px solid #e2e8f0',
+          mt: 1.5,
+        }}
+      >
+        <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5" fontWeight={700} color="#1e293b">
+            Live Streams
+          </Typography>
+        </Box>
+        <Box sx={{ pt: 1, pb: 1 }}>
+          <Grid container spacing={1.25}>
             {Array.from({ length: 8 }).map((_, i) => (
-              <section key={i} className="stream-card loading">
-                <div className="stream-header">
-                  <div className="loading-avatar"></div>
-                  <div className="loading-username"></div>
-                </div>
-                <div className="card-image-wrapper">
-                  <div className="loading-shimmer"></div>
-                </div>
-                <div className="card-content">
-                  <div className="loading-line"></div>
-                  <div className="loading-line short"></div>
-                </div>
-              </section>
+              <Grid item xs={6} sm={6} md={4} lg={2.4} xl={2} key={i}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pb: 0.5 }}>
+                  <Skeleton variant="circular" width={28} height={28} />
+                  <Skeleton width={100} height={14} />
+                </Box>
+                <Skeleton variant="rectangular" height={320} sx={{ borderRadius: '12px' }} />
+                <Box sx={{ pt: 0.75 }}>
+                  <Skeleton width="80%" height={20} sx={{ mb: 0.5 }} />
+                  <Skeleton width="60%" height={16} />
+                </Box>
+              </Grid>
             ))}
-          </div>
-        </div>
-      </div>
+          </Grid>
+        </Box>
+      </Box>
     );
   }
 
   if (streams.length === 0) {
     return (
-      <div className="live-streams">
-        <div className="section-header">
-          <h2>Live Streams</h2>
-        </div>
-        <div className="py-4">
-          <div className="empty-state">
-            <div className="empty-icon">📡</div>
-            <h3>No live streams right now</h3>
-            <p>Check back later for live auctions</p>
-          </div>
-        </div>
-      </div>
+      <Box
+        sx={{
+          width: '100%',
+          pt: 2,
+          pb: 0,
+          bgcolor: '#f8fafc',
+          overflow: 'hidden',
+          borderTop: '1px solid #e2e8f0',
+          mt: 1.5,
+        }}
+      >
+        <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5" fontWeight={700} color="#1e293b">
+            Live Streams
+          </Typography>
+        </Box>
+        <Box sx={{ pt: 1, pb: 1 }}>
+          <Box sx={{ maxWidth: 400, mx: 'auto', my: 8, textAlign: 'center' }}>
+            <Box sx={{ fontSize: '4rem', mb: 2 }}>📡</Box>
+            <Typography variant="h6" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
+              No live streams right now
+            </Typography>
+            <Typography color="text.secondary">
+              Check back later for live auctions
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="live-streams">
-      <div className="section-header">
-        <h2>Live Streams</h2>
-      </div>
+    <Box
+      sx={{
+        width: '100%',
+        pt: 2,
+        pb: 0,
+        bgcolor: '#f8fafc',
+        overflow: 'hidden',
+        borderTop: '1px solid #e2e8f0',
+        mt: 1.5,
+      }}
+    >
+      <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5" fontWeight={700} color="#1e293b">
+          Live Streams
+        </Typography>
+      </Box>
 
-      <div className="py-4">
-        <div className="grid-container">
+      <Box sx={{ pt: 1, pb: 1 }}>
+        <Grid
+          container
+          spacing={{ xs: 0.625, sm: 0.75, md: 1, lg: 1.25 }}
+          sx={{
+            gridTemplateColumns: {
+              xs: 'repeat(2, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(3, 1fr)',
+              xl: 'repeat(5, 1fr)',
+            },
+          }}
+        >
           {streams.map((stream) => {
             const seller = sellers[stream.seller_id];
 
             return (
-              <section key={stream.id} className="stream-card">
-                <div
-                  className="stream-header"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/seller/${stream.seller_id}`);
+              <Grid item xs={6} sm={6} md={4} lg={2.4} xl={2} key={stream.id}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateRows: '2.25rem max-content auto',
+                    width: '100%',
+                    minWidth: 0,
+                    height: '100%',
                   }}
                 >
-                  <img
-                    src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-                    alt={seller?.username}
-                    className="stream-avatar"
-                  />
-                  <span className="stream-username">{seller?.username}</span>
-                </div>
-
-                <div className="card-image-wrapper" onClick={() => handleStreamClick(stream.id)}>
-                  <div className="live-badge-container">
-                    <div className="live-badge">
-                      <span className="pulse-dot"></span>
-                      Live · {stream.current_viewers.toLocaleString()}
-                    </div>
-                  </div>
-                  <img
-                    src={stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
-                    alt={stream.title}
-                    className="card-image"
-                  />
-                </div>
-
-                <div className="card-content" onClick={() => handleStreamClick(stream.id)}>
-                  <h3 className="card-title">{stream.title}</h3>
-                  <div className="card-meta">
-                    <span
-                      className="category-tag"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/browse?category=${stream.category}`);
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      pb: 0.5,
+                      cursor: 'pointer',
+                      transition: 'opacity 0.2s ease',
+                      '&:hover': { opacity: 0.8 },
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/seller/${stream.seller_id}`);
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+                      alt={seller?.username}
+                      sx={{
+                        width: { xs: 24, sm: 28 },
+                        height: { xs: 24, sm: 28 },
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '2px solid #e5e7eb',
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                        fontWeight: 600,
+                        color: '#1e293b',
                       }}
                     >
-                      {stream.category}
-                    </span>
-                    {stream.description && (
-                      <span className="stream-description">{stream.description}</span>
-                    )}
-                  </div>
-                </div>
-              </section>
+                      {seller?.username}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      aspectRatio: '3 / 4',
+                      height: { xs: 230, sm: 320 },
+                      overflow: 'hidden',
+                      bgcolor: '#000000',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      '&:hover img': {
+                        transform: 'scale(1.05)',
+                      },
+                    }}
+                    onClick={() => handleStreamClick(stream.id)}
+                  >
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '0.625rem',
+                        left: '0.625rem',
+                        right: '0.625rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        zIndex: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.25,
+                          px: 0.5,
+                          py: 0.25,
+                          bgcolor: 'rgba(239, 68, 68, 0.95)',
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: { xs: '0.5625rem', sm: '0.625rem', md: '0.6875rem' },
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: { xs: 4, sm: 5 },
+                            height: { xs: 4, sm: 5 },
+                            borderRadius: '50%',
+                            bgcolor: 'white',
+                            animation: 'pulse-dot 1.5s infinite',
+                            '@keyframes pulse-dot': {
+                              '0%, 100%': { opacity: 1 },
+                              '50%': { opacity: 0.5 },
+                            },
+                          }}
+                        />
+                        Live · {stream.current_viewers.toLocaleString()}
+                      </Box>
+                    </Box>
+                    <Box
+                      component="img"
+                      src={stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
+                      alt={stream.title}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transition: 'transform 0.3s ease',
+                        display: 'block',
+                      }}
+                    />
+                  </Box>
+
+                  <Box
+                    sx={{
+                      pt: { xs: 0.5, sm: 0.625, md: 0.75 },
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                    onClick={() => handleStreamClick(stream.id)}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem', lg: '0.9375rem' },
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        mb: 0.5,
+                        lineHeight: 1.4,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {stream.title}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 0.5,
+                        alignItems: 'center',
+                        flexWrap: 'nowrap',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Chip
+                        label={stream.category}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/browse?category=${stream.category}`);
+                        }}
+                        sx={{
+                          px: { xs: 0.5, sm: 0.75 },
+                          height: { xs: 24, sm: 28 },
+                          fontSize: { xs: '0.625rem', sm: '0.6875rem', md: '0.75rem' },
+                          fontWeight: 600,
+                          bgcolor: '#3395FF',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: '#2678CC',
+                            transform: 'translateY(-1px)',
+                          },
+                          '& .MuiChip-label': {
+                            px: { xs: 0.5, sm: 0.75 },
+                          },
+                        }}
+                      />
+                      {stream.description && (
+                        <Typography
+                          sx={{
+                            fontSize: { xs: '0.5625rem', sm: '0.625rem', md: '0.6875rem', lg: '0.75rem' },
+                            fontWeight: 400,
+                            color: '#64748b',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {stream.description}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
             );
           })}
-        </div>
-      </div>
-    </div>
+        </Grid>
+      </Box>
+    </Box>
   );
 }

@@ -108,7 +108,10 @@ export default function DashboardSidebar() {
         height: 'fit-content',
         maxHeight: 'calc(100vh - 120px)',
         overflowY: 'auto',
-        display: { xs: 'none', md: 'block' },
+        display: { xs: 'none', sm: 'none', md: 'block' },
+        '@media (min-width: 600px)': {
+          display: 'block',
+        },
       }}
     >
       {sidebarContent}
