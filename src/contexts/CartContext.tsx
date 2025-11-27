@@ -26,20 +26,19 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'inkstash_cart';
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-
-  // Load cart from localStorage on mount
-  useEffect(() => {
+  // Initialize state from localStorage
+  const [items, setItems] = useState<CartItem[]>(() => {
     const savedCart = localStorage.getItem(CART_STORAGE_KEY);
     if (savedCart) {
       try {
-        const parsedCart = JSON.parse(savedCart);
-        setItems(parsedCart);
+        return JSON.parse(savedCart);
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
+        return [];
       }
     }
-  }, []);
+    return [];
+  });
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {

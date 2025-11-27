@@ -27,6 +27,7 @@ import { type PaymentMethod, type ShippingAddress, paymentMethodsAPI, shippingAd
 import { ordersAPI } from '../api/orders';
 import { sendOrderConfirmationEmail } from '../api/email';
 import DashboardHeader from '../components/home/DashboardHeader';
+import ApplePayButton from '../components/payments/ApplePayButton';
 
 interface CheckoutState {
   auctionId: string;
@@ -54,6 +55,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [useApplePay, setUseApplePay] = useState(false);
 
   const shippingCost = checkoutData?.shippingCost || 10.00; // Default shipping cost
   const subtotal = checkoutData?.price || 0;
@@ -124,14 +126,20 @@ export default function Checkout() {
   };
 
   const handleNext = () => {
-    if (activeStep === 0 && !selectedShipping) {
+    if (activeStep === 0 && !selectedShipping && shippingAddresses.length === 0) {
+      setError('Please add a shipping address to continue');
+      return;
+    }
+    if (activeStep === 0 && !selectedShipping && shippingAddresses.length > 0) {
       setError('Please select a shipping address');
       return;
     }
-    if (activeStep === 1 && !selectedPayment) {
+    if (activeStep === 1 && !selectedPayment && paymentMethods.length > 0) {
       setError('Please select a payment method');
       return;
     }
+    // Allow proceeding from payment step even without payment method selected
+    // as they can use Apple Pay or add a payment method
 
     setError(null);
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -142,9 +150,79 @@ export default function Checkout() {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
+  const handleApplePaySuccess = async (paymentData: any) => {
+    if (!selectedShipping) {
+      setError('Please select a shipping address first');
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Create the order in the database
+      const orderResult = await ordersAPI.create({
+        auctionId: checkoutData.auctionId,
+        paymentMethodId: undefined, // Apple Pay doesn't use saved payment methods
+        shippingAddressId: selectedShipping,
+        itemPrice: subtotal,
+        shippingCost: shippingCost,
+        tax: tax,
+        purchaseType: checkoutData.type,
+        // In production, you would include the Apple Pay transaction ID
+      });
+
+      if (!orderResult.success) {
+        throw new Error(orderResult.error || 'Failed to create order');
+      }
+
+      // Send order confirmation email
+      try {
+        const orderData = await ordersAPI.getById(orderResult.order_id!);
+        if (orderData && user?.email) {
+          await sendOrderConfirmationEmail(
+            orderData,
+            user.email,
+            user.user_metadata?.full_name || user.email
+          );
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+      }
+
+      // Clear saved checkout session
+      localStorage.removeItem('checkout_session');
+
+      // Navigate to success page
+      navigate('/order-success', {
+        state: {
+          orderId: orderResult.order_id,
+          orderNumber: orderResult.order_number,
+        },
+      });
+    } catch (err) {
+      console.error('Order failed:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Order failed. Please try again or contact support.'
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleApplePayError = (errorMessage: string) => {
+    setError(errorMessage);
+  };
+
   const handlePlaceOrder = async () => {
-    if (!selectedPayment || !selectedShipping) {
-      setError('Please select payment method and shipping address');
+    if (!selectedShipping) {
+      setError('Please select a shipping address');
+      return;
+    }
+    if (!selectedPayment) {
+      setError('Please select a payment method');
       return;
     }
 
@@ -294,7 +372,7 @@ export default function Checkout() {
                     </Typography>
                     <Button
                       variant="contained"
-                      onClick={() => navigate('/payments', { state: { tab: 1 } })}
+                      onClick={() => navigate('/settings?tab=addresses')}
                       sx={{ mt: 2 }}
                     >
                       Add Shipping Address
@@ -352,7 +430,7 @@ export default function Checkout() {
 
                 <Button
                   variant="text"
-                  onClick={() => navigate('/payments', { state: { tab: 1 } })}
+                  onClick={() => navigate('/settings?tab=addresses')}
                   sx={{ mt: 2 }}
                 >
                   + Add New Address
@@ -371,16 +449,17 @@ export default function Checkout() {
                 </Stack>
 
                 {paymentMethods.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="body1" color="text.secondary" gutterBottom>
-                      No payment methods found
-                    </Typography>
+                  <Box sx={{ py: 2 }}>
+                    <Alert severity="info" sx={{ mb: 3 }}>
+                      You can add a credit card or use Apple Pay for faster checkout.
+                    </Alert>
                     <Button
-                      variant="contained"
-                      onClick={() => navigate('/payments', { state: { tab: 0 } })}
-                      sx={{ mt: 2 }}
+                      variant="outlined"
+                      fullWidth
+                      onClick={() => navigate('/settings?tab=payments')}
+                      sx={{ mb: 2 }}
                     >
-                      Add Payment Method
+                      + Add Credit/Debit Card
                     </Button>
                   </Box>
                 ) : (
@@ -422,13 +501,44 @@ export default function Checkout() {
                   </RadioGroup>
                 )}
 
-                <Button
-                  variant="text"
-                  onClick={() => navigate('/payments', { state: { tab: 0 } })}
-                  sx={{ mt: 2 }}
-                >
-                  + Add New Payment Method
-                </Button>
+                {/* Apple Pay Option - Only for buy_now, not for bids */}
+                {checkoutData?.type === 'buy_now' && (
+                  <>
+                    <Divider sx={{ my: 3 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        OR
+                      </Typography>
+                    </Divider>
+
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      Use Apple Pay for faster checkout. Apple Pay is only available for direct purchases, not for bids.
+                    </Alert>
+
+                    <ApplePayButton
+                      amount={total}
+                      label={`${checkoutData.itemTitle}`}
+                      onSuccess={handleApplePaySuccess}
+                      onError={handleApplePayError}
+                      disabled={!selectedShipping || processing}
+                    />
+
+                    {!selectedShipping && (
+                      <Alert severity="warning" sx={{ mt: 2 }}>
+                        Please select a shipping address before using Apple Pay
+                      </Alert>
+                    )}
+                  </>
+                )}
+
+                {paymentMethods.length > 0 && (
+                  <Button
+                    variant="text"
+                    onClick={() => navigate('/settings?tab=payments')}
+                    sx={{ mt: 2 }}
+                  >
+                    + Add New Payment Method
+                  </Button>
+                )}
               </Paper>
             )}
 

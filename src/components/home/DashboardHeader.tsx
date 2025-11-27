@@ -68,6 +68,7 @@ export default function DashboardHeader() {
           borderBottom: 1,
           borderColor: 'divider',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+          borderRadius: 0,
         }}
       >
         <Toolbar
@@ -323,8 +324,6 @@ export default function DashboardHeader() {
                 '& .MuiBadge-badge': {
                   top: 4,
                   right: 4,
-                  border: '2px solid',
-                  borderColor: 'background.paper',
                 },
               }}
             >

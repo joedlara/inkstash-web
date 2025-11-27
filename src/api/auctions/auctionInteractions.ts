@@ -11,9 +11,9 @@ export const checkUserLiked = async (userId: string, auctionId: string): Promise
       .select('id')
       .eq('user_id', userId)
       .eq('auction_id', auctionId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error) {
       return false;
     }
 
@@ -33,9 +33,9 @@ export const checkUserSaved = async (userId: string, auctionId: string): Promise
       .select('id')
       .eq('user_id', userId)
       .eq('auction_id', auctionId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       return false;
     }
 

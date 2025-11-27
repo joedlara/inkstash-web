@@ -12,7 +12,6 @@ import FeaturedCollectibles from '../components/home/FeaturedCollectibles';
 import PopularShows from '../components/home/PopularShows';
 import Categories from '../components/home/Categories';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
-import MobileBottomNav from '../components/home/MobileBottomNav';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -63,7 +62,6 @@ export default function Home() {
             <Categories />
           </div>
         </div>
-        <MobileBottomNav />
       </div>
 
       {/* Onboarding Modal - shows if user hasn't completed onboarding */}

@@ -11,8 +11,7 @@ import Home from './pages/Home';
 import Seller from './pages/Seller';
 import ItemDetail from './pages/ItemDetail';
 import BrowseFeatured from './pages/BrowseFeatured';
-import PaymentAndShipping from './pages/PaymentAndShipping';
-import Checkout from './pages/Checkout';
+import Checkout from './pages/CheckoutNew';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderManagement from './pages/OrderManagement';
 import FeaturedArtists from './pages/FeaturedArtists';
@@ -23,6 +22,7 @@ import MyStash from './pages/MyStash';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
 import { CartProvider } from './contexts/CartContext';
+import AppLayout from './components/layout/AppLayout';
 import './styles/index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -32,24 +32,25 @@ createRoot(document.getElementById('root')!).render(
       <CartProvider>
         <BrowserRouter>
           <RouteGuard>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/sell" element={<Seller />} />
-              <Route path="/item/:id" element={<ItemDetail />} />
-              <Route path="/auction/:id" element={<ItemDetail />} />
-              <Route path="/browse-featured" element={<BrowseFeatured />} />
-              <Route path="/featured-artists" element={<FeaturedArtists />} />
-              <Route path="/popular-shows" element={<PopularShows />} />
-              <Route path="/payments" element={<PaymentAndShipping />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-success" element={<OrderSuccess />} />
-              <Route path="/order/:orderId" element={<OrderManagement />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/my-bids" element={<MyBids />} />
-              <Route path="/my-stash" element={<MyStash />} />
-              <Route path="/settings" element={<AccountSettings />} />
-            </Routes>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/sell" element={<Seller />} />
+                <Route path="/item/:id" element={<ItemDetail />} />
+                <Route path="/auction/:id" element={<ItemDetail />} />
+                <Route path="/browse-featured" element={<BrowseFeatured />} />
+                <Route path="/featured-artists" element={<FeaturedArtists />} />
+                <Route path="/popular-shows" element={<PopularShows />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/order-success" element={<OrderSuccess />} />
+                <Route path="/order/:orderId" element={<OrderManagement />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/my-bids" element={<MyBids />} />
+                <Route path="/my-stash" element={<MyStash />} />
+                <Route path="/settings" element={<AccountSettings />} />
+              </Routes>
+            </AppLayout>
           </RouteGuard>
         </BrowserRouter>
       </CartProvider>

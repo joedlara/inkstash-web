@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
+import { useCart } from '../contexts/CartContext';
 import {
   checkUserLiked,
   checkUserSaved,
@@ -41,6 +42,8 @@ import {
 import { getHighestBid, placeBid } from '../api/auctions/bids';
 import DashboardHeader from '../components/home/DashboardHeader';
 import BidModal from '../components/auctions/BidModal';
+import PaymentShippingSetupModal from '../components/payments/PaymentShippingSetupModal';
+import { checkPaymentAndShipping, getRequiredSetup, type PaymentShippingStatus } from '../utils/paymentValidation';
 
 interface ItemDetails {
   id: string;
@@ -69,6 +72,7 @@ export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addItem, isInCart } = useCart();
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +84,10 @@ export default function ItemDetail() {
   const [bidModalOpen, setBidModalOpen] = useState(false);
   const [highestBidUserId, setHighestBidUserId] = useState<string | null>(null);
   const [isAuctionEnded, setIsAuctionEnded] = useState(false);
+  const [paymentShippingStatus, setPaymentShippingStatus] = useState<PaymentShippingStatus | null>(null);
+  const [setupModalOpen, setSetupModalOpen] = useState(false);
+  const [setupModalType, setSetupModalType] = useState<'both' | 'payment' | 'shipping'>('both');
+  const [pendingAction, setPendingAction] = useState<'bid' | 'buy' | null>(null);
 
   useEffect(() => {
     async function fetchItemDetails() {
@@ -95,7 +103,7 @@ export default function ItemDetail() {
           .from('auctions')
           .select('*')
           .eq('id', id)
-          .single();
+          .maybeSingle();
 
         if (auctionError) {
           setError('Auction not found');
@@ -116,7 +124,7 @@ export default function ItemDetail() {
             .from('users')
             .select('id, username, avatar_url, verified')
             .eq('id', auctionData.seller_id)
-            .single();
+            .maybeSingle();
 
           if (!sellerError) {
             sellerData = seller;
@@ -226,6 +234,25 @@ export default function ItemDetail() {
     loadInteractionStatus();
   }, [user, id]);
 
+  // Check payment and shipping status when user logs in
+  useEffect(() => {
+    async function loadPaymentShippingStatus() {
+      if (!user) {
+        setPaymentShippingStatus(null);
+        return;
+      }
+
+      try {
+        const status = await checkPaymentAndShipping();
+        setPaymentShippingStatus(status);
+      } catch {
+        // Error loading payment/shipping status
+      }
+    }
+
+    loadPaymentShippingStatus();
+  }, [user]);
+
   const handleLikeClick = async () => {
     if (!user || !id || isLoadingInteractions) return;
 
@@ -320,18 +347,20 @@ export default function ItemDetail() {
       return;
     }
 
-    // Navigate to checkout page with buy now details
-    navigate('/checkout', {
-      state: {
-        auctionId: id,
-        itemTitle: item.title,
-        price: item.buy_now_price,
-        imageUrl: item.image_url,
-        type: 'buy_now',
-        sellerId: item.seller_id,
-        shippingCost: item.us_shipping,
-      },
+    // Add item to cart
+    addItem({
+      auctionId: id!,
+      title: item.title,
+      price: item.buy_now_price,
+      imageUrl: item.image_url,
+      sellerId: item.seller_id,
+      type: 'buy_now',
+      shippingCost: item.us_shipping,
+      addedAt: new Date().toISOString(),
     });
+
+    // Navigate to cart page
+    navigate('/cart');
   };
 
   const getBidButtonState = () => {
@@ -356,6 +385,30 @@ export default function ItemDetail() {
     }
 
     return { disabled: false, text: 'Place Bid' };
+  };
+
+  const handleSetupComplete = async () => {
+    setSetupModalOpen(false);
+
+    // Refresh payment and shipping status
+    try {
+      const status = await checkPaymentAndShipping();
+      setPaymentShippingStatus(status);
+
+      // If setup is complete, proceed with the pending action
+      if (status.hasBoth && pendingAction === 'bid') {
+        setBidModalOpen(true);
+      }
+    } catch {
+      // Error refreshing status
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleSetupCancel = () => {
+    setSetupModalOpen(false);
+    setPendingAction(null);
   };
 
   const bidButtonState = getBidButtonState();
@@ -678,7 +731,15 @@ export default function ItemDetail() {
                         if (!user) {
                           navigate('/login');
                         } else {
-                          setBidModalOpen(true);
+                          // Check if user has payment and shipping setup before allowing bid
+                          if (paymentShippingStatus && !paymentShippingStatus.hasBoth) {
+                            setPendingAction('bid');
+                            const required = getRequiredSetup(paymentShippingStatus);
+                            setSetupModalType(required);
+                            setSetupModalOpen(true);
+                          } else {
+                            setBidModalOpen(true);
+                          }
                         }
                       }}
                     >
@@ -778,6 +839,14 @@ export default function ItemDetail() {
           onPlaceBid={handlePlaceBid}
         />
       )}
+
+      {/* Payment/Shipping Setup Modal */}
+      <PaymentShippingSetupModal
+        open={setupModalOpen}
+        onClose={handleSetupCancel}
+        onComplete={handleSetupComplete}
+        requiredSetup={setupModalType}
+      />
     </Box>
   );
 }

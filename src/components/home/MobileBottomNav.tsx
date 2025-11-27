@@ -112,7 +112,6 @@ export default function MobileBottomNav() {
                 fontSize: '0.625rem',
                 height: 18,
                 minWidth: 18,
-                border: '2px solid white',
               },
             }}
           >
