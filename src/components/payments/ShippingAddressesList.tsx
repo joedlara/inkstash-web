@@ -52,9 +52,9 @@ export default function ShippingAddressesList({
     setEditingAddress(address);
   };
 
-  const handleSaveEdit = (updates: Partial<ShippingAddress>) => {
+  const handleSaveEdit = async (updates: Partial<ShippingAddress>) => {
     if (editingAddress) {
-      onEdit(editingAddress.id, updates);
+      await onEdit(editingAddress.id, updates);
       setEditingAddress(null);
     }
   };
@@ -121,10 +121,13 @@ export default function ShippingAddressesList({
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <IconButton
                     size="small"
-                    onClick={() => onSetDefault(address.id)}
-                    disabled={address.is_default}
+                    onClick={() => !address.is_default && onSetDefault(address.id)}
                     sx={{
                       color: address.is_default ? 'primary.main' : 'text.secondary',
+                      cursor: address.is_default ? 'default' : 'pointer',
+                      '&:hover': {
+                        bgcolor: address.is_default ? 'transparent' : 'action.hover',
+                      },
                     }}
                   >
                     {address.is_default ? <StarIcon /> : <StarBorderIcon />}
@@ -156,9 +159,10 @@ export default function ShippingAddressesList({
         onClose={() => setEditingAddress(null)}
         maxWidth="sm"
         fullWidth
+        disableRestoreFocus
       >
         <DialogTitle>Edit Shipping Address</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
           {editingAddress && (
             <EditShippingAddressForm
               address={editingAddress}

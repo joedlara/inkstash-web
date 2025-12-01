@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
   VisibilityOff,
 } from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { authManager } from '../../api/auth/authManager';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -28,15 +30,16 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: AuthModalProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(defaultTab);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form fields
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Sync activeTab with defaultTab when it changes
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/onboarding`,
         },
       });
       if (error) throw error;
@@ -66,45 +69,57 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
+      console.log('Starting signup for:', email);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
       });
+
+      console.log('Signup response:', { data, error });
 
       if (error) throw error;
 
       if (data.user) {
-        // Create user profile in users table
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              email: email,
-              username: email.split('@')[0],
-              full_name: fullName,
-              level: 1,
-              xp: 0,
-              xp_to_next: 1000,
-            },
-          ]);
+        console.log('User created:', data.user.id);
 
-        if (profileError) {
-          // Profile creation error
+        // Check if email confirmation is required
+        if (data.session) {
+          // User is confirmed and logged in
+          console.log('User has session, waiting for authManager to load user data');
+
+          // Wait for authManager to initialize and load user data
+          // This gives the database trigger time to create the user profile
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Refresh user data in authManager
+          await authManager.refreshUser();
+          console.log('AuthManager refreshed, redirecting to onboarding');
+
+          onClose();
+          navigate('/onboarding');
+        } else {
+          // Email confirmation required
+          console.log('Email confirmation required');
+          setError('Please check your email to confirm your account before signing in.');
         }
-
-        onClose();
+      } else {
+        console.log('No user returned from signup');
+        setError('Failed to create account. Please try again.');
       }
     } catch (err: any) {
+      console.error('Signup error:', err);
       setError(err.message || 'Failed to sign up');
     } finally {
       setLoading(false);
@@ -162,7 +177,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
       TransitionComponent={Fade}
       PaperProps={{
         sx: {
-          borderRadius: 4,
+          borderRadius: 2,
           p: { xs: 3, sm: 5 },
           maxHeight: '90vh',
         },
@@ -253,16 +268,6 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
           <Box component="form" onSubmit={handleEmailSignUp} sx={{ mt: 3 }}>
             <TextField
               fullWidth
-              label="Full name"
-              placeholder="First and last name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              sx={{ mb: 2.5 }}
-            />
-
-            <TextField
-              fullWidth
               type="email"
               label="Email"
               placeholder="name@example.com"
@@ -279,6 +284,29 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
               placeholder="********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 2.5 }}
+            />
+
+            <TextField
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              label="Confirm password"
+              placeholder="********"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               InputProps={{
                 endAdornment: (

@@ -92,10 +92,13 @@ export default function PaymentMethodsList({
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <IconButton
                   size="small"
-                  onClick={() => onSetDefault(method.id)}
-                  disabled={method.is_default}
+                  onClick={() => !method.is_default && onSetDefault(method.id)}
                   sx={{
                     color: method.is_default ? 'primary.main' : 'text.secondary',
+                    cursor: method.is_default ? 'default' : 'pointer',
+                    '&:hover': {
+                      bgcolor: method.is_default ? 'transparent' : 'action.hover',
+                    },
                   }}
                 >
                   {method.is_default ? <StarIcon /> : <StarBorderIcon />}

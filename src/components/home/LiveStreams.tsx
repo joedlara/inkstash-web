@@ -122,114 +122,116 @@ export default function LiveStreams() {
 
   if (loading) {
     return (
-      <div className="live-streams">
-        <div className="section-header">
-          <h2>Live Streams</h2>
+      <section className="livestreams-section">
+        <h2 className="livestreams-title">Live Streams</h2>
+        <div className="livestreams-grid">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div className="livestreams-skeleton-avatar" />
+                <div className="livestreams-skeleton-username" />
+              </div>
+              <div className="livestreams-skeleton-thumbnail" />
+              <div style={{ paddingTop: '12px' }}>
+                <div className="livestreams-skeleton-title" />
+                <div className="livestreams-skeleton-description" />
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="py-4">
-          <div className="grid-container">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <section key={i} className="stream-card loading">
-                <div className="stream-header">
-                  <div className="loading-avatar"></div>
-                  <div className="loading-username"></div>
-                </div>
-                <div className="card-image-wrapper">
-                  <div className="loading-shimmer"></div>
-                </div>
-                <div className="card-content">
-                  <div className="loading-line"></div>
-                  <div className="loading-line short"></div>
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
-      </div>
+      </section>
     );
   }
 
   if (streams.length === 0) {
     return (
-      <div className="live-streams">
-        <div className="section-header">
-          <h2>Live Streams</h2>
+      <section className="livestreams-section">
+        <h2 className="livestreams-title">Live Streams</h2>
+        <div className="livestreams-empty">
+          <div className="livestreams-empty-icon">📡</div>
+          <h3 className="livestreams-empty-title">No live streams right now</h3>
+          <p className="livestreams-empty-text">Check back later for live auctions</p>
         </div>
-        <div className="py-4">
-          <div className="empty-state">
-            <div className="empty-icon">📡</div>
-            <h3>No live streams right now</h3>
-            <p>Check back later for live auctions</p>
-          </div>
-        </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="live-streams">
-      <div className="section-header">
-        <h2>Live Streams</h2>
-      </div>
+    <section className="livestreams-section">
+      <h2 className="livestreams-title">Live Streams</h2>
 
-      <div className="py-4">
-        <div className="grid-container">
-          {streams.map((stream) => {
-            const seller = sellers[stream.seller_id];
+      <div className="livestreams-grid">
+        {streams.map((stream) => {
+          const seller = sellers[stream.seller_id];
 
-            return (
-              <section key={stream.id} className="stream-card">
-                <div
-                  className="stream-header"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/seller/${stream.seller_id}`);
-                  }}
-                >
-                  <img
-                    src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-                    alt={seller?.username}
-                    className="stream-avatar"
-                  />
-                  <span className="stream-username">{seller?.username}</span>
+          return (
+            <div key={stream.id} className="livestreams-card">
+              {/* Seller Info */}
+              <div
+                className="livestreams-seller"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/seller/${stream.seller_id}`);
+                }}
+              >
+                <img
+                  src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+                  alt={seller?.username}
+                  className="livestreams-seller-avatar"
+                />
+                <span className="livestreams-seller-username">
+                  {seller?.username}
+                </span>
+              </div>
+
+              {/* Thumbnail */}
+              <div
+                className="livestreams-thumbnail"
+                onClick={() => handleStreamClick(stream.id)}
+              >
+                {/* Live Badge */}
+                <div className="livestreams-live-badge">
+                  <span className="livestreams-live-dot" />
+                  Live · {stream.current_viewers.toLocaleString()}
                 </div>
 
-                <div className="card-image-wrapper" onClick={() => handleStreamClick(stream.id)}>
-                  <div className="live-badge-container">
-                    <div className="live-badge">
-                      <span className="pulse-dot"></span>
-                      Live · {stream.current_viewers.toLocaleString()}
-                    </div>
-                  </div>
-                  <img
-                    src={stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
-                    alt={stream.title}
-                    className="card-image"
-                  />
-                </div>
+                {/* Thumbnail Image */}
+                <img
+                  src={stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
+                  alt={stream.title}
+                  className="livestreams-thumbnail-image"
+                />
+              </div>
 
-                <div className="card-content" onClick={() => handleStreamClick(stream.id)}>
-                  <h3 className="card-title">{stream.title}</h3>
-                  <div className="card-meta">
-                    <span
-                      className="category-tag"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/browse?category=${stream.category}`);
-                      }}
-                    >
-                      {stream.category}
+              {/* Stream Info */}
+              <div
+                className="livestreams-info"
+                onClick={() => handleStreamClick(stream.id)}
+              >
+                <h3 className="livestreams-title-text">
+                  {stream.title}
+                </h3>
+                <div className="livestreams-meta">
+                  <span
+                    className="livestreams-category"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/browse?category=${stream.category}`);
+                    }}
+                  >
+                    {stream.category}
+                  </span>
+                  {stream.description && (
+                    <span className="livestreams-description">
+                      {stream.description}
                     </span>
-                    {stream.description && (
-                      <span className="stream-description">{stream.description}</span>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </section>
-            );
-          })}
-        </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }

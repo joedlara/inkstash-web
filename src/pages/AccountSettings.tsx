@@ -24,6 +24,8 @@ import {
   Notifications,
   Settings,
   Menu as MenuIcon,
+  Payment,
+  LocalShipping,
 } from '@mui/icons-material';
 import DashboardHeader from '../components/home/DashboardHeader';
 import { useAuth } from '../hooks/useAuth';
@@ -31,8 +33,10 @@ import ProfileTab from '../components/common/ProfileTab';
 import PreferencesSettingsTab from '../components/common/PreferencesSettingsTab';
 import AccountTab from '../components/common/AccountTab';
 import NotificationsTab from '../components/common/NotificationsTab';
+import PaymentsTab from '../components/common/PaymentsTab';
+import AddressesTab from '../components/common/AddressesTab';
 
-type TabType = 'profile' | 'preferences' | 'notifications' | 'account';
+type TabType = 'profile' | 'preferences' | 'notifications' | 'account' | 'payments' | 'addresses';
 
 interface SidebarItem {
   id: TabType;
@@ -43,9 +47,11 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   { id: 'profile', label: 'Profile', icon: <Person />, section: 'General' },
-  { id: 'preferences', label: 'Preferences', icon: <Settings />, section: 'General' },
+  { id: 'preferences', label: 'Privacy Settings', icon: <Settings />, section: 'General' },
   { id: 'notifications', label: 'Notifications', icon: <Notifications />, section: 'General' },
   { id: 'account', label: 'Account', icon: <Lock />, section: 'General' },
+  { id: 'payments', label: 'Payment Methods', icon: <Payment />, section: 'Billing' },
+  { id: 'addresses', label: 'Shipping Addresses', icon: <LocalShipping />, section: 'Billing' },
 ];
 
 export default function AccountSettings() {
@@ -95,6 +101,10 @@ export default function AccountSettings() {
         return <NotificationsTab />;
       case 'account':
         return <AccountTab />;
+      case 'payments':
+        return <PaymentsTab />;
+      case 'addresses':
+        return <AddressesTab />;
       default:
         return <ProfileTab />;
     }
@@ -130,8 +140,9 @@ export default function AccountSettings() {
         </Box>
       </Box>
 
-      {/* General Section */}
+      {/* Sections */}
       <Box sx={{ flex: 1, py: 2 }}>
+        {/* General Section */}
         <Typography
           variant="caption"
           fontWeight={700}
@@ -141,7 +152,55 @@ export default function AccountSettings() {
           General
         </Typography>
         <List sx={{ px: 1 }}>
-          {sidebarItems.map((item) => (
+          {sidebarItems.filter(item => item.section === 'General').map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={activeTab === item.id}
+                onClick={() => handleTabChange(item.id)}
+                sx={{
+                  borderRadius: 1,
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: activeTab === item.id ? 'white' : 'text.secondary',
+                    minWidth: 40,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: activeTab === item.id ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+
+        {/* Billing Section */}
+        <Typography
+          variant="caption"
+          fontWeight={700}
+          color="text.secondary"
+          sx={{ px: 3, mb: 1, mt: 3, display: 'block' }}
+        >
+          Billing
+        </Typography>
+        <List sx={{ px: 1 }}>
+          {sidebarItems.filter(item => item.section === 'Billing').map((item) => (
             <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 selected={activeTab === item.id}

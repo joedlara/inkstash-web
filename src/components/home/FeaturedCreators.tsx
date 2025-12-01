@@ -37,7 +37,7 @@ export default function FeaturedCreators() {
             .eq('seller_id', creator.id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           return {
             ...creator,

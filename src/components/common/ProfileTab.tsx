@@ -19,9 +19,10 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../api/supabase/supabaseClient';
+import ImageCropper from './ImageCropper';
 
 export default function ProfileTab() {
-  const { user, updateUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [username, setUsername] = useState('');
@@ -33,6 +34,8 @@ export default function ProfileTab() {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -49,19 +52,41 @@ export default function ProfileTab() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
+
+    // Create a URL for the selected file to show in cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImage(imageUrl);
+    setCropperOpen(true);
+  };
+
+  const handleCropperClose = () => {
+    setCropperOpen(false);
+    if (selectedImage) {
+      URL.revokeObjectURL(selectedImage);
+      setSelectedImage(null);
+    }
+    // Reset file input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveCroppedImage = async (croppedImageBlob: Blob) => {
+    if (!user) return;
 
     try {
       setUploading(true);
       setError('');
+      setCropperOpen(false);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      // Convert blob to file
+      const fileName = `${Date.now()}.jpg`;
       const filePath = `avatars/${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('user-uploads')
-        .upload(filePath, file);
+        .upload(filePath, croppedImageBlob);
 
       if (uploadError) throw uploadError;
 
@@ -80,8 +105,8 @@ export default function ProfileTab() {
       setSuccess('Avatar updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
 
-      if (updateUser) {
-        await updateUser();
+      if (refreshUser) {
+        await refreshUser();
       }
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
@@ -99,6 +124,10 @@ export default function ProfileTab() {
       setError(errorMessage);
     } finally {
       setUploading(false);
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage);
+        setSelectedImage(null);
+      }
     }
   };
 
@@ -129,8 +158,8 @@ export default function ProfileTab() {
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
 
-      if (updateUser) {
-        await updateUser();
+      if (refreshUser) {
+        await refreshUser();
       }
     } catch (err: any) {
       console.error('Error updating profile:', err);
@@ -152,6 +181,17 @@ export default function ProfileTab() {
         <Alert severity="success" sx={{ mb: 3 }}>
           {success}
         </Alert>
+      )}
+
+      {/* Image Cropper Modal */}
+      {selectedImage && (
+        <ImageCropper
+          open={cropperOpen}
+          imageUrl={selectedImage}
+          onClose={handleCropperClose}
+          onSave={handleSaveCroppedImage}
+          aspectRatio={1}
+        />
       )}
 
       <Paper elevation={0} sx={{ p: 4, bgcolor: 'background.paper' }}>

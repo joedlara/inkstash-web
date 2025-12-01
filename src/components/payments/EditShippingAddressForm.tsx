@@ -11,7 +11,7 @@ import { type ShippingAddress } from '../../api/payments';
 
 interface EditShippingAddressFormProps {
   address: ShippingAddress;
-  onSave: (updates: Partial<ShippingAddress>) => void;
+  onSave: (updates: Partial<ShippingAddress>) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -47,7 +47,7 @@ export default function EditShippingAddressForm({
     setError(null);
 
     try {
-      onSave(formData);
+      await onSave(formData);
     } catch (err) {
       console.error('Error updating shipping address:', err);
       setError(err instanceof Error ? err.message : 'Failed to update shipping address');

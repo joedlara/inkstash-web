@@ -58,7 +58,7 @@ export default function OrderManagement() {
     }
 
     if (!orderId) {
-      navigate('/purchases');
+      navigate('/my-stash?tab=history');
       return;
     }
 
@@ -180,7 +180,7 @@ export default function OrderManagement() {
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
-          <Button variant="contained" onClick={() => navigate('/purchases')}>
+          <Button variant="contained" onClick={() => navigate('/my-stash?tab=history')}>
             Back to Orders
           </Button>
         </Container>
@@ -212,7 +212,7 @@ export default function OrderManagement() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Button
               startIcon={<ArrowBack />}
-              onClick={() => navigate('/purchases')}
+              onClick={() => navigate('/my-stash?tab=history')}
               variant="outlined"
             >
               Back

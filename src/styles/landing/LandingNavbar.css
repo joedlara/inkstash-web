@@ -49,8 +49,10 @@
   border-color: #374151;
 }
 
-.landing-navbar.navbar-dark .mobile-menu-toggle {
-  color: #000000;
+.landing-navbar.navbar-dark .mobile-auth-button {
+  background: #000000;
+  color: white;
+  border: none;
 }
 
 /* Light theme - for dark backgrounds */
@@ -93,8 +95,10 @@
   border-color: #0066DD;
 }
 
-.landing-navbar.navbar-light .mobile-menu-toggle {
+.landing-navbar.navbar-light .mobile-auth-button {
+  background: #0078FF;
   color: #ffffff;
+  border: none;
 }
 
 .navbar-container {
@@ -180,14 +184,24 @@
   border-color: #374151;
 }
 
-/* ─── Mobile Menu Toggle ─────────────────────────────── */
-.mobile-menu-toggle {
+/* ─── Mobile Auth Button ─────────────────────────────── */
+.mobile-auth-button {
   display: none;
-  background: none;
+  background: #000000;
+  color: white;
   border: none;
-  color: #000000;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0.5rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.mobile-auth-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* ─── Responsive Design ──────────────────────────────── */
@@ -200,7 +214,7 @@
     display: none;
   }
 
-  .mobile-menu-toggle {
+  .mobile-auth-button {
     display: block;
   }
 

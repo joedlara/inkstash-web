@@ -14,7 +14,7 @@ interface RouteGuardProps {
  * and redirects for the entire application
  */
 const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
-  const { isAuthenticated, loading, initialized } = useAuth();
+  const { isAuthenticated, loading, initialized, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
@@ -36,6 +36,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/privacy',
     '/terms',
     '/sell',
+    '/onboarding', // Onboarding is accessible to authenticated users only
   ];
 
   // Routes that should redirect authenticated users away
@@ -74,28 +75,40 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     setHasCheckedAuth(true);
     const currentPath = location.pathname;
 
-    // If user is authenticated and trying to access auth pages, redirect to dashboard
-    if (isAuthenticated && isAuthRoute(currentPath)) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+    // If authenticated user needs onboarding and tries to visit /onboarding page, redirect to home
+    // The onboarding modal will show on the home page
+    if (isAuthenticated && user && !user.onboarding_completed && currentPath === '/onboarding') {
+      navigate('/', { replace: true });
       return;
     }
 
-    // If user is not authenticated and trying to access protected routes, redirect to login
+    // If user completed onboarding and is on onboarding page, redirect to home
+    if (isAuthenticated && user && user.onboarding_completed && currentPath === '/onboarding') {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // If user is authenticated and trying to access auth pages, redirect to home
+    if (isAuthenticated && isAuthRoute(currentPath)) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // If user is not authenticated and trying to access protected routes, redirect to home
     if (!isAuthenticated && isProtectedRoute(currentPath)) {
-      navigate('/login', {
+      navigate('/', {
         state: { from: location },
         replace: true,
       });
       return;
     }
 
-    // If user is not authenticated and on root, optionally redirect
-    if (!isAuthenticated && currentPath === '/') {
-      // You can choose to redirect to login or show public landing page
-      // navigate('/login');
+    // If user is not authenticated and trying to access onboarding, redirect to home
+    if (!isAuthenticated && currentPath === '/onboarding') {
+      navigate('/', { replace: true });
+      return;
     }
-  }, [initialized, isAuthenticated, location, navigate]);
+  }, [initialized, isAuthenticated, user, location, navigate]);
 
   // Show loading screen while checking authentication
   if (!initialized || (loading && !hasCheckedAuth)) {

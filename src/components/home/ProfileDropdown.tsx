@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '@mui/material';
 import { useAuth } from '../../hooks/useAuth';
+import { useCart } from '../../contexts/CartContext';
 import '../../styles/home/ProfileDropdown.css';
 
 interface ProfileDropdownProps {
@@ -10,6 +13,32 @@ interface ProfileDropdownProps {
 export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { getItemCount } = useCart();
+
+  const cartItemCount = getItemCount();
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+
+      // Lock scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+
+      return () => {
+        // Unlock scroll and restore position
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -74,7 +103,7 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>Become a Seller</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/payments')}>
+          <button className="action-card" onClick={() => handleNavigation('/settings?tab=payments')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="1" y="4" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
               <path d="M1 10h22" stroke="currentColor" strokeWidth="2"/>
@@ -97,7 +126,7 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>My Stash</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/purchases')}>
+          <button className="action-card" onClick={() => handleNavigation('/my-stash?tab=history')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="2" y="5" width="20" height="12" rx="1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="12" cy="11" r="3" stroke="currentColor" strokeWidth="2"/>
@@ -106,12 +135,27 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>Purchases</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/cart')}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <circle cx="9" cy="21" r="1" stroke="currentColor" strokeWidth="2"/>
-              <circle cx="20" cy="21" r="1" stroke="currentColor" strokeWidth="2"/>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <button className="action-card action-card-cart" onClick={() => handleNavigation('/cart')}>
+            <Badge
+              badgeContent={cartItemCount > 0 ? cartItemCount : null}
+              color="primary"
+              sx={{
+                '& .MuiBadge-badge': {
+                  top: 2,
+                  right: 2,
+                  fontSize: '0.625rem',
+                  height: 18,
+                  minWidth: 18,
+                  color: 'white',
+                },
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <circle cx="9" cy="21" r="1" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="20" cy="21" r="1" stroke="currentColor" strokeWidth="2"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Badge>
             <span>Shopping Cart</span>
           </button>
         </div>

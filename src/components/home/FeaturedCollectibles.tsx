@@ -162,32 +162,13 @@ export default function FeaturedCollectibles() {
 
   if (loading) {
     return (
-      <Box component="section" sx={{ py: 4 }}>
-        <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
-          <Tabs
-            value={0}
-            sx={{
-              mb: 2,
-              display: 'none',
-              '@media (max-width: 768px)': {
-                display: 'flex',
-              },
-              '& .MuiTab-root': {
-                textTransform: 'none',
-                fontSize: '1rem',
-                fontWeight: 600,
-              },
-            }}
-          >
-            <Tab label="For You" />
-            <Tab label="Following" />
-          </Tabs>
-
-          <Typography variant="h5" fontWeight={700} mb={2}>
+      <Box component="section" sx={{ py: 4, px: 0 }}>
+        <Box sx={{ maxWidth: '100%', mx: 0, px: 0 }}>
+          <Typography variant="h5" fontWeight={700} mb={2} sx={{ px: 0 }}>
             Featured Collectibles
           </Typography>
 
-          <Stack direction="row" spacing={2} sx={{ overflowX: 'auto' }}>
+          <Stack direction="row" spacing={2} sx={{ overflowX: 'auto', px: 0 }}>
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} sx={{ width: 240, flexShrink: 0, borderRadius: 1 }}>
                 <Skeleton variant="rectangular" height={150} />
@@ -209,29 +190,9 @@ export default function FeaturedCollectibles() {
   }
 
   return (
-    <Box component="section" sx={{ pt: 4 }}>
-      <Box sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 2, md: 4 } }}>
-        <Tabs
-          value={activeTab === 'forYou' ? 0 : 1}
-          onChange={(_, newValue) => setActiveTab(newValue === 0 ? 'forYou' : 'following')}
-          sx={{
-            mb: 2,
-            display: 'none',
-            '@media (max-width: 768px)': {
-              display: 'flex',
-            },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 600,
-            },
-          }}
-        >
-          <Tab label="For You" />
-          <Tab label="Following" />
-        </Tabs>
-
-        <Typography variant="h5" fontWeight={700} mb={2}>
+    <Box component="section" sx={{ pt: 4, px: 0 }}>
+      <Box sx={{ maxWidth: '100%', mx: 0, px: 0 }}>
+        <Typography variant="h5" fontWeight={700} mb={2} sx={{ px: 0 }}>
           Featured Collectibles
         </Typography>
 
@@ -247,6 +208,7 @@ export default function FeaturedCollectibles() {
                 zIndex: 2,
                 bgcolor: 'background.paper',
                 boxShadow: 2,
+                display: { xs: 'none', md: 'flex' },
                 '&:hover': {
                   bgcolor: 'background.paper',
                   boxShadow: 4,
@@ -266,6 +228,7 @@ export default function FeaturedCollectibles() {
               scrollBehavior: 'smooth',
               paddingTop: '16px',
               marginTop: '-16px',
+              px: { xs: 0, md: 0 },
               '&::-webkit-scrollbar': {
                 display: 'none',
               },
@@ -406,6 +369,7 @@ export default function FeaturedCollectibles() {
                 zIndex: 2,
                 bgcolor: 'background.paper',
                 boxShadow: 2,
+                display: { xs: 'none', md: 'flex' },
                 '&:hover': {
                   bgcolor: 'background.paper',
                   boxShadow: 4,
@@ -417,7 +381,7 @@ export default function FeaturedCollectibles() {
           )}
         </Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, px: 0 }}>
           <Button
             variant="outlined"
             onClick={() => navigate('/browse-featured')}

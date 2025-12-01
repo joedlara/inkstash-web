@@ -20,16 +20,7 @@ import {
   AttachMoney,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../api/supabase/supabaseClient';
-
-interface DashboardStats {
-  savedCount: number;
-  likedCount: number;
-  activeBidsCount: number;
-  wonAuctionsCount: number;
-  totalSpent: number;
-  activeWatching: number;
-}
+import { getDashboardStats, type DashboardStats } from '../../api/dashboard';
 
 export default function DashboardTab() {
   const { user } = useAuth();
@@ -48,63 +39,30 @@ export default function DashboardTab() {
   }, [user]);
 
   const loadDashboardStats = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
 
-      // Get saved collectibles count
-      const { count: savedCount } = await supabase
-        .from('auction_saves')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      // Use the new getDashboardStats API function
+      // This handles all the async calls properly with Promise.all
+      const dashboardStats = await getDashboardStats(user.id);
 
-      // Get liked collectibles count
-      const { count: likedCount } = await supabase
-        .from('auction_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // Get active bids count
-      const { data: bidsData } = await supabase
-        .from('bids')
-        .select('*, auctions!inner(*)')
-        .eq('user_id', user.id)
-        .gte('auctions.end_time', new Date().toISOString())
-        .neq('auctions.status', 'sold');
-
-      // Get won auctions
-      const { data: wonBids } = await supabase
-        .from('bids')
-        .select('*, auctions!inner(*)')
-        .eq('user_id', user.id)
-        .eq('auctions.status', 'sold');
-
-      // Calculate total spent from orders
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('total_price')
-        .eq('buyer_id', user.id)
-        .eq('status', 'completed');
-
-      const totalSpent = orders?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
-
-      // Count won auctions
-      const wonAuctionsCount = wonBids?.filter(bid => {
-        const auction = bid.auctions as any;
-        return auction && bid.amount === auction.current_bid;
-      }).length || 0;
-
-      setStats({
-        savedCount: savedCount || 0,
-        likedCount: likedCount || 0,
-        activeBidsCount: bidsData?.length || 0,
-        wonAuctionsCount,
-        totalSpent,
-        activeWatching: (savedCount || 0) + (likedCount || 0),
-      });
+      setStats(dashboardStats);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
+      // Set default stats on error
+      setStats({
+        savedCount: 0,
+        likedCount: 0,
+        activeBidsCount: 0,
+        wonAuctionsCount: 0,
+        totalSpent: 0,
+        activeWatching: 0,
+      });
     } finally {
       setLoading(false);
     }

@@ -11,9 +11,9 @@ export const checkUserLiked = async (userId: string, auctionId: string): Promise
       .select('id')
       .eq('user_id', userId)
       .eq('auction_id', auctionId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error) {
       return false;
     }
 
@@ -33,9 +33,9 @@ export const checkUserSaved = async (userId: string, auctionId: string): Promise
       .select('id')
       .eq('user_id', userId)
       .eq('auction_id', auctionId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       return false;
     }
 
@@ -168,16 +168,22 @@ export const getAuctionInteractionCounts = async (auctionId: string) => {
  */
 export const recordAuctionView = async (auctionId: string, userId?: string): Promise<void> => {
   try {
+    // Only record views for authenticated users
+    // The RPC function requires both parameters to be non-null UUIDs
+    if (!userId) {
+      return; // Skip recording for anonymous users
+    }
+
     const { error } = await supabase.rpc('record_auction_view', {
       p_auction_id: auctionId,
-      p_user_id: userId || null,
+      p_user_id: userId,
     });
 
     if (error) {
-      // Error recording view
+      console.error('Error recording auction view:', error);
     }
-  } catch {
-    // Error in recordAuctionView
+  } catch (error) {
+    console.error('Error in recordAuctionView:', error);
   }
 };
 
