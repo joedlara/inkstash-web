@@ -21,7 +21,7 @@ interface PreviewItem {
   buy_now_price: number | null;
   image_url: string;
   category: string;
-  ends_at: string;
+  end_time: string;
 }
 
 interface OnboardingFeedPreviewStepProps {
@@ -53,7 +53,7 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
       // In production, you'd filter by selectedInterests categories
       const { data, error } = await supabase
         .from('auctions')
-        .select('id, title, current_bid, buy_now_price, image_url, category, ends_at')
+        .select('id, title, current_bid, buy_now_price, image_url, category, end_time')
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(4);
@@ -196,7 +196,7 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
                   </Box>
 
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Ends in {getTimeRemaining(item.ends_at)}
+                    Ends in {getTimeRemaining(item.end_time)}
                   </Typography>
                 </CardContent>
               </Card>

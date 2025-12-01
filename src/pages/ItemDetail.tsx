@@ -145,9 +145,9 @@ export default function ItemDetail() {
           seller_verified: sellerData?.verified || false,
           category: auctionData.category || 'General',
           end_date: auctionData.end_time || new Date().toISOString(),
-          total_views: auctionData.views || 0,
+          total_views: 0, // Will be updated from auction_views table
           total_bids: auctionData.bid_count || 0,
-          watchers: auctionData.watchers || 0,
+          watchers: 0, // Not implemented yet
           artist: auctionData.artist,
           seller_location: 'United States',
           us_shipping: auctionData.us_shipping || 0,
@@ -452,18 +452,6 @@ export default function ItemDetail() {
           <Grid size={{ xs: 12, md: 7 }}>
             <Card elevation={2}>
               <Box sx={{ position: 'relative' }}>
-                <Chip
-                  label="0 viewers now"
-                  size="small"
-                  sx={{
-                    position: 'absolute',
-                    top: 16,
-                    left: 16,
-                    zIndex: 1,
-                    bgcolor: 'rgba(0, 0, 0, 0.7)',
-                    color: 'white'
-                  }}
-                />
                 <CardMedia
                   component="img"
                   image={item.image_url}
@@ -655,17 +643,19 @@ export default function ItemDetail() {
                     sx={{ width: 48, height: 48 }}
                   />
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body1" fontWeight={600}>
-                      {item.seller_name}
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="body1" fontWeight={600}>
+                        {item.seller_name}
+                      </Typography>
                       {item.seller_verified && (
                         <Chip
                           label="Verified"
                           size="small"
                           color="primary"
-                          sx={{ ml: 1, height: 20 }}
+                          sx={{ height: 20 }}
                         />
                       )}
-                    </Typography>
+                    </Stack>
                   </Box>
                 </Stack>
 

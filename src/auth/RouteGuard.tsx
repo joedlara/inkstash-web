@@ -94,9 +94,9 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
       return;
     }
 
-    // If user is not authenticated and trying to access protected routes, redirect to login
+    // If user is not authenticated and trying to access protected routes, redirect to home
     if (!isAuthenticated && isProtectedRoute(currentPath)) {
-      navigate('/login', {
+      navigate('/', {
         state: { from: location },
         replace: true,
       });

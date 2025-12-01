@@ -173,7 +173,7 @@ export default function PreferencesSettingsTab() {
 
       <Paper elevation={0} sx={{ p: 4, bgcolor: 'background.paper' }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom>
-          Preferences
+          Privacy Settings
         </Typography>
 
         <Box sx={{ mt: 4 }}>

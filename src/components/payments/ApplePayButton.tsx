@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Button, Alert, CircularProgress } from '@mui/material';
 import { Apple } from '@mui/icons-material';
+import axios from 'axios';
 
 interface ApplePayButtonProps {
   amount: number;
@@ -64,14 +65,13 @@ export default function ApplePayButton({
         try {
           // In production, you would call your backend to validate with Apple
           // For now, this is a placeholder
-          const merchantSession = await fetch('/api/apple-pay/validate-merchant', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ validationURL: event.validationURL }),
-          }).then(res => res.json());
+          const { data: merchantSession } = await axios.post('/api/apple-pay/validate-merchant', {
+            validationURL: event.validationURL,
+          });
 
           session.completeMerchantValidation(merchantSession);
         } catch (error) {
+          console.error('Merchant validation error:', error);
           session.abort();
           onError('Failed to validate merchant');
           setProcessing(false);
@@ -102,24 +102,21 @@ export default function ApplePayButton({
 
           // Process the payment on your backend
           // For now, this is a placeholder
-          const result = await fetch('/api/apple-pay/process-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              paymentToken: payment.token,
-              amount: amount,
-              shippingInfo: paymentDataWithShipping.shippingInfo,
-            }),
-          }).then(res => res.json());
+          const { data: result } = await axios.post('/api/apple-pay/process-payment', {
+            paymentToken: payment.token,
+            amount: amount,
+            shippingInfo: paymentDataWithShipping.shippingInfo,
+          });
 
           if (result.success) {
             session.completePayment(window.ApplePaySession.STATUS_SUCCESS);
             onSuccess(paymentDataWithShipping);
           } else {
             session.completePayment(window.ApplePaySession.STATUS_FAILURE);
-            onError('Payment failed');
+            onError(result.error || 'Payment failed');
           }
         } catch (error) {
+          console.error('Payment processing error:', error);
           session.completePayment(window.ApplePaySession.STATUS_FAILURE);
           onError('Payment processing failed');
         } finally {

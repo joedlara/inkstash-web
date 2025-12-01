@@ -319,8 +319,8 @@ class AuthManager {
 
     try {
       const { data, error } = await supabase.rpc('update_user_preferences', {
-        user_id: this.state.user.id,
-        new_preferences: preferences,
+        p_user_id: this.state.user.id,
+        p_preferences: preferences,
       });
 
       if (error) throw error;
@@ -339,8 +339,8 @@ class AuthManager {
 
     try {
       const { data, error } = await supabase.rpc('add_favorite_character', {
-        user_id: this.state.user.id,
-        character_name: characterName,
+        p_user_id: this.state.user.id,
+        p_character_name: characterName,
       });
 
       if (error) throw error;
@@ -359,8 +359,8 @@ class AuthManager {
 
     try {
       const { data, error } = await supabase.rpc('remove_favorite_character', {
-        user_id: this.state.user.id,
-        character_name: characterName,
+        p_user_id: this.state.user.id,
+        p_character_name: characterName,
       });
 
       if (error) throw error;
@@ -379,8 +379,8 @@ class AuthManager {
 
     try {
       const { data, error } = await supabase.rpc('add_user_xp', {
-        user_id: this.state.user.id,
-        xp_amount: amount,
+        p_user_id: this.state.user.id,
+        p_xp_amount: amount,
       });
 
       if (error) throw error;

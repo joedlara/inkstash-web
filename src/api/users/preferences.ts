@@ -6,10 +6,6 @@ export interface UserPreferences {
   favorite_characters: string[];
   favorite_shows: string[];
   favorite_categories: string[];
-  min_price: number;
-  max_price: number;
-  items_per_page: number;
-  default_sort: string;
   created_at?: string;
   updated_at?: string;
 }

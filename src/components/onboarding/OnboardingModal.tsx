@@ -118,8 +118,6 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         user_id: user.id,
         favorite_categories: interests || [],
         favorite_shows: [],
-        min_price: 0,
-        max_price: 10000,
         items_per_page: 24,
         default_sort: 'newest',
       };

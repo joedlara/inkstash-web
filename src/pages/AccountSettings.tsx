@@ -47,7 +47,7 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   { id: 'profile', label: 'Profile', icon: <Person />, section: 'General' },
-  { id: 'preferences', label: 'Preferences', icon: <Settings />, section: 'General' },
+  { id: 'preferences', label: 'Privacy Settings', icon: <Settings />, section: 'General' },
   { id: 'notifications', label: 'Notifications', icon: <Notifications />, section: 'General' },
   { id: 'account', label: 'Account', icon: <Lock />, section: 'General' },
   { id: 'payments', label: 'Payment Methods', icon: <Payment />, section: 'Billing' },
