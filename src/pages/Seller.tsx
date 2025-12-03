@@ -15,13 +15,21 @@ import {
   Rating,
 } from '@mui/material';
 import AuthModal from '../components/auth/AuthModal';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Seller() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleGetStarted = () => {
-    setShowAuthModal(true);
+    if (user) {
+      // User is logged in, go directly to seller onboarding
+      navigate('/seller-onboarding');
+    } else {
+      // Show auth modal
+      setShowAuthModal(true);
+    }
   };
 
   const benefits = [
@@ -417,6 +425,7 @@ export default function Seller() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         defaultTab="signup"
+        redirectTo="/seller-onboarding"
       />
     </Box>
   );

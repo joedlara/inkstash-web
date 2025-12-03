@@ -23,7 +23,7 @@ import {
   Gavel,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
-import { getMyBids, type Bid } from '../../api/auctions/bids';
+import { getMyActiveBids, type Bid } from '../../api/auctions/bids';
 
 export default function CurrentBidsTab() {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export default function CurrentBidsTab() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getMyBids();
+      const data = await getMyActiveBids();
       setBids(data);
     } catch (err) {
       console.error('Error loading bids:', err);
@@ -152,9 +152,11 @@ export default function CurrentBidsTab() {
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           Current Bids
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {bids.length} active {bids.length === 1 ? 'bid' : 'bids'}
-        </Typography>
+        {bids.length > 0 && (
+          <Typography variant="body1" color="text.secondary">
+            {bids.length} active {bids.length === 1 ? 'bid' : 'bids'}
+          </Typography>
+        )}
       </Box>
 
       {error && (
@@ -167,21 +169,27 @@ export default function CurrentBidsTab() {
         <Box
           sx={{
             textAlign: 'center',
-            py: 8,
+            py: 10,
             px: 2,
             bgcolor: 'background.paper',
             borderRadius: 2,
+            border: 1,
+            borderColor: 'divider',
           }}
         >
-          <Gavel sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h5" gutterBottom fontWeight={600}>
-            No Bids Yet
+          <Gavel sx={{ fontSize: 80, color: 'text.disabled', mb: 3 }} />
+          <Typography variant="h5" gutterBottom fontWeight={600} color="text.primary">
+            No current bids at the moment
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            You haven't placed any bids yet. Browse our auctions to start bidding!
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
+            See what other treasures await you
           </Typography>
-          <Button variant="contained" onClick={() => navigate('/browse-featured')}>
-            Browse Auctions
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => navigate('/browse-collectibles')}
+          >
+            Browse Collectibles
           </Button>
         </Box>
       ) : (

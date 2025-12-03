@@ -16,10 +16,13 @@ import {
   PhotoCamera,
   Email,
   Verified,
+  Twitter,
+  Instagram,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../api/supabase/supabaseClient';
 import ImageCropper from './ImageCropper';
+import type { SocialLinks as SocialLinksType } from '../../api/users/profile';
 
 export default function ProfileTab() {
   const { user, refreshUser } = useAuth();
@@ -29,6 +32,8 @@ export default function ProfileTab() {
   const [email, setEmail] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [socialLinks, setSocialLinks] = useState<SocialLinksType>({});
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -45,6 +50,37 @@ export default function ProfileTab() {
       setAvatarUrl(user.avatar_url || '');
     }
   }, [user]);
+
+  // Fetch social links separately
+  useEffect(() => {
+    if (user?.id) {
+      loadSocialLinks();
+    }
+  }, [user?.id]);
+
+  const loadSocialLinks = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('website_url, social_links')
+        .eq('id', user.id)
+        .single();
+
+      console.log('Loaded social links from DB:', data);
+
+      if (error) throw error;
+
+      if (data) {
+        setWebsiteUrl(data.website_url || '');
+        setSocialLinks(data.social_links || {});
+        console.log('Set social links state to:', data.social_links);
+      }
+    } catch (err) {
+      console.error('Error loading social links:', err);
+    }
+  };
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -139,13 +175,20 @@ export default function ProfileTab() {
       setError('');
       setSuccess('');
 
-      const { error: updateError } = await supabase
+      console.log('Saving profile with social links:', socialLinks);
+
+      const { data, error: updateError } = await supabase
         .from('users')
         .update({
           username,
           bio,
+          website_url: websiteUrl,
+          social_links: socialLinks,
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
+
+      console.log('Update response:', { data, error: updateError });
 
       if (updateError) {
         // Check if it's a duplicate username error
@@ -289,6 +332,45 @@ export default function ProfileTab() {
               placeholder="Tell us about yourself and your collection interests"
               size="small"
             />
+          </Box>
+
+          {/* Social Links */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+              Social Links
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                value={socialLinks.twitter || ''}
+                onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                fullWidth
+                placeholder="https://twitter.com/username"
+                size="small"
+                label="Twitter"
+                InputProps={{
+                  startAdornment: <Twitter sx={{ mr: 1, color: '#1DA1F2', fontSize: 20 }} />,
+                }}
+              />
+              <TextField
+                value={socialLinks.instagram || ''}
+                onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                fullWidth
+                placeholder="https://instagram.com/username"
+                size="small"
+                label="Instagram"
+                InputProps={{
+                  startAdornment: <Instagram sx={{ mr: 1, color: '#E4405F', fontSize: 20 }} />,
+                }}
+              />
+              <TextField
+                value={socialLinks.tiktok || ''}
+                onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
+                fullWidth
+                placeholder="https://tiktok.com/@username"
+                size="small"
+                label="TikTok"
+              />
+            </Stack>
           </Box>
 
           {/* Seller Verification Status */}

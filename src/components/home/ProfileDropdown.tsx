@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@mui/material';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../contexts/CartContext';
+import { getUserProfileStats } from '../../api/users/profile';
 import '../../styles/home/ProfileDropdown.css';
 
 interface ProfileDropdownProps {
@@ -14,8 +15,22 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { getItemCount } = useCart();
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
 
   const cartItemCount = getItemCount();
+
+  // Fetch user stats when component opens
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      getUserProfileStats(user.id).then((stats) => {
+        setFollowingCount(stats.following_count);
+        setFollowersCount(stats.followers_count);
+      }).catch((error) => {
+        console.error('Error fetching profile stats:', error);
+      });
+    }
+  }, [isOpen, user?.id]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -58,7 +73,11 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
       <div className="profile-dropdown-overlay" onClick={onClose} />
       <div className="profile-dropdown">
         {/* User Info Section */}
-        <div className="profile-dropdown-header">
+        <div
+          className="profile-dropdown-header"
+          onClick={() => handleNavigation(`/@${user?.username}`)}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="profile-info">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt={user.username} className="profile-avatar-large" />
@@ -70,13 +89,19 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <div className="profile-details">
               <h3 className="profile-username">{user?.username || 'User'}</h3>
               <div className="profile-stats">
-                <span><strong>4</strong> Following</span>
+                <span><strong>{followingCount}</strong> Following</span>
                 <span className="stat-divider">|</span>
-                <span><strong>5</strong> Followers</span>
+                <span><strong>{followersCount}</strong> Followers</span>
               </div>
             </div>
           </div>
-          <button className="profile-arrow" onClick={onClose}>
+          <button
+            className="profile-arrow"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>

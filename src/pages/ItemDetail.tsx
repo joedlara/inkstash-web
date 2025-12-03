@@ -635,7 +635,7 @@ export default function ItemDetail() {
                     borderRadius: 2,
                     cursor: 'pointer'
                   }}
-                  onClick={() => navigate(`/seller/${item.seller_id}`)}
+                  onClick={() => navigate(`/@${item.seller_name}`)}
                 >
                   <Avatar
                     src={item.seller_avatar || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}

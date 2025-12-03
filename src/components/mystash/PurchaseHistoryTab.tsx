@@ -26,11 +26,13 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { ordersAPI, type Order } from '../../api/orders';
+import { getMyWonBids, type Bid } from '../../api/auctions/bids';
 
 export default function PurchaseHistoryTab() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [purchases, setPurchases] = useState<Order[]>([]);
+  const [wonBids, setWonBids] = useState<Bid[]>([]);
   const [sales, setSales] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,12 +49,14 @@ export default function PurchaseHistoryTab() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const [purchasesData, salesData] = await Promise.all([
+      const [purchasesData, salesData, wonBidsData] = await Promise.all([
         ordersAPI.getMyPurchases(),
         ordersAPI.getMySales(),
+        getMyWonBids(),
       ]);
       setPurchases(purchasesData);
       setSales(salesData);
+      setWonBids(wonBidsData);
     } catch (err) {
       console.error('Error loading orders:', err);
       setError('Failed to load your orders. Please try again.');
@@ -197,6 +201,90 @@ export default function PurchaseHistoryTab() {
     );
   };
 
+  const WonBidCard = ({ bid }: { bid: Bid }) => {
+    if (!bid.auctions) return null;
+
+    const auction = bid.auctions;
+
+    return (
+      <Card
+        variant="outlined"
+        sx={{
+          mb: 2,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          '&:hover': {
+            boxShadow: 3,
+            borderColor: 'primary.main',
+          },
+        }}
+      >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          {/* Image */}
+          <CardMedia
+            component="img"
+            sx={{
+              width: { xs: '100%', sm: 200 },
+              height: { xs: 200, sm: 150 },
+              objectFit: 'cover',
+            }}
+            image={auction.image_url || 'https://via.placeholder.com/200x150'}
+            alt={auction.title}
+          />
+
+          {/* Content */}
+          <Box sx={{ flex: 1, p: 2 }}>
+            <Stack spacing={1}>
+              {/* Bid Type and Status */}
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+                <Typography variant="caption" color="text.secondary">
+                  Won Bid
+                </Typography>
+                <Chip
+                  label="Auction Won"
+                  color="success"
+                  size="small"
+                  icon={<CheckCircle fontSize="small" />}
+                />
+              </Stack>
+
+              {/* Item Title */}
+              <Typography variant="h6" fontWeight={600}>
+                {auction.title}
+              </Typography>
+
+              {/* Won Date */}
+              <Typography variant="body2" color="text.secondary">
+                Won on {new Date(auction.end_time).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Typography>
+
+              <Divider />
+
+              {/* Winning Bid Amount and Actions */}
+              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                <Typography variant="h6" color="primary" fontWeight="bold">
+                  ${bid.amount.toFixed(2)}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Visibility />}
+                  onClick={() => navigate(`/item/${auction.id}`)}
+                >
+                  View Item
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        </Stack>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -232,7 +320,7 @@ export default function PurchaseHistoryTab() {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           <Tab
-            label={`Purchases (${purchases.length})`}
+            label={`Purchases (${purchases.length + wonBids.length})`}
             icon={<ShoppingBag />}
             iconPosition="start"
           />
@@ -247,7 +335,7 @@ export default function PurchaseHistoryTab() {
       {/* Purchases Tab */}
       {activeTab === 0 && (
         <Box>
-          {purchases.length === 0 ? (
+          {purchases.length === 0 && wonBids.length === 0 ? (
             <Paper elevation={1} sx={{ p: 6, textAlign: 'center' }}>
               <ShoppingBag sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -262,9 +350,30 @@ export default function PurchaseHistoryTab() {
             </Paper>
           ) : (
             <Box>
-              {purchases.map((order) => (
-                <OrderCard key={order.id} order={order} isSeller={false} />
-              ))}
+              {/* Won Bids Section */}
+              {wonBids.length > 0 && (
+                <>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Won Auctions ({wonBids.length})
+                  </Typography>
+                  {wonBids.map((bid) => (
+                    <WonBidCard key={bid.id} bid={bid} />
+                  ))}
+                  {purchases.length > 0 && <Divider sx={{ my: 3 }} />}
+                </>
+              )}
+
+              {/* Regular Orders Section */}
+              {purchases.length > 0 && (
+                <>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Direct Purchases ({purchases.length})
+                  </Typography>
+                  {purchases.map((order) => (
+                    <OrderCard key={order.id} order={order} isSeller={false} />
+                  ))}
+                </>
+              )}
             </Box>
           )}
         </Box>
