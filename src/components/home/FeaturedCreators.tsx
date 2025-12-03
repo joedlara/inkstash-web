@@ -53,8 +53,8 @@ export default function FeaturedCreators() {
     fetchCreators();
   }, []);
 
-  const handleCreatorClick = (creatorId: string) => {
-    navigate(`/profile/${creatorId}`);
+  const handleCreatorClick = (username: string) => {
+    navigate(`/@${username}`);
   };
 
   if (loading) {
@@ -94,7 +94,7 @@ export default function FeaturedCreators() {
           <div
             key={creator.id}
             className="creator-card"
-            onClick={() => handleCreatorClick(creator.id)}
+            onClick={() => handleCreatorClick(creator.username)}
           >
             <div className="creator-artwork">
               <img

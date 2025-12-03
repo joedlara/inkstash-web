@@ -26,7 +26,16 @@ export default function AddressesTab() {
       setLoading(true);
       setError(null);
       const shippingAddressesData = await shippingAddressesAPI.getAll();
-      setShippingAddresses(shippingAddressesData);
+
+      // If there's only one address and it's not set as default, set it as default
+      if (shippingAddressesData.length === 1 && !shippingAddressesData[0].is_default) {
+        await shippingAddressesAPI.setDefault(shippingAddressesData[0].id);
+        // Reload to get updated data
+        const updatedData = await shippingAddressesAPI.getAll();
+        setShippingAddresses(updatedData);
+      } else {
+        setShippingAddresses(shippingAddressesData);
+      }
     } catch (err) {
       console.error('Error loading shipping addresses:', err);
       setError('Failed to load shipping addresses');

@@ -133,6 +133,7 @@ export default function AccountSettings() {
               variant="caption"
               color="primary"
               sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              onClick={() => navigate(`/@${user?.username}`)}
             >
               View Profile
             </Typography>

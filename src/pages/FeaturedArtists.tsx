@@ -146,7 +146,7 @@ export default function FeaturedArtists() {
                       boxShadow: 6,
                     },
                   }}
-                  onClick={() => navigate(`/seller/${artist.id}`)}
+                  onClick={() => navigate(`/@${artist.username}`)}
                 >
                   {/* Cover Image */}
                   <CardMedia

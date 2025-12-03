@@ -213,7 +213,7 @@ export default function DashboardHeader() {
             sx={{ flexShrink: 0 }}
           >
             <Button
-              onClick={() => navigate('/sell')}
+              onClick={() => navigate('/seller-onboarding')}
               sx={{
                 px: 2.5,
                 py: 1,

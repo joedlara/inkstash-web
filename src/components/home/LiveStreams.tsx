@@ -171,7 +171,7 @@ export default function LiveStreams() {
                 className="livestreams-seller"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/seller/${stream.seller_id}`);
+                  navigate(`/@${seller?.username}`);
                 }}
               >
                 <img

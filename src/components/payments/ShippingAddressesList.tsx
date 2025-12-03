@@ -121,16 +121,18 @@ export default function ShippingAddressesList({
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <IconButton
                     size="small"
-                    onClick={() => !address.is_default && onSetDefault(address.id)}
+                    onClick={() => !address.is_default && addresses.length > 1 && onSetDefault(address.id)}
+                    disabled={addresses.length === 1}
                     sx={{
                       color: address.is_default ? 'primary.main' : 'text.secondary',
-                      cursor: address.is_default ? 'default' : 'pointer',
+                      cursor: address.is_default || addresses.length === 1 ? 'default' : 'pointer',
                       '&:hover': {
-                        bgcolor: address.is_default ? 'transparent' : 'action.hover',
+                        bgcolor: address.is_default || addresses.length === 1 ? 'transparent' : 'action.hover',
                       },
                     }}
+                    title={addresses.length === 1 ? 'Only address is always default' : address.is_default ? 'Default address' : 'Set as default'}
                   >
-                    {address.is_default ? <StarIcon /> : <StarBorderIcon />}
+                    {address.is_default || addresses.length === 1 ? <StarIcon /> : <StarBorderIcon />}
                   </IconButton>
                   <IconButton
                     size="small"
@@ -142,8 +144,12 @@ export default function ShippingAddressesList({
                   <IconButton
                     size="small"
                     onClick={() => onDelete(address.id)}
-                    disabled={address.is_default && addresses.length > 1}
-                    sx={{ color: 'error.main' }}
+                    disabled={addresses.length === 1}
+                    sx={{
+                      color: addresses.length === 1 ? 'action.disabled' : 'error.main',
+                      cursor: addresses.length === 1 ? 'not-allowed' : 'pointer'
+                    }}
+                    title={addresses.length === 1 ? 'Cannot delete the only address' : 'Delete address'}
                   >
                     <DeleteIcon />
                   </IconButton>

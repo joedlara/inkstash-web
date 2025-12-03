@@ -8,8 +8,6 @@ import {
   Button,
   Chip,
   IconButton,
-  Tabs,
-  Tab,
   Skeleton,
   Stack,
 } from '@mui/material';
@@ -39,7 +37,6 @@ export default function FeaturedCollectibles() {
   const [loading, setLoading] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
   const carouselRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -335,16 +332,6 @@ export default function FeaturedCollectibles() {
                     >
                       {item.title}
                     </Typography>
-
-                    <Stack direction="row" alignItems="center">
-                      <Typography variant="caption" color="text.secondary">
-                        By
-                      </Typography>
-                      <Typography variant="caption" fontWeight={600}>
-                        {item.seller_username}
-                      </Typography>
-                      <Verified sx={{ fontSize: 12, color: 'success.main' }} />
-                    </Stack>
 
                     <Box borderTop="1px solid rgba(0, 0, 0, 0.1)" paddingTop='10px'>
                       <Typography variant="h6" fontWeight={700} color="primary" sx={{ fontSize: '1.1rem' }}>

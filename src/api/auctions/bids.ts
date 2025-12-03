@@ -168,3 +168,103 @@ export async function getMyBids(): Promise<Bid[]> {
     return [];
   }
 }
+
+/**
+ * Get only active bids (ongoing auctions) for the current user
+ * Excludes ended or sold auctions
+ */
+export async function getMyActiveBids(): Promise<Bid[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Get all bids first
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        *,
+        auctions (
+          id,
+          title,
+          image_url,
+          current_bid,
+          end_time,
+          status
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting active bids:', error);
+      throw error;
+    }
+
+    // Filter for active bids (auction not ended and not sold) on client side
+    const now = new Date();
+    const activeBids = (data as Bid[]).filter(bid => {
+      if (!bid.auctions) return false;
+
+      const isNotSold = bid.auctions.status !== 'sold';
+      const isNotEnded = new Date(bid.auctions.end_time) > now;
+
+      return isNotSold && isNotEnded;
+    });
+
+    return activeBids;
+  } catch (error) {
+    console.error('Error getting active bids:', error);
+    return [];
+  }
+}
+
+/**
+ * Get won bids (where user had the highest bid on ended/sold auctions)
+ * This represents purchases made through bidding
+ */
+export async function getMyWonBids(): Promise<Bid[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const now = new Date().toISOString();
+
+    // Get all user's bids where the auction has ended or is sold
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        *,
+        auctions (
+          id,
+          title,
+          image_url,
+          current_bid,
+          end_time,
+          status
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting won bids:', error);
+      throw error;
+    }
+
+    // Filter for won bids (user's bid amount equals current_bid and auction ended/sold)
+    const wonBids = (data as Bid[]).filter(bid => {
+      if (!bid.auctions) return false;
+
+      const isEnded = new Date(bid.auctions.end_time) < new Date();
+      const isSold = bid.auctions.status === 'sold';
+      const isWinningBid = bid.amount === bid.auctions.current_bid;
+
+      return (isEnded || isSold) && isWinningBid;
+    });
+
+    return wonBids;
+  } catch (error) {
+    console.error('Error getting won bids:', error);
+    return [];
+  }
+}

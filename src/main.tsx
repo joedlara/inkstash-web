@@ -21,6 +21,8 @@ import MyBids from './pages/MyBids';
 import MyStash from './pages/MyStash';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
+import SellerOnboarding from './pages/SellerOnboarding';
+import UserProfile from './pages/UserProfile';
 import { CartProvider } from './contexts/CartContext';
 import AppLayout from './components/layout/AppLayout';
 import './styles/index.css';
@@ -36,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/seller-onboarding" element={<SellerOnboarding />} />
                 <Route path="/sell" element={<Seller />} />
                 <Route path="/item/:id" element={<ItemDetail />} />
                 <Route path="/auction/:id" element={<ItemDetail />} />
@@ -49,6 +52,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/my-bids" element={<MyBids />} />
                 <Route path="/my-stash" element={<MyStash />} />
                 <Route path="/settings" element={<AccountSettings />} />
+                <Route path="/profile/:userId" element={<UserProfile />} />
+                <Route path="/*" element={<UserProfile />} />
               </Routes>
             </AppLayout>
           </RouteGuard>

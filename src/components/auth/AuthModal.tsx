@@ -27,9 +27,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: 'signup' | 'login';
+  redirectTo?: string;
 }
 
-export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, defaultTab = 'signup', redirectTo }: AuthModalProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'signup' | 'login'>(defaultTab);
   const [showPassword, setShowPassword] = useState(false);
@@ -55,7 +56,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`,
+          redirectTo: `${window.location.origin}${redirectTo || '/onboarding'}`,
         },
       });
       if (error) throw error;
@@ -108,7 +109,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
           console.log('AuthManager refreshed, redirecting to onboarding');
 
           onClose();
-          navigate('/onboarding');
+          navigate(redirectTo || '/onboarding');
         } else {
           // Email confirmation required
           console.log('Email confirmation required');
@@ -139,6 +140,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup' }: Au
 
       if (error) throw error;
       onClose();
+      if (redirectTo) {
+        navigate(redirectTo);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
     } finally {

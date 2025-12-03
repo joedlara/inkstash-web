@@ -272,7 +272,7 @@ export default function PopularShows() {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/seller/${show.seller_id}`);
+                    navigate(`/@${seller?.username}`);
                   }}
                 >
                   <Box
