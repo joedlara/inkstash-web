@@ -1,7 +1,6 @@
 // src/api/axiosClient.ts - Axios client for API calls
 import axios from 'axios';
 import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { supabase } from './supabase/supabaseClient';
 
 // Create axios instance
 const axiosClient: AxiosInstance = axios.create({
@@ -12,18 +11,26 @@ const axiosClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - Add auth token to all requests
+// Request interceptor - Add headers for Supabase Edge Functions
 axiosClient.interceptors.request.use(
   async (config) => {
     try {
-      // Get current session from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
+      // Add apikey and Authorization headers for Supabase Edge Functions
+      const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+      if (config.url?.includes(supabaseUrl) && config.url?.includes('/functions/v1/')) {
+        const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+        config.headers['apikey'] = supabaseKey;
 
-      if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`;
+        // Get the user's session token and add Authorization header
+        const { supabase } = await import('../api/supabase/supabaseClient');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.access_token) {
+          config.headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
       }
     } catch (error) {
-      console.error('Error getting session for request:', error);
+      console.error('❌ Axios interceptor error:', error);
     }
 
     return config;

@@ -130,7 +130,6 @@ export default function PopularShows() {
       <Box
         component="section"
         sx={{
-          width: '100%',
           py: 1.5,
           bgcolor: '#1a1a1a',
           mt: 1.5,
@@ -179,7 +178,6 @@ export default function PopularShows() {
     <Box
       component="section"
       sx={{
-        width: '100%',
         py: 1.5,
         bgcolor: '#1a1a1a',
         overflow: 'hidden',
