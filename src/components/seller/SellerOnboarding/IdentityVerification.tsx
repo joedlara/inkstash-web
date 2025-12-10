@@ -17,11 +17,16 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
   const plaidHandlerRef = useRef<any>(null);
 
   // Fetch identity verification link token from your backend
+  // NOTE: In sandbox mode, this uses Plaid's 'auth' product (same as bank connection)
+  // since 'identity_verification' requires production Plaid access
   useEffect(() => {
     const createLinkToken = async () => {
       try {
         setIsLoading(true);
         const data = await sellerApi.createPlaidIdentityVerificationToken();
+
+        console.log('✅ Received link token response:', data);
+        console.log('🔑 Link token:', data.link_token);
 
         setLinkToken(data.link_token);
         if (onLinkTokenCreated) {
@@ -94,8 +99,9 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
     };
   }, [linkToken, isVerified, onSuccess, onError]);
 
-  // Check if we're in mock mode
+  // Check if we're in mock mode or development
   const isMockMode = (import.meta as any).env.VITE_USE_MOCK_SELLER_API === 'true';
+  const isDevelopment = (import.meta as any).env.DEV;
 
   const startVerification = () => {
     if (plaidHandlerRef.current) {
@@ -103,6 +109,16 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
     } else {
       setError('Plaid Link not initialized. Please refresh the page.');
     }
+  };
+
+  const handleDevBypass = () => {
+    console.log('🔓 Using development bypass for identity verification');
+    setIsVerified(true);
+    onSuccess('dev-bypass-identity-token-' + Date.now(), {
+      status: 'success',
+      verification_id: 'dev_bypass_' + Date.now(),
+      isDevelopmentBypass: true,
+    });
   };
 
   return (
@@ -185,6 +201,16 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                 Initializing identity verification...
               </Typography>
+              {isDevelopment && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleDevBypass}
+                  sx={{ mt: 2, textTransform: 'none' }}
+                >
+                  Skip for Development
+                </Button>
+              )}
             </Box>
           ) : isMockMode ? (
             <Button
@@ -241,9 +267,21 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
                 </Typography>
               )}
               {!linkToken && !isLoading && (
-                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
-                  Failed to create verification session. Check console for details.
-                </Typography>
+                <Box>
+                  <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+                    Failed to create verification session. Check console for details.
+                  </Typography>
+                  {isDevelopment && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleDevBypass}
+                      sx={{ mt: 2, textTransform: 'none' }}
+                    >
+                      Skip for Development
+                    </Button>
+                  )}
+                </Box>
               )}
             </Box>
           )}

@@ -21,6 +21,8 @@ interface UserData {
   onboarding_completed?: boolean;
   onboarding_completed_at?: string;
   created_at?: string;
+  seller_verified?: boolean;
+  seller_verified_at?: string;
 }
 
 interface AuthState {
@@ -176,7 +178,9 @@ class AuthManager {
           preferences,
           onboarding_completed,
           onboarding_completed_at,
-          created_at
+          created_at,
+          seller_verified,
+          seller_verified_at
         `
         )
         .eq('id', session.user.id)
@@ -220,6 +224,8 @@ class AuthManager {
           onboarding_completed: data.onboarding_completed || false,
           onboarding_completed_at: data.onboarding_completed_at,
           created_at: data.created_at,
+          seller_verified: data.seller_verified || false,
+          seller_verified_at: data.seller_verified_at,
         };
       }
 

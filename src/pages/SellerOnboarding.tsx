@@ -16,6 +16,7 @@ import TermsAndConditions from '../components/seller/SellerOnboarding/TermsAndCo
 import BankConnection from '../components/seller/SellerOnboarding/BankConnection';
 import IdentityVerification from '../components/seller/SellerOnboarding/IdentityVerification';
 import { sellerApi } from '../api/seller';
+import { useAuth } from '../hooks/useAuth';
 
 const steps = [
   'Terms & Conditions',
@@ -26,12 +27,11 @@ const steps = [
 
 export default function SellerOnboarding() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
   const [agreedToGuidelines, setAgreedToGuidelines] = useState(false);
-  const [bankLinkToken, setBankLinkToken] = useState<string | null>(null);
   const [bankToken, setBankToken] = useState<string | null>(null);
-  const [identityLinkToken, setIdentityLinkToken] = useState<string | null>(null);
   const [identityToken, setIdentityToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -63,13 +63,15 @@ export default function SellerOnboarding() {
             setAgreedToGuidelines(true);
           }
 
-          if (savedProgress.bankConnected) {
-            setBankToken('restored');
-          }
+          // Don't auto-enable buttons based on saved progress
+          // User must complete actions in current session
+          // if (savedProgress.bankConnected) {
+          //   setBankToken('restored');
+          // }
 
-          if (savedProgress.identityVerified) {
-            setIdentityToken('restored');
-          }
+          // if (savedProgress.identityVerified) {
+          //   setIdentityToken('restored');
+          // }
         }
       } catch (error) {
         // Error loading progress - continue with fresh start
@@ -81,13 +83,6 @@ export default function SellerOnboarding() {
     loadProgress();
   }, [navigate]);
 
-  const handleBankLinkTokenCreated = useCallback((linkToken: string) => {
-    setBankLinkToken(linkToken);
-  }, []);
-
-  const handleIdentityLinkTokenCreated = useCallback((linkToken: string) => {
-    setIdentityLinkToken(linkToken);
-  }, []);
 
   const handleNext = async () => {
     if (activeStep < steps.length - 1) {
@@ -115,7 +110,7 @@ export default function SellerOnboarding() {
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleBankSuccess = useCallback(async (publicToken: string, metadata: any) => {
+  const handleBankSuccess = useCallback(async (publicToken: string, _metadata: any) => {
     try {
       setBankToken(publicToken);
 
@@ -132,7 +127,7 @@ export default function SellerOnboarding() {
     }
   }, []);
 
-  const handleIdentitySuccess = useCallback(async (publicToken: string, metadata: any) => {
+  const handleIdentitySuccess = useCallback(async (publicToken: string, _metadata: any) => {
     try {
       setIdentityToken(publicToken);
 
@@ -151,15 +146,25 @@ export default function SellerOnboarding() {
 
   const handleSubmit = async () => {
     try {
-      await sellerApi.submitOnboarding({
+      console.log('📝 Submitting seller onboarding...');
+      const result = await sellerApi.submitOnboarding({
         agreedToTerms: agreedToGuidelines,
         plaidBankToken: bankToken || undefined,
         plaidIdentityToken: identityToken || undefined,
-        status: 'in_progress',
+        status: 'verified', // Mark as verified on submission
       });
+      console.log('✅ Seller onboarding submitted successfully:', result);
 
-      navigate('/settings');
+      // Refresh user data to get updated seller_verified status
+      console.log('🔄 Refreshing user data...');
+      await refreshUser();
+      console.log('✅ User data refreshed');
+
+      // Redirect to seller dashboard after successful verification
+      console.log('🚀 Redirecting to seller dashboard...');
+      navigate('/seller-dashboard');
     } catch (error) {
+      console.error('❌ Error submitting seller onboarding:', error);
       // Error submitting - handle gracefully
     }
   };
@@ -221,7 +226,19 @@ export default function SellerOnboarding() {
         {/* Header with Logo and Progress Bar */}
         <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
           {/* Logo and Name */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+          <Box
+            onClick={() => navigate('/')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 3,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
+          >
             <svg
               width="100%"
               height="100%"
@@ -296,13 +313,11 @@ export default function SellerOnboarding() {
             <BankConnection
               onSuccess={handleBankSuccess}
               onError={(error) => console.error('Bank connection error:', error)}
-              onLinkTokenCreated={handleBankLinkTokenCreated}
             />
           ) : activeStep === 2 ? (
             <IdentityVerification
               onSuccess={handleIdentitySuccess}
               onError={(error) => console.error('Identity verification error:', error)}
-              onLinkTokenCreated={handleIdentityLinkTokenCreated}
             />
           ) : activeStep === 3 ? (
             <Box>

@@ -212,23 +212,25 @@ export default function DashboardHeader() {
             alignItems="center"
             sx={{ flexShrink: 0 }}
           >
-            <Button
-              onClick={() => navigate('/seller-onboarding')}
-              sx={{
-                px: 2.5,
-                py: 1,
-                borderRadius: 999,
-                fontWeight: 600,
-                bgcolor: 'grey.200',
-                color: 'text.primary',
-                display: { xs: 'none', md: 'inline-flex' },
-                '&:hover': {
-                  bgcolor: 'grey.300',
-                },
-              }}
-            >
-              Become a Seller
-            </Button>
+            {!user?.seller_verified && (
+              <Button
+                onClick={() => navigate('/seller-onboarding')}
+                sx={{
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: 999,
+                  fontWeight: 600,
+                  bgcolor: 'grey.200',
+                  color: 'text.primary',
+                  display: { xs: 'none', md: 'inline-flex' },
+                  '&:hover': {
+                    bgcolor: 'grey.300',
+                  },
+                }}
+              >
+                Become a Seller
+              </Button>
+            )}
 
             {/* Action Icons */}
             <IconButton

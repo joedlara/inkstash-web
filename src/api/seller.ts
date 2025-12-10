@@ -72,8 +72,10 @@ export const sellerApi = {
     }
     try {
       const url = getSupabaseFunctionUrl('create-plaid-identity-verification-token');
+      console.log('🔗 Calling Plaid Identity Verification:', url);
       return await api.post(url);
     } catch (error) {
+      console.error('Failed to create Plaid identity verification token:', error);
       throw error;
     }
   },
@@ -115,7 +117,8 @@ export const sellerApi = {
       return mockSellerApi.submitOnboarding(data);
     }
     try {
-      return await api.post('/seller/onboarding', data);
+      const url = getSupabaseFunctionUrl('submit-seller-onboarding');
+      return await api.post(url, data);
     } catch (error) {
       console.error('Error submitting seller onboarding:', error);
       throw error;

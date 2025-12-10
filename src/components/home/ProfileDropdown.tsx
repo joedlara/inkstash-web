@@ -119,14 +119,26 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
             <span>Refer Friends</span>
           </button>
 
-          <button className="action-card" onClick={() => handleNavigation('/sell')}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
-              <path d="M20 8v6M23 11h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>Become a Seller</span>
-          </button>
+          {user?.seller_verified ? (
+            <button className="action-card" onClick={() => handleNavigation('/seller-dashboard')}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              <span>Seller Dashboard</span>
+            </button>
+          ) : (
+            <button className="action-card" onClick={() => handleNavigation('/sell')}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                <path d="M20 8v6M23 11h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span>Become a Seller</span>
+            </button>
+          )}
 
           <button className="action-card" onClick={() => handleNavigation('/settings?tab=payments')}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">

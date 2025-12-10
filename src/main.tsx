@@ -22,6 +22,7 @@ import MyStash from './pages/MyStash';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
 import SellerOnboarding from './pages/SellerOnboarding';
+import SellerDashboard from './pages/SellerDashboard';
 import UserProfile from './pages/UserProfile';
 import { CartProvider } from './contexts/CartContext';
 import AppLayout from './components/layout/AppLayout';
@@ -39,6 +40,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/" element={<Home />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/seller-onboarding" element={<SellerOnboarding />} />
+                <Route path="/seller-dashboard" element={<SellerDashboard />} />
                 <Route path="/sell" element={<Seller />} />
                 <Route path="/item/:id" element={<ItemDetail />} />
                 <Route path="/auction/:id" element={<ItemDetail />} />
