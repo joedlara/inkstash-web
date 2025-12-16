@@ -160,8 +160,8 @@ export default function SellerOnboarding() {
       await refreshUser();
       console.log('✅ User data refreshed');
 
-      // Redirect to seller dashboard after successful verification
-      console.log('🚀 Redirecting to seller dashboard...');
+      // Redirect to creator dashboard after successful verification
+      console.log('🚀 Redirecting to creator dashboard...');
       navigate('/seller-dashboard');
     } catch (error) {
       console.error('❌ Error submitting seller onboarding:', error);

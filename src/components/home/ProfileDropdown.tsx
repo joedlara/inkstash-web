@@ -127,7 +127,7 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
                 <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
                 <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
               </svg>
-              <span>Seller Dashboard</span>
+              <span>Creator Dashboard</span>
             </button>
           ) : (
             <button className="action-card" onClick={() => handleNavigation('/sell')}>
