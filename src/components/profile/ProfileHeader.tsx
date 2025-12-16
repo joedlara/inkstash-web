@@ -48,6 +48,7 @@ interface ProfileHeaderProps {
   onUnfollow?: () => void;
   onEdit?: () => void;
   onShare?: () => void;
+  onOpenFollowersModal?: (tab: 'followers' | 'following') => void;
 }
 
 const CoverContainer = styled(Box)(({ theme }) => ({
@@ -104,6 +105,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onUnfollow,
   onEdit,
   onShare,
+  onOpenFollowersModal,
 }) => {
   const [followMenuAnchor, setFollowMenuAnchor] = useState<null | HTMLElement>(null);
   const followMenuOpen = Boolean(followMenuAnchor);
@@ -267,7 +269,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
         {/* Stats Row */}
         <Stack direction="row" spacing={3} sx={{ mb: 2 }}>
-          <Box sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}>
+          <Box
+            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+            onClick={() => onOpenFollowersModal?.('following')}
+          >
             <Typography variant="body1" fontWeight={700}>
               {followingCount.toLocaleString()}
             </Typography>
@@ -278,7 +283,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
             •
           </Typography>
-          <Box sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}>
+          <Box
+            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+            onClick={() => onOpenFollowersModal?.('followers')}
+          >
             <Typography variant="body1" fontWeight={700}>
               {followersCount.toLocaleString()}
             </Typography>

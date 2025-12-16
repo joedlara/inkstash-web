@@ -29,6 +29,7 @@ export default function ProfileTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -45,6 +46,7 @@ export default function ProfileTab() {
   useEffect(() => {
     if (user) {
       setUsername(user.username || '');
+      setFullName(user.full_name || '');
       setEmail(user.email || '');
       setBio(user.bio || '');
       setAvatarUrl(user.avatar_url || '');
@@ -181,6 +183,7 @@ export default function ProfileTab() {
         .from('users')
         .update({
           username,
+          full_name: fullName,
           bio,
           website_url: websiteUrl,
           social_links: socialLinks,
@@ -298,6 +301,21 @@ export default function ProfileTab() {
               fullWidth
               placeholder="Enter your username"
               size="small"
+            />
+          </Box>
+
+          {/* Full Name */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              Full Name (Optional)
+            </Typography>
+            <TextField
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              fullWidth
+              placeholder="Enter your full name"
+              size="small"
+              helperText="This will be displayed on your profile. Leave blank to hide."
             />
           </Box>
 

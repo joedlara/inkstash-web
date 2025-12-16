@@ -30,6 +30,8 @@ import {
   type UserProfileStats,
 } from '../api/users/profile';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
+import { FollowersFollowingModal } from '../components/profile/FollowersFollowingModal';
+import { supabase } from '../api/supabase/supabaseClient';
 
 export default function UserProfile() {
   const { userId, username } = useParams<{ userId?: string; username?: string; '*'?: string }>();
@@ -58,8 +60,28 @@ export default function UserProfile() {
     message: '',
     severity: 'success',
   });
+  const [listings, setListings] = useState<any[]>([]);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
+  const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('following');
 
   const isOwnProfile = currentUser?.id === profile?.id;
+
+  const loadUserListings = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error loading user listings:', err);
+      return [];
+    }
+  };
 
   useEffect(() => {
     if (userId) {
@@ -93,12 +115,14 @@ export default function UserProfile() {
 
       // Load additional data in parallel - non-critical
       try {
-        const [statsData, streamerData] = await Promise.all([
+        const [statsData, streamerData, listingsData] = await Promise.all([
           getUserProfileStats(id),
           getStreamerProfile(id),
+          loadUserListings(id),
         ]);
         setStats(statsData);
         setStreamerProfile(streamerData);
+        setListings(listingsData);
       } catch (err) {
         console.error('Error loading profile stats/streamer data:', err);
         // Continue loading profile even if stats fail
@@ -140,12 +164,14 @@ export default function UserProfile() {
 
       // Then load additional data using the user ID - non-critical
       try {
-        const [statsData, streamerData] = await Promise.all([
+        const [statsData, streamerData, listingsData] = await Promise.all([
           getUserProfileStats(profileData.id),
           getStreamerProfile(profileData.id),
+          loadUserListings(profileData.id),
         ]);
         setStats(statsData);
         setStreamerProfile(streamerData);
+        setListings(listingsData);
       } catch (err) {
         console.error('Error loading profile stats/streamer data:', err);
         // Continue loading profile even if stats fail
@@ -245,6 +271,11 @@ export default function UserProfile() {
     }
   };
 
+  const handleOpenFollowersModal = (tab: 'followers' | 'following') => {
+    setFollowersModalTab(tab);
+    setFollowersModalOpen(true);
+  };
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -290,6 +321,7 @@ export default function UserProfile() {
         onUnfollow={handleUnfollow}
         onEdit={handleEdit}
         onShare={handleShare}
+        onOpenFollowersModal={handleOpenFollowersModal}
       />
 
       {/* Tabs Section */}
@@ -338,9 +370,9 @@ export default function UserProfile() {
             {currentTab === 0 && (
               <Box>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                  Products ({stats.total_auctions || 0})
+                  Products ({listings.length})
                 </Typography>
-                {stats.total_auctions > 0 ? (
+                {listings.length > 0 ? (
                   <Box
                     sx={{
                       display: 'grid',
@@ -352,32 +384,47 @@ export default function UserProfile() {
                       gap: 2,
                     }}
                   >
-                    {/* Placeholder for user's listings */}
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
-                      <Card key={item} sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.02)', transition: 'transform 0.2s' } }}>
-                        <CardMedia
-                          component="div"
-                          sx={{
-                            paddingTop: '100%',
-                            bgcolor: 'grey.200',
-                            backgroundImage: 'url(https://via.placeholder.com/300)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                        <CardContent sx={{ p: 1.5 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            Item Title
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            $99.99
-                          </Typography>
-                          <Box sx={{ mt: 0.5 }}>
-                            <Chip label="Active" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    {listings.map((listing) => {
+                      const firstPhoto = listing.photos?.[0];
+                      const photoUrl = firstPhoto?.url || 'https://via.placeholder.com/300';
+
+                      return (
+                        <Card
+                          key={listing.id}
+                          onClick={() => navigate(`/item/${listing.id}`)}
+                          sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.02)', transition: 'transform 0.2s' } }}
+                        >
+                          <CardMedia
+                            component="div"
+                            sx={{
+                              paddingTop: '100%',
+                              bgcolor: 'grey.200',
+                              backgroundImage: `url(${photoUrl})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }}
+                          />
+                          <CardContent sx={{ p: 1.5 }}>
+                            <Typography variant="body2" fontWeight={600} noWrap>
+                              {listing.title}
+                            </Typography>
+                            {listing.buy_now_price && (
+                              <Typography variant="caption" color="text.secondary">
+                                ${listing.buy_now_price}
+                              </Typography>
+                            )}
+                            <Box sx={{ mt: 0.5 }}>
+                              <Chip
+                                label={listing.status === 'active' ? 'Active' : listing.status}
+                                size="small"
+                                color="success"
+                                sx={{ height: 20, fontSize: '0.7rem' }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </Box>
                 ) : (
                   <Box
@@ -619,6 +666,18 @@ export default function UserProfile() {
             {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Followers/Following Modal */}
+        {profile && (
+          <FollowersFollowingModal
+            open={followersModalOpen}
+            onClose={() => setFollowersModalOpen(false)}
+            userId={profile.id}
+            initialTab={followersModalTab}
+            followersCount={stats.followers_count}
+            followingCount={stats.following_count}
+          />
+        )}
       </Container>
     </>
   );

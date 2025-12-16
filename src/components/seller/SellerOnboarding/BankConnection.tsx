@@ -59,8 +59,9 @@ export default function BankConnection({ onSuccess, onError, onLinkTokenCreated 
     }
   }, [onError]);
 
-  // Check if we're in mock mode
+  // Check if we're in mock mode or development
   const isMockMode = import.meta.env.VITE_USE_MOCK_SELLER_API === 'true';
+  const isDevelopment = import.meta.env.DEV;
 
   const config = {
     token: linkToken,
@@ -70,6 +71,16 @@ export default function BankConnection({ onSuccess, onError, onLinkTokenCreated 
 
   // Only use Plaid Link if we have a real token (not in mock mode)
   const { open, ready } = usePlaidLink(isMockMode ? { token: null, onSuccess: () => {}, onExit: () => {} } : config);
+
+  const handleDevBypass = () => {
+    console.log('🔓 Using development bypass for bank connection');
+    setIsConnected(true);
+    onSuccess('dev-bypass-bank-token-' + Date.now(), {
+      institution: { name: 'Development Bypass', institution_id: 'dev_bypass' },
+      accounts: [{ id: 'dev_acc', name: 'Development Account', mask: '0000' }],
+      isDevelopmentBypass: true,
+    });
+  };
 
   return (
     <Box>
@@ -120,7 +131,22 @@ export default function BankConnection({ onSuccess, onError, onLinkTokenCreated 
         </Typography>
 
         {isLoading ? (
-          <CircularProgress />
+          <Box>
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Initializing bank connection...
+            </Typography>
+            {isDevelopment && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleDevBypass}
+                sx={{ mt: 2, textTransform: 'none' }}
+              >
+                Skip for Development
+              </Button>
+            )}
+          </Box>
         ) : isMockMode ? (
           <Button
             variant="contained"
@@ -147,23 +173,45 @@ export default function BankConnection({ onSuccess, onError, onLinkTokenCreated 
             {isConnected ? '✓ Connected (Mock)' : 'Connect Mock Bank Account'}
           </Button>
         ) : (
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => open()}
-            disabled={!ready || isConnected}
-            sx={{
-              bgcolor: '#0078FF',
-              color: 'white',
-              textTransform: 'none',
-              fontWeight: 600,
-              '&:hover': {
-                bgcolor: '#0056CC',
-              },
-            }}
-          >
-            {isConnected ? '✓ Connected' : 'Connect Bank Account'}
-          </Button>
+          <Box>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => open()}
+              disabled={!ready || isConnected}
+              sx={{
+                bgcolor: '#0078FF',
+                color: 'white',
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': {
+                  bgcolor: '#0056CC',
+                },
+              }}
+            >
+              {isConnected ? '✓ Connected' : 'Connect Bank Account'}
+            </Button>
+            {!ready && !isConnected && linkToken && isDevelopment && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleDevBypass}
+                sx={{ mt: 2, textTransform: 'none', display: 'block', mx: 'auto' }}
+              >
+                Skip for Development
+              </Button>
+            )}
+            {error && isDevelopment && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleDevBypass}
+                sx={{ mt: 2, textTransform: 'none', display: 'block', mx: 'auto' }}
+              >
+                Skip for Development
+              </Button>
+            )}
+          </Box>
         )}
       </Box>
 

@@ -221,17 +221,18 @@ export async function getUserProfileStats(userId: string): Promise<UserProfileSt
       console.error('Error fetching followers count:', err);
     }
 
-    // Get total auctions created
-    const { count: totalAuctions } = await supabase
-      .from('auctions')
+    // Get total listings (active items for sale)
+    const { count: totalListings } = await supabase
+      .from('listings')
       .select('*', { count: 'exact', head: true })
-      .eq('seller_id', userId);
+      .eq('user_id', userId)
+      .eq('status', 'active');
 
-    // Get total sales (completed auctions as seller)
+    // Get total sales (completed/sold listings)
     const { count: totalSales } = await supabase
-      .from('auctions')
+      .from('listings')
       .select('*', { count: 'exact', head: true })
-      .eq('seller_id', userId)
+      .eq('user_id', userId)
       .eq('status', 'sold');
 
     // Get items sold count (same as total sales for now)
@@ -251,7 +252,7 @@ export async function getUserProfileStats(userId: string): Promise<UserProfileSt
     }
 
     return {
-      total_auctions: totalAuctions || 0,
+      total_auctions: totalListings || 0,
       total_sales: totalSales || 0,
       total_purchases: totalPurchases,
       items_sold: itemsSold,
@@ -351,6 +352,91 @@ export async function unfollowUser(currentUserId: string, targetUserId: string):
     }
   } catch (err) {
     console.error('Error in unfollowUser:', err);
+    throw err;
+  }
+}
+
+export interface FollowUser {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  verified?: boolean;
+  bio?: string;
+}
+
+/**
+ * Get followers with pagination
+ */
+export async function getFollowers(
+  userId: string,
+  limit: number = 25,
+  offset: number = 0
+): Promise<FollowUser[]> {
+  try {
+    const { data, error } = await supabase
+      .from('follows')
+      .select(`
+        follower_id,
+        users!follows_follower_id_fkey (
+          id,
+          username,
+          full_name,
+          avatar_url,
+          verified,
+          bio
+        )
+      `)
+      .eq('following_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error fetching followers:', error);
+      throw error;
+    }
+
+    return (data || []).map((follow: any) => follow.users);
+  } catch (err) {
+    console.error('Error in getFollowers:', err);
+    throw err;
+  }
+}
+
+/**
+ * Get following with pagination
+ */
+export async function getFollowing(
+  userId: string,
+  limit: number = 25,
+  offset: number = 0
+): Promise<FollowUser[]> {
+  try {
+    const { data, error } = await supabase
+      .from('follows')
+      .select(`
+        following_id,
+        users!follows_following_id_fkey (
+          id,
+          username,
+          full_name,
+          avatar_url,
+          verified,
+          bio
+        )
+      `)
+      .eq('follower_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error fetching following:', error);
+      throw error;
+    }
+
+    return (data || []).map((follow: any) => follow.users);
+  } catch (err) {
+    console.error('Error in getFollowing:', err);
     throw err;
   }
 }

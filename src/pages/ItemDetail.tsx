@@ -98,21 +98,48 @@ export default function ItemDetail() {
       }
 
       try {
-        // Fetch auction data
-        const { data: auctionData, error: auctionError } = await supabase
+        // Try to fetch from auctions table first
+        let { data: auctionData, error: auctionError } = await supabase
           .from('auctions')
           .select('*')
           .eq('id', id)
           .maybeSingle();
 
-        if (auctionError) {
-          setError('Auction not found');
-          setLoading(false);
-          return;
+        // If not found in auctions, try listings table
+        if (!auctionData) {
+          const { data: listingData, error: listingError } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+          if (listingError || !listingData) {
+            setError('Item not found');
+            setLoading(false);
+            return;
+          }
+
+          // Convert listing data to auction format for compatibility
+          auctionData = {
+            id: listingData.id,
+            title: listingData.title,
+            description: listingData.description,
+            image_url: listingData.photos?.[0]?.url || null,
+            current_bid: listingData.starting_bid || 0,
+            buy_now_price: listingData.buy_now_price,
+            seller_id: listingData.user_id,
+            category: listingData.category,
+            end_time: listingData.auction_end_time || null, // Use auction_end_time for auctions
+            bid_count: 0,
+            artist: null,
+            us_shipping: 0,
+            international_shipping: 0,
+            status: listingData.status,
+          };
         }
 
         if (!auctionData) {
-          setError('Auction not found');
+          setError('Item not found');
           setLoading(false);
           return;
         }
@@ -144,7 +171,7 @@ export default function ItemDetail() {
           seller_avatar: sellerData?.avatar_url,
           seller_verified: sellerData?.verified || false,
           category: auctionData.category || 'General',
-          end_date: auctionData.end_time || new Date().toISOString(),
+          end_date: auctionData.end_time || '', // Empty string for non-auction items
           total_views: 0, // Will be updated from auction_views table
           total_bids: auctionData.bid_count || 0,
           watchers: 0, // Not implemented yet
@@ -173,6 +200,13 @@ export default function ItemDetail() {
     if (item.status === 'sold' || item.status === 'ended') {
       setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       setIsAuctionEnded(true);
+      return;
+    }
+
+    // If there's no end_date (e.g., for non-auction listings), don't show countdown and don't mark as ended
+    if (!item.end_date) {
+      setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      setIsAuctionEnded(false); // Important: non-auction items should NOT be marked as ended
       return;
     }
 
@@ -527,78 +561,81 @@ export default function ItemDetail() {
                   <Typography variant="body2" color="text.secondary">Saves</Typography>
                 </Paper>
               </Grid>
-              <Grid size={{ xs: 12, sm: 3 }}>
-                <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Add to Calendar</Typography>
-                  <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                    <Box
-                      component="a"
-                      href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(item.description)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'transform 0.2s',
-                        '&:hover': {
-                          transform: 'scale(1.1)',
-                        }
-                      }}
-                    >
+              {/* Only show calendar for auction items with end dates */}
+              {item.end_date && (
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Paper elevation={1} sx={{ p: 2, textAlign: 'center', minHeight: { xs: 80, sm: 100 }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Add to Calendar</Typography>
+                    <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
                       <Box
-                        component="img"
-                        src="https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-03-512.png"
-                        alt="Google Calendar"
-                        sx={{ width: 32, height: 32 }}
-                      />
-                    </Box>
-                    <Box
-                      component="a"
-                      href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
-                      download={`${item.title.replace(/\s+/g, '_')}.ics`}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'transform 0.2s',
-                        '&:hover': {
-                          transform: 'scale(1.1)',
-                        }
-                      }}
-                    >
+                        component="a"
+                        href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.title)}&dates=${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(item.description)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.2s',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                          }
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src="https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-03-512.png"
+                          alt="Google Calendar"
+                          sx={{ width: 32, height: 32 }}
+                        />
+                      </Box>
                       <Box
-                        component="img"
-                        src="https://upload.wikimedia.org/wikipedia/commons/1/1c/MacOSCalendar.png"
-                        alt="Apple Calendar"
-                        sx={{ width: 32, height: 32 }}
-                      />
-                    </Box>
-                    <Box
-                      component="a"
-                      href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'transform 0.2s',
-                        '&:hover': {
-                          transform: 'scale(1.1)',
-                        }
-                      }}
-                    >
+                        component="a"
+                        href={`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ADTEND:${new Date(item.end_date).toISOString().replace(/[-:]/g, '').split('.')[0]}Z%0ASUMMARY:${encodeURIComponent(item.title)}%0ADESCRIPTION:${encodeURIComponent(item.description)}%0AEND:VEVENT%0AEND:VCALENDAR`}
+                        download={`${item.title.replace(/\s+/g, '_')}.ics`}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.2s',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                          }
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src="https://upload.wikimedia.org/wikipedia/commons/1/1c/MacOSCalendar.png"
+                          alt="Apple Calendar"
+                          sx={{ width: 32, height: 32 }}
+                        />
+                      </Box>
                       <Box
-                        component="img"
-                        src="https://img.icons8.com/color/1200/outlook-calendar.jpg"
-                        alt="Outlook Calendar"
-                        sx={{ width: 32, height: 32 }}
-                      />
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Grid>
+                        component="a"
+                        href={`https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(item.title)}&startdt=${new Date(item.end_date).toISOString()}&enddt=${new Date(item.end_date).toISOString()}&body=${encodeURIComponent(item.description)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.2s',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                          }
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src="https://img.icons8.com/color/1200/outlook-calendar.jpg"
+                          alt="Outlook Calendar"
+                          sx={{ width: 32, height: 32 }}
+                        />
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              )}
             </Grid>
           </Grid>
 
@@ -659,90 +696,113 @@ export default function ItemDetail() {
                   </Box>
                 </Stack>
 
-                {/* Bid Section */}
+                {/* Bid/Price Section */}
                 <Paper elevation={0} sx={{ bgcolor: 'primary.50', p: 3, mb: 3, borderRadius: 3 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Current Bid
-                  </Typography>
-                  <Typography variant="h3" color="primary" fontWeight="bold" gutterBottom>
-                    ${item.current_bid}
-                  </Typography>
-
-                  {/* Countdown Timer */}
-                  {(item.status === 'sold' || item.status === 'ended' || isAuctionEnded) ? (
-                    <Paper elevation={1} sx={{ p: 3, mb: 3, textAlign: 'center', bgcolor: 'grey.100' }}>
-                      <Typography variant="h6" color="text.secondary" fontWeight="bold">
-                        {item.status === 'sold' ? 'Auction Ended - Item Sold' : 'Auction Ended'}
-                      </Typography>
-                    </Paper>
-                  ) : (
+                  {item.current_bid > 0 ? (
                     <>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Auction ends in
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Current Bid
                       </Typography>
-                      <Grid container spacing={1} sx={{ mb: 3 }}>
-                        <Grid size={{ xs: 3 }}>
-                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                            <Typography variant="h5" fontWeight="bold">{timeRemaining.days}</Typography>
-                            <Typography variant="caption" color="text.secondary">Days</Typography>
-                          </Paper>
-                        </Grid>
-                        <Grid size={{ xs: 3 }}>
-                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                            <Typography variant="h5" fontWeight="bold">{timeRemaining.hours}</Typography>
-                            <Typography variant="caption" color="text.secondary">Hours</Typography>
-                          </Paper>
-                        </Grid>
-                        <Grid size={{ xs: 3 }}>
-                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                            <Typography variant="h5" fontWeight="bold">{timeRemaining.minutes}</Typography>
-                            <Typography variant="caption" color="text.secondary">Mins</Typography>
-                          </Paper>
-                        </Grid>
-                        <Grid size={{ xs: 3 }}>
-                          <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
-                            <Typography variant="h5" fontWeight="bold">{timeRemaining.seconds}</Typography>
-                            <Typography variant="caption" color="text.secondary">Secs</Typography>
-                          </Paper>
-                        </Grid>
-                      </Grid>
+                      <Typography variant="h3" color="primary" fontWeight="bold" gutterBottom>
+                        ${item.current_bid}
+                      </Typography>
                     </>
-                  )}
+                  ) : item.buy_now_price ? (
+                    <>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Price
+                      </Typography>
+                      <Typography variant="h3" color="primary" fontWeight="bold" gutterBottom>
+                        ${item.buy_now_price}
+                      </Typography>
+                    </>
+                  ) : null}
+
+                  {/* Countdown Timer - Only show for auctions with end dates */}
+                  {item.end_date ? (
+                    (item.status === 'sold' || item.status === 'ended' || isAuctionEnded) ? (
+                      <Paper elevation={1} sx={{ p: 3, mb: 3, textAlign: 'center', bgcolor: 'grey.100' }}>
+                        <Typography variant="h6" color="text.secondary" fontWeight="bold">
+                          {item.status === 'sold' ? 'Auction Ended - Item Sold' : 'Auction Ended'}
+                        </Typography>
+                      </Paper>
+                    ) : (
+                      <>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          Auction ends in
+                        </Typography>
+                        <Grid container spacing={1} sx={{ mb: 3 }}>
+                          <Grid size={{ xs: 3 }}>
+                            <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight="bold">{timeRemaining.days}</Typography>
+                              <Typography variant="caption" color="text.secondary">Days</Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid size={{ xs: 3 }}>
+                            <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight="bold">{timeRemaining.hours}</Typography>
+                              <Typography variant="caption" color="text.secondary">Hours</Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid size={{ xs: 3 }}>
+                            <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight="bold">{timeRemaining.minutes}</Typography>
+                              <Typography variant="caption" color="text.secondary">Mins</Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid size={{ xs: 3 }}>
+                            <Paper elevation={1} sx={{ p: 1.5, textAlign: 'center' }}>
+                              <Typography variant="h5" fontWeight="bold">{timeRemaining.seconds}</Typography>
+                              <Typography variant="caption" color="text.secondary">Secs</Typography>
+                            </Paper>
+                          </Grid>
+                        </Grid>
+                      </>
+                    )
+                  ) : null}
 
                   {/* Action Buttons */}
                   <Stack spacing={2}>
-                    <Button
-                      variant="contained"
-                      size="large"
-                      fullWidth
-                      startIcon={<Gavel />}
-                      disabled={bidButtonState.disabled}
-                      onClick={() => {
-                        if (!user) {
-                          navigate('/login');
-                        } else {
-                          // Check if user has payment and shipping setup before allowing bid
-                          if (paymentShippingStatus && !paymentShippingStatus.hasBoth) {
-                            setPendingAction('bid');
-                            const required = getRequiredSetup(paymentShippingStatus);
-                            setSetupModalType(required);
-                            setSetupModalOpen(true);
+                    {/* Only show Place Bid button for auctions (items with end_date) */}
+                    {item.end_date && item.current_bid > 0 && (
+                      <Button
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        startIcon={<Gavel />}
+                        disabled={bidButtonState.disabled}
+                        onClick={() => {
+                          if (!user) {
+                            navigate('/login');
                           } else {
-                            setBidModalOpen(true);
+                            // Check if user has payment and shipping setup before allowing bid
+                            if (paymentShippingStatus && !paymentShippingStatus.hasBoth) {
+                              setPendingAction('bid');
+                              const required = getRequiredSetup(paymentShippingStatus);
+                              setSetupModalType(required);
+                              setSetupModalOpen(true);
+                            } else {
+                              setBidModalOpen(true);
+                            }
                           }
-                        }
-                      }}
-                    >
-                      {bidButtonState.text}
-                    </Button>
+                        }}
+                      >
+                        {bidButtonState.text}
+                      </Button>
+                    )}
                     {item.buy_now_price && (
                       <Button
-                        variant="outlined"
+                        variant={!item.end_date || item.current_bid === 0 ? "contained" : "outlined"}
                         size="large"
                         fullWidth
                         startIcon={<ShoppingCart />}
                         onClick={handleBuyNow}
-                        disabled={item.status === 'sold' || isAuctionEnded || item.seller_id === user?.id}
+                        disabled={
+                          item.status === 'sold' ||
+                          item.seller_id === user?.id
+                          // Buy Now should always be available unless sold or you're the seller
+                          // Even if auction ended, buy now should still work
+                        }
                       >
                         {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
                       </Button>
@@ -770,10 +830,13 @@ export default function ItemDetail() {
                     Item Details
                   </Typography>
                   <Stack spacing={2}>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">End Date:</Typography>
-                      <Typography variant="body2">{new Date(item.end_date).toLocaleString()}</Typography>
-                    </Stack>
+                    {/* Only show End Date for auction items */}
+                    {item.end_date && (
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">End Date:</Typography>
+                        <Typography variant="body2">{new Date(item.end_date).toLocaleString()}</Typography>
+                      </Stack>
+                    )}
                     {item.artist && (
                       <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2" color="text.secondary">Artist:</Typography>
