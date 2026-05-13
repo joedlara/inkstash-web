@@ -49,7 +49,7 @@ const sidebarItems: SidebarItem[] = [
   { id: 'saved', label: 'Saved Collectibles', icon: <Bookmark /> },
   { id: 'liked', label: 'Liked Collectibles', icon: <Favorite /> },
   { id: 'bids', label: 'Current Bids', icon: <Gavel /> },
-  { id: 'history', label: 'Purchase History', icon: <History /> },
+  { id: 'history', label: 'My Stash', icon: <History /> },
   { id: 'preferences', label: 'Preferences', icon: <Settings /> },
 ];
 
