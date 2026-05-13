@@ -66,11 +66,16 @@ const CATEGORY_OPTIONS = [
 ];
 import DashboardHeader from '../components/home/DashboardHeader';
 import PhotoUploadSection from '../components/listing/PhotoUploadSection';
+import PackageDimensionsInput from '../components/listing/PackageDimensionsInput';
+import ShippingRatesDisplay from '../components/listing/ShippingRatesDisplay';
+import ShipFromAddressModal from '../components/listing/ShipFromAddressModal';
 import { useListingPersistence } from '../hooks/useListingPersistence';
 import { uploadListingPhoto } from '../utils/photoUpload';
 import type { UploadedPhoto } from '../utils/photoUpload';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
+import { shippingRatesAPI } from '../api/shipping';
+import { sellerShipFromAddressesAPI, type SellerShipFromAddress } from '../api/sellerShipFromAddresses';
 
 // Professional grading companies
 const GRADER_OPTIONS = [
@@ -126,6 +131,8 @@ export default function ListItem() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [selectedShipFromAddress, setSelectedShipFromAddress] = useState<SellerShipFromAddress | null>(null);
 
   // Check for saved draft on mount
   useEffect(() => {
@@ -152,6 +159,15 @@ export default function ListItem() {
   const grade = formData.grade;
   const certificationNumber = formData.certificationNumber;
   const detailFilters = formData.detailFilters;
+  const packageWeightValue = formData.packageWeightValue;
+  const packageWeightUnit = formData.packageWeightUnit;
+  const packageLength = formData.packageLength;
+  const packageWidth = formData.packageWidth;
+  const packageHeight = formData.packageHeight;
+  const packageDimensionUnit = formData.packageDimensionUnit;
+  const shippingRates = formData.shippingRates;
+  const selectedShippingRateId = formData.selectedShippingRateId;
+  const loadingRates = formData.loadingRates;
 
   // Update functions
   const setStep = (newStep: typeof step) => updateFormData({ step: newStep });
@@ -189,6 +205,109 @@ export default function ListItem() {
   const setGrade = (gradeValue: string) => updateFormData({ grade: gradeValue });
   const setCertificationNumber = (certNum: string) => updateFormData({ certificationNumber: certNum });
   const setDetailFilters = (filters: typeof detailFilters) => updateFormData({ detailFilters: filters });
+  const setPackageWeightValue = (value: string) => updateFormData({ packageWeightValue: value });
+  const setPackageWeightUnit = (unit: 'ounce' | 'pound') => updateFormData({ packageWeightUnit: unit });
+  const setPackageLength = (value: string) => updateFormData({ packageLength: value });
+  const setPackageWidth = (value: string) => updateFormData({ packageWidth: value });
+  const setPackageHeight = (value: string) => updateFormData({ packageHeight: value });
+  const setPackageDimensionUnit = (unit: 'inch' | 'centimeter') => updateFormData({ packageDimensionUnit: unit });
+  const setShippingRates = (rates: any[]) => updateFormData({ shippingRates: rates });
+  const setSelectedShippingRateId = (id: string) => updateFormData({ selectedShippingRateId: id });
+  const setLoadingRates = (loading: boolean) => updateFormData({ loadingRates: loading });
+
+  // Shipping rate calculation
+  const handleGetShippingRates = async () => {
+    if (!user?.id) {
+      setSubmitError('You must be logged in to get shipping rates');
+      return;
+    }
+
+    // Check if we have a selected ship-from address
+    if (!selectedShipFromAddress) {
+      // Try to get default address first
+      try {
+        const defaultAddress = await sellerShipFromAddressesAPI.getDefault();
+        if (defaultAddress) {
+          setSelectedShipFromAddress(defaultAddress);
+          // Continue with rate calculation
+          await fetchRatesWithAddress(defaultAddress);
+        } else {
+          // No address configured, show modal
+          setShowAddressModal(true);
+        }
+      } catch (error) {
+        // No address found, show modal
+        setShowAddressModal(true);
+      }
+      return;
+    }
+
+    // We have an address, fetch rates
+    await fetchRatesWithAddress(selectedShipFromAddress);
+  };
+
+  const fetchRatesWithAddress = async (shipFromAddress: SellerShipFromAddress) => {
+    setLoadingRates(true);
+    setSubmitError('');
+
+    try {
+      const shipFrom = {
+        name: shipFromAddress.fullName,
+        company: shipFromAddress.companyName,
+        addressLine1: shipFromAddress.addressLine1,
+        addressLine2: shipFromAddress.addressLine2,
+        city: shipFromAddress.city,
+        state: shipFromAddress.state,
+        postalCode: shipFromAddress.postalCode,
+        country: shipFromAddress.country,
+        phone: shipFromAddress.phone,
+      };
+
+      // Use average US destination for rate estimates
+      const shipTo = {
+        name: 'Buyer',
+        addressLine1: '456 Market St',
+        city: 'Los Angeles',
+        state: 'CA',
+        postalCode: '90001',
+        country: 'US',
+      };
+
+      const { rates } = await shippingRatesAPI.getRates({
+        shipFrom,
+        shipTo,
+        packages: [{
+          weight: {
+            value: parseFloat(packageWeightValue) || 8,
+            unit: packageWeightUnit,
+          },
+          dimensions: {
+            length: parseFloat(packageLength) || 6,
+            width: parseFloat(packageWidth) || 4,
+            height: parseFloat(packageHeight) || 1,
+            unit: packageDimensionUnit,
+          },
+        }],
+      });
+
+      setShippingRates(rates);
+      if (rates.length > 0) {
+        setSelectedShippingRateId(rates[0].id); // Select cheapest by default
+      }
+    } catch (error: any) {
+      console.error('Error getting shipping rates:', error);
+      setSubmitError(error.message || 'Failed to get shipping rates. Please check your package dimensions and try again.');
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const handleAddressSelected = (address: SellerShipFromAddress) => {
+    setSelectedShipFromAddress(address);
+    setShowAddressModal(false);
+    // Automatically fetch rates with the selected address
+    fetchRatesWithAddress(address);
+  };
 
   // TODO: Replace with actual API call to search collectibles
   useEffect(() => {
@@ -379,6 +498,14 @@ export default function ListItem() {
           professional_grader: isGraded ? professionalGrader : null,
           grade: isGraded ? grade : null,
           certification_number: isGraded && certificationNumber.trim() ? certificationNumber.trim() : null,
+          // Shipping fields
+          package_weight_value: deliveryMethod === 'shipping' ? parseFloat(packageWeightValue) : null,
+          package_weight_unit: deliveryMethod === 'shipping' ? packageWeightUnit : null,
+          package_length: deliveryMethod === 'shipping' ? parseFloat(packageLength) : null,
+          package_width: deliveryMethod === 'shipping' ? parseFloat(packageWidth) : null,
+          package_height: deliveryMethod === 'shipping' ? parseFloat(packageHeight) : null,
+          package_dimension_unit: deliveryMethod === 'shipping' ? packageDimensionUnit : null,
+          selected_shipping_rate_id: deliveryMethod === 'shipping' ? selectedShippingRateId : null,
           // Detail filters as metadata
           metadata: {
             detailFilters,
@@ -393,6 +520,16 @@ export default function ListItem() {
       }
 
       const itemId = listing.id;
+
+      // Step 1.5: Save shipping rates if we have them
+      if (deliveryMethod === 'shipping' && shippingRates.length > 0) {
+        try {
+          await shippingRatesAPI.saveRatesForListing(itemId, shippingRates);
+        } catch (error) {
+          console.error('Error saving shipping rates:', error);
+          // Don't fail the listing creation if shipping rates fail to save
+        }
+      }
 
       // Step 2: Upload all photos to S3 with the item ID
       const finalUploadedPhotos: UploadedPhoto[] = [];
@@ -1381,19 +1518,6 @@ export default function ListItem() {
 
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
           <Button
-            variant={deliveryMethod === 'shipping-pickup' ? 'contained' : 'outlined'}
-            onClick={() => setDeliveryMethod('shipping-pickup')}
-            sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Shipping or pickup
-            </Typography>
-            <Typography variant="caption">
-              Let buyers choose how they get their items.
-            </Typography>
-          </Button>
-
-          <Button
             variant={deliveryMethod === 'shipping' ? 'contained' : 'outlined'}
             onClick={() => setDeliveryMethod('shipping')}
             sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
@@ -1402,7 +1526,7 @@ export default function ListItem() {
               Shipping only
             </Typography>
             <Typography variant="caption">
-              Ship items directly to buyers.
+              Ship items directly to buyers with real-time rates.
             </Typography>
           </Button>
 
@@ -1420,95 +1544,39 @@ export default function ListItem() {
           </Button>
         </Box>
 
-        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
-          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            Package details
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            0 lb. 3 oz., 11 x 6 x 1 in.
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Estimated based on items like yours
-          </Typography>
-        </Paper>
+        {deliveryMethod === 'shipping' && (
+          <>
+            <PackageDimensionsInput
+              weightValue={packageWeightValue}
+              weightUnit={packageWeightUnit}
+              length={packageLength}
+              width={packageWidth}
+              height={packageHeight}
+              dimensionUnit={packageDimensionUnit}
+              onWeightValueChange={setPackageWeightValue}
+              onWeightUnitChange={setPackageWeightUnit}
+              onLengthChange={setPackageLength}
+              onWidthChange={setPackageWidth}
+              onHeightChange={setPackageHeight}
+              onDimensionUnitChange={setPackageDimensionUnit}
+              onGetRates={handleGetShippingRates}
+              isLoading={loadingRates}
+              error={submitError}
+            />
 
-        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-          Shipping service
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box component="span" sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: 'success.light', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            ✓
-          </Box>
-          Save on shipping when you purchase an eBay Label. Buyers will see discounted rates on your listing.
-        </Typography>
+            <ShippingRatesDisplay
+              rates={shippingRates}
+              selectedRateId={selectedShippingRateId}
+              onSelectRate={setSelectedShippingRateId}
+            />
+          </>
+        )}
 
-        {/* Shipping Options */}
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          <Paper sx={{ p: 2, border: '2px solid', borderColor: 'primary.main' }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/USPS_Logo.svg/200px-USPS_Logo.svg.png" alt="USPS" sx={{ width: 60, height: 'auto' }} />
-              <Box sx={{ flex: 1 }}>
-                <Chip label="RECOMMENDED" size="small" color="primary" sx={{ mb: 0.5 }} />
-                <Typography variant="subtitle2" fontWeight={600}>
-                  USPS Ground Advantage
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  2-5 business days
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Up to $100.00 compensation
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Up to 70 lb.
-                </Typography>
-                <Typography variant="subtitle2" fontWeight={700} color="primary">
-                  $4.46-$5.20
-                  <Typography component="span" variant="caption" sx={{ textDecoration: 'line-through', ml: 1, color: 'text.secondary' }}>
-                    $7.20-$8.40
-                  </Typography>
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        </Stack>
-
-        <Button variant="text" sx={{ mt: 2, textTransform: 'none' }}>
-          View all shipping services
-        </Button>
-
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            Who pays?
-          </Typography>
-          <ToggleButtonGroup
-            value={isBuyNow ? 'buyer' : 'seller'}
-            exclusive
-            fullWidth
-            sx={{ mb: 2 }}
-          >
-            <ToggleButton value="buyer">
-              Buyer pays
-            </ToggleButton>
-            <ToggleButton value="seller">
-              Seller pays
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <Paper sx={{ p: 2, bgcolor: 'grey.50', textAlign: 'center' }}>
-            <Typography variant="h5" fontWeight={700}>
-              The buyer will pay:
-            </Typography>
-            <Typography variant="h4" fontWeight={700} color="primary">
-              $4.46-$5.20
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Cost is based on buyer's location.
-            </Typography>
-            <Button variant="text" size="small" sx={{ mt: 1, textTransform: 'none' }}>
-              Edit shipping cost
-            </Button>
-          </Paper>
-        </Box>
+        {deliveryMethod === 'pickup' && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Buyers will arrange to pick up the item from you directly. Make sure to specify pickup details in your item description.
+          </Alert>
+        )}
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -1577,6 +1645,13 @@ export default function ListItem() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
+
+      {/* Ship-From Address Modal */}
+      <ShipFromAddressModal
+        open={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        onAddressSelected={handleAddressSelected}
+      />
 
       {/* Draft Restoration Dialog */}
       <Dialog open={showDraftDialog} onClose={() => setShowDraftDialog(false)}>

@@ -1,6 +1,6 @@
 // src/components/auth/RouteGuard.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../hooks/useAuth"
 import '../styles/auth/routeGuard.css';
@@ -18,6 +18,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const wasAuthenticated = useRef(false);
 
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -67,6 +68,26 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   const isProtectedRoute = (path: string): boolean => {
     return protectedRoutes.some(route => path.startsWith(route));
   };
+
+  // Detect fresh OAuth login and redirect to onboarding/home
+  useEffect(() => {
+    if (!initialized || !isAuthenticated || wasAuthenticated.current) return;
+    wasAuthenticated.current = true;
+
+    // Only redirect if landing on root with OAuth hash/params in URL
+    const hasOAuthParams =
+      window.location.hash.includes('access_token') ||
+      window.location.search.includes('code=');
+
+    if (hasOAuthParams) {
+      const destination = user?.onboarding_completed ? '/' : '/onboarding';
+      navigate(destination, { replace: true });
+    }
+  }, [initialized, isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) wasAuthenticated.current = false;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // Don't do anything until auth is initialized

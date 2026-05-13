@@ -127,6 +127,7 @@ class AuthManager {
   private setupAuthListener(): void {
     supabase.auth.onAuthStateChange(async (event, session) => {
       switch (event) {
+        case 'INITIAL_SESSION':
         case 'SIGNED_IN':
           if (session?.user) {
             await this.loadUserData(session);
@@ -156,7 +157,14 @@ class AuthManager {
 
   private async loadUserData(session: Session): Promise<void> {
     if (this.fetchingUser) {
-      return;
+      // Wait for the in-flight fetch to finish rather than dropping this session
+      await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+          if (!this.fetchingUser) { clearInterval(check); resolve(); }
+        }, 50);
+      });
+      // If session is now loaded for same user, skip re-fetch
+      if (this.state.session?.user?.id === session.user.id && this.state.isAuthenticated) return;
     }
 
     this.fetchingUser = true;

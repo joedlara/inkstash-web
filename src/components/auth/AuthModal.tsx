@@ -81,46 +81,42 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup', redi
       setLoading(true);
       setError(null);
 
-      console.log('Starting signup for:', email);
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      console.log('Signup response:', { data, error });
-
       if (error) throw error;
 
       if (data.user) {
-        console.log('User created:', data.user.id);
-
         // Check if email confirmation is required
         if (data.session) {
-          // User is confirmed and logged in
-          console.log('User has session, waiting for authManager to load user data');
+          // Poll until the DB trigger has created the public.users row
+          // (the on_auth_user_created trigger runs async and may lag)
+          const userId = data.user.id;
+          let attempts = 0;
+          while (attempts < 20) {
+            const { data: row } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', userId)
+              .maybeSingle();
+            if (row) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+            attempts++;
+          }
 
-          // Wait for authManager to initialize and load user data
-          // This gives the database trigger time to create the user profile
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Refresh user data in authManager
           await authManager.refreshUser();
-          console.log('AuthManager refreshed, redirecting to onboarding');
 
           onClose();
           navigate(redirectTo || '/onboarding');
         } else {
-          // Email confirmation required
-          console.log('Email confirmation required');
           setError('Please check your email to confirm your account before signing in.');
         }
       } else {
-        console.log('No user returned from signup');
         setError('Failed to create account. Please try again.');
       }
     } catch (err: any) {
-      console.error('Signup error:', err);
       setError(err.message || 'Failed to sign up');
     } finally {
       setLoading(false);

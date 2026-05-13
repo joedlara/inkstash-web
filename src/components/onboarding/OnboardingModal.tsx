@@ -29,10 +29,14 @@ interface OnboardingData {
   notifications: NotificationPreferences;
 }
 
+const ONBOARDING_USERNAME_KEY = 'onboarding_username';
+
 const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>(() => ({
+    username: localStorage.getItem(ONBOARDING_USERNAME_KEY) || undefined,
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>('');
 
@@ -41,6 +45,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
   // Step 1: Username (Mandatory - no skip)
   const handleUsernameNext = (username: string) => {
+    localStorage.setItem(ONBOARDING_USERNAME_KEY, username);
     setOnboardingData((prev) => ({ ...prev, username }));
     setCurrentStep(1);
   };
@@ -89,7 +94,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
   };
 
   // Save onboarding data to database
-  const saveOnboardingData = async (isPartialComplete: boolean) => {
+  const saveOnboardingData = async (_isPartialComplete: boolean) => {
     setSaving(true);
     setError('');
 
@@ -100,6 +105,25 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       }
 
       const { username, interests, notifications } = onboardingData;
+
+      // Only poll if the DB row might not exist yet (brand-new signup where trigger is still running).
+      // If authManager already loaded a full user object, the row exists — skip the poll.
+      if (!user.created_at) {
+        let attempts = 0;
+        while (attempts < 20) {
+          const { data: row } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (row) break;
+          await new Promise(resolve => setTimeout(resolve, 250));
+          attempts++;
+        }
+        if (attempts >= 20) {
+          throw new Error('Account setup is taking longer than expected. Please refresh and try again.');
+        }
+      }
 
       // 1. Update user profile with username
       const { error: userError } = await supabase
@@ -113,7 +137,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
       if (userError) throw userError;
 
-      // 2. Create or update user preferences with default values
+      // 2. Create or update user preferences
       const preferencesData = {
         user_id: user.id,
         favorite_categories: interests || [],
@@ -126,7 +150,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         .from('user_preferences')
         .upsert(preferencesData, { onConflict: 'user_id' });
 
-      if (prefsError) throw prefsError;
+      if (prefsError && prefsError.code !== '23503') throw prefsError;
 
       // 3. Update notification preferences in users table
       const notificationPrefs = {
@@ -152,10 +176,10 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
       if (notifError) throw notifError;
 
-      // Refresh user data in authManager
       await authManager.refreshUser();
 
-      // Close modal
+      localStorage.removeItem(ONBOARDING_USERNAME_KEY);
+      setSaving(false);
       onClose();
     } catch (err: any) {
       console.error('Error completing onboarding:', err);

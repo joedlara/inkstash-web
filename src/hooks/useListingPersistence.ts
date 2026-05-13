@@ -31,6 +31,16 @@ export interface ListingFormData {
     theme?: string;
     features?: string;
   };
+  // Shipping fields
+  packageWeightValue: string;
+  packageWeightUnit: 'ounce' | 'pound';
+  packageLength: string;
+  packageWidth: string;
+  packageHeight: string;
+  packageDimensionUnit: 'inch' | 'centimeter';
+  shippingRates: any[]; // ShippingRate[]
+  selectedShippingRateId?: string;
+  loadingRates: boolean;
 }
 
 const STORAGE_KEY = 'inkstash_listing_draft';
@@ -69,6 +79,16 @@ export function useListingPersistence() {
           detailFilters: parsed.detailFilters ?? {},
           auctionDurationDays: parsed.auctionDurationDays ?? 7,
           startingBid: parsed.startingBid ?? '',
+          // Shipping defaults
+          packageWeightValue: parsed.packageWeightValue ?? '8',
+          packageWeightUnit: parsed.packageWeightUnit ?? 'ounce',
+          packageLength: parsed.packageLength ?? '6',
+          packageWidth: parsed.packageWidth ?? '4',
+          packageHeight: parsed.packageHeight ?? '1',
+          packageDimensionUnit: parsed.packageDimensionUnit ?? 'inch',
+          shippingRates: parsed.shippingRates ?? [],
+          selectedShippingRateId: parsed.selectedShippingRateId,
+          loadingRates: false,
         };
       } catch (error) {
         console.error('Error parsing saved listing data:', error);
@@ -94,6 +114,15 @@ export function useListingPersistence() {
       grade: '',
       certificationNumber: '',
       detailFilters: {},
+      // Shipping defaults
+      packageWeightValue: '8',
+      packageWeightUnit: 'ounce',
+      packageLength: '6',
+      packageWidth: '4',
+      packageHeight: '1',
+      packageDimensionUnit: 'inch',
+      shippingRates: [],
+      loadingRates: false,
     };
   });
 
@@ -185,6 +214,16 @@ export function useListingPersistence() {
       grade: '',
       certificationNumber: '',
       detailFilters: {},
+      // Shipping defaults
+      packageWeightValue: '8',
+      packageWeightUnit: 'ounce',
+      packageLength: '6',
+      packageWidth: '4',
+      packageHeight: '1',
+      packageDimensionUnit: 'inch',
+      sellerPaysShipping: false,
+      shippingRates: [],
+      loadingRates: false,
     });
   }, [formData.uploadedPhotos]);
 
