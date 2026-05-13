@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './theme/theme';
@@ -10,12 +10,14 @@ import RouteGuard from './auth/RouteGuard';
 import Home from './pages/Home';
 import Seller from './pages/Seller';
 import ItemDetail from './pages/ItemDetail';
-import BrowseFeatured from './pages/BrowseFeatured';
+import Packs from './pages/Packs';
+import Live from './pages/Live';
+import Drops from './pages/Drops';
+import Raffles from './pages/Raffles';
+import Marketplace from './pages/Marketplace';
 import Checkout from './pages/CheckoutNew';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderManagement from './pages/OrderManagement';
-import FeaturedArtists from './pages/FeaturedArtists';
-import PopularShows from './pages/PopularShows';
 import Cart from './pages/Cart';
 import MyBids from './pages/MyBids';
 import MyStash from './pages/MyStash';
@@ -46,9 +48,17 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/sell" element={<Seller />} />
                 <Route path="/item/:id" element={<ItemDetail />} />
                 <Route path="/auction/:id" element={<ItemDetail />} />
-                <Route path="/browse-featured" element={<BrowseFeatured />} />
-                <Route path="/featured-artists" element={<FeaturedArtists />} />
-                <Route path="/popular-shows" element={<PopularShows />} />
+                <Route path="/packs" element={<Packs />} />
+                <Route path="/live" element={<Live />} />
+                <Route path="/drops" element={<Drops />} />
+                <Route path="/raffles" element={<Raffles />} />
+                <Route path="/marketplace" element={<Marketplace />} />
+                {/* Redirects for removed routes */}
+                <Route path="/browse-featured" element={<Navigate to="/packs" replace />} />
+                <Route path="/featured-artists" element={<Navigate to="/packs" replace />} />
+                <Route path="/popular-shows" element={<Navigate to="/packs" replace />} />
+                <Route path="/browse" element={<Navigate to="/packs" replace />} />
+                <Route path="/featured" element={<Navigate to="/packs" replace />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/order-success" element={<OrderSuccess />} />
                 <Route path="/order/:orderId" element={<OrderManagement />} />
