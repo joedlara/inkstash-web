@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -10,10 +10,6 @@ import {
   Badge,
   Avatar,
   Stack,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
 } from '@mui/material';
 import {
   Search,
@@ -21,10 +17,6 @@ import {
   Message,
   Notifications,
   CardGiftcard,
-  KeyboardArrowDown,
-  AutoAwesome,
-  Palette,
-  TrendingUp,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../contexts/CartContext';
@@ -32,30 +24,17 @@ import ProfileDropdown from './ProfileDropdown';
 
 export default function DashboardHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { getItemCount } = useCart();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [browseAnchorEl, setBrowseAnchorEl] = useState<null | HTMLElement>(null);
 
   const cartItemCount = getItemCount();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle search functionality
-  };
-
-  const handleBrowseClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setBrowseAnchorEl(event.currentTarget);
-  };
-
-  const handleBrowseClose = () => {
-    setBrowseAnchorEl(null);
-  };
-
-  const handleBrowseNavigation = (path: string) => {
-    navigate(path);
-    handleBrowseClose();
   };
 
   return (
@@ -113,7 +92,7 @@ export default function DashboardHeader() {
             </Box>
           </Box>
 
-          {/* Navigation Links */}
+          {/* Navigation Links — comic-first tabs */}
           <Stack
             direction="row"
             spacing={0.5}
@@ -122,39 +101,32 @@ export default function DashboardHeader() {
               display: { xs: 'none', md: 'flex' },
             }}
           >
-            <Button
-              onClick={() => navigate('/')}
-              sx={{
-                px: 2.5,
-                py: 1,
-                borderRadius: 999,
-                fontWeight: 600,
-                color: 'white',
-                bgcolor: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                },
-              }}
-            >
-              Home
-            </Button>
-            <Button
-              onClick={handleBrowseClick}
-              endIcon={<KeyboardArrowDown />}
-              sx={{
-                px: 2.5,
-                py: 1,
-                borderRadius: 999,
-                fontWeight: 600,
-                color: 'text.secondary',
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                  color: 'text.primary',
-                },
-              }}
-            >
-              Browse
-            </Button>
+            {[
+              { label: 'Packs', path: '/packs' },
+              { label: 'Live', path: '/live' },
+              { label: 'Marketplace', path: '/marketplace' },
+              { label: 'Drops', path: '/drops' },
+              { label: 'Raffles', path: '/raffles' },
+            ].map(({ label, path }) => (
+              <Button
+                key={path}
+                onClick={() => navigate(path)}
+                sx={{
+                  px: 2.5,
+                  py: 1,
+                  borderRadius: 999,
+                  fontWeight: 600,
+                  color: location.pathname === path ? 'white' : 'text.secondary',
+                  bgcolor: location.pathname === path ? 'primary.main' : 'transparent',
+                  '&:hover': {
+                    bgcolor: location.pathname === path ? 'primary.dark' : 'action.hover',
+                    color: location.pathname === path ? 'white' : 'text.primary',
+                  },
+                }}
+              >
+                {label}
+              </Button>
+            ))}
           </Stack>
 
           {/* Search Bar */}
@@ -367,48 +339,6 @@ export default function DashboardHeader() {
           </Stack>
         </Toolbar>
       </AppBar>
-
-      {/* Browse Dropdown Menu */}
-      <Menu
-        anchorEl={browseAnchorEl}
-        open={Boolean(browseAnchorEl)}
-        onClose={handleBrowseClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        sx={{
-          mt: 1,
-          '& .MuiPaper-root': {
-            borderRadius: 2,
-            minWidth: 220,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          },
-        }}
-      >
-        <MenuItem onClick={() => handleBrowseNavigation('/browse-featured')}>
-          <ListItemIcon>
-            <AutoAwesome fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Featured Collectibles</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => handleBrowseNavigation('/featured-artists')}>
-          <ListItemIcon>
-            <Palette fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Featured Artists</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => handleBrowseNavigation('/popular-shows')}>
-          <ListItemIcon>
-            <TrendingUp fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Popular Shows</ListItemText>
-        </MenuItem>
-      </Menu>
 
       {/* Profile Dropdown */}
       <ProfileDropdown
