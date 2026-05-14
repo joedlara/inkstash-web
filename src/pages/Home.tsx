@@ -150,21 +150,21 @@ function ErrorRetry({ onRetry }: { onRetry: () => void }) {
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ title, cta, onCta }: { title: string; cta: string; onCta: () => void }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5}>
-      <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '1.1rem', md: '1.25rem' }, color: T.white, letterSpacing: '-0.02em' }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+      <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.05rem', color: '#f0f0f5' }}>
         {title}
       </Typography>
       <Box
         onClick={onCta}
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.4, color: T.dimmed, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.15s', '&:hover': { color: T.white } }}
+        sx={{ display: 'flex', alignItems: 'center', gap: 0.4, color: 'rgba(240,240,245,0.38)', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.15s', '&:hover': { color: 'rgba(240,240,245,0.65)' } }}
       >
-        {cta} <ChevronRight size={13} strokeWidth={2.5} />
+        {cta} <ChevronRight size={12} strokeWidth={2.5} />
       </Box>
     </Stack>
   );
 }
 
-// ── Auction card ──────────────────────────────────────────────────────────────
+// ── Auction card — matches Concept A pack card style ─────────────────────────
 function AuctionCard({ item }: { item: FeaturedAuction }) {
   const navigate = useNavigate();
   const badge = item.is_featured ? 'FEATURED' : null;
@@ -174,45 +174,65 @@ function AuctionCard({ item }: { item: FeaturedAuction }) {
     <Box
       onClick={() => navigate(`/auction/${item.id}`)}
       sx={{
-        bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5,
+        bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: '14px',
         overflow: 'hidden', cursor: 'pointer',
         transition: 'border-color 0.18s, transform 0.18s',
-        '&:hover': { borderColor: T.borderLit, transform: 'translateY(-4px)' },
+        '&:hover': { borderColor: T.borderLit, transform: 'translateY(-3px)' },
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      <Box sx={{ position: 'relative', height: { xs: 155, md: 185 }, overflow: 'hidden', bgcolor: T.surfaceB }}>
+      {/* Image */}
+      <Box sx={{ position: 'relative', height: 160, overflow: 'hidden', bgcolor: T.surfaceB }}>
         <Box
           component="img"
-          src={item.image_url || picsum(item.id)}
+          src={item.image_url || picsum(item.id, 400, 320)}
           alt={item.title}
           sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.src = picsum(item.id + 'fb'); }}
+          onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.src = picsum(item.id + 'fb', 400, 320); }}
         />
-        <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,14,0.85) 0%, transparent 55%)' }} />
         {bm && (
-          <Box sx={{ position: 'absolute', top: 8, left: 8, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: bm.bg, color: bm.fg, fontSize: '0.57rem', fontWeight: 800, letterSpacing: '0.07em', px: 0.9, py: 0.3, borderRadius: 0.75 }}>
-            <Zap size={9} strokeWidth={2.5} />
+          <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: bm.bg, color: bm.fg, fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.07em', px: 0.9, py: 0.35, borderRadius: '4px', fontFamily: T.mono }}>
             {badge}
           </Box>
         )}
-        <Box sx={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(8,8,14,0.75)', color: T.muted, fontSize: '0.6rem', fontWeight: 600, px: 0.85, py: 0.3, borderRadius: 0.75, fontFamily: T.mono }}>
-          <Clock size={10} strokeWidth={2} />
-          {timeLeft(item.end_time)}
-        </Box>
       </Box>
 
-      <Box sx={{ p: { xs: 1.5, md: 1.75 } }}>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.83rem', color: T.white, mb: 0.35, lineHeight: 1.3 }} noWrap>{item.title}</Typography>
-        <Typography sx={{ fontSize: '0.67rem', color: T.dimmed, mb: 1.25, fontFamily: T.mono }}>{item.category} · {item.condition}</Typography>
+      {/* Body */}
+      <Box sx={{ p: '14px 14px 12px' }}>
+        <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: T.white, mb: 0.35, lineHeight: 1.25 }} noWrap>
+          {item.title}
+        </Typography>
+        <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: 'rgba(240,240,245,0.4)', mb: 1.25 }}>
+          {item.category}
+        </Typography>
+
+        {/* Rarity odds dots — Concept A style */}
+        <Stack direction="row" gap={1} mb={1.5} flexWrap="wrap">
+          {[
+            { color: T.gold,    label: 'LEG 2%' },
+            { color: T.blue,    label: 'RARE 18%' },
+            { color: '#374151', label: 'COM 80%' },
+          ].map(({ color, label }) => (
+            <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+              <Typography sx={{ fontFamily: T.mono, fontSize: '0.6rem', color: 'rgba(240,240,245,0.42)' }}>{label}</Typography>
+            </Box>
+          ))}
+        </Stack>
+
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography sx={{ fontSize: '0.58rem', color: T.dimmed, fontFamily: T.mono, letterSpacing: '0.05em', mb: 0.1 }}>CURRENT BID</Typography>
-            <Typography sx={{ fontWeight: 800, fontSize: '0.93rem', color: T.blue, fontFamily: T.mono }}>{formatCurrency(item.current_bid)}</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: T.dimmed }}>
-            <Gavel size={11} strokeWidth={2} />
-            <Typography sx={{ fontSize: '0.65rem', fontFamily: T.mono }}>{item.bid_count}</Typography>
+          <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '1rem', color: T.white }}>
+            {formatCurrency(item.current_bid)}
+          </Typography>
+          <Box
+            sx={{
+              fontFamily: T.mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em',
+              bgcolor: T.blue, color: '#fff', px: 1.75, py: 0.85, borderRadius: '8px',
+              cursor: 'pointer', transition: 'background 0.15s',
+              '&:hover': { bgcolor: '#005fcc' },
+            }}
+          >
+            BID
           </Box>
         </Stack>
       </Box>
@@ -229,13 +249,13 @@ function StreamCard({ stream }: { stream: LiveStream }) {
       sx={{
         position: 'relative',
         aspectRatio: '9/16',
-        borderRadius: 3,
+        borderRadius: '14px',
         overflow: 'hidden',
         cursor: 'pointer',
         border: `1px solid ${stream.is_live ? 'rgba(239,68,68,0.18)' : T.border}`,
         bgcolor: T.surfaceB,
         transition: 'border-color 0.18s, transform 0.18s',
-        '&:hover': { borderColor: stream.is_live ? 'rgba(239,68,68,0.4)' : T.borderLit, transform: 'translateY(-4px)' },
+        '&:hover': { borderColor: stream.is_live ? 'rgba(239,68,68,0.35)' : T.borderLit, transform: 'translateY(-3px)' },
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
@@ -631,167 +651,163 @@ export default function Home() {
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <Box
           sx={{
-            pt: { xs: 9, md: 9 },
-            background: `
-              radial-gradient(ellipse 65% 70% at 15% 55%, rgba(0,120,255,0.07) 0%, transparent 70%),
-              radial-gradient(ellipse 45% 50% at 85% 25%, rgba(239,68,68,0.05) 0%, transparent 65%),
-              ${T.bg}
-            `,
-            borderBottom: `1px solid ${T.border}`,
+            pt: { xs: '96px', md: '96px' },
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: `
+                radial-gradient(ellipse 80% 60% at -10% 80%, rgba(0,120,255,0.13) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 110% 10%, rgba(239,68,68,0.09) 0%, transparent 55%)
+              `,
+            },
           }}
         >
-          <Container maxWidth="xl">
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '1fr 420px' },
-                gap: { xs: 4, md: 7 },
-                py: { xs: 5, md: 7 },
-                alignItems: 'center',
-              }}
-            >
-              {/* LEFT — copy */}
-              <Box>
-                {/* Live badge */}
-                <Box
-                  className="fu1"
-                  onClick={() => navigate('/live')}
+          {/* Hero grid — matches Concept A exactly */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: { xs: 4, md: 4 },
+              alignItems: 'center',
+              maxWidth: 960,
+              mx: 'auto',
+              px: { xs: 2.5, md: 2.5 },
+              pt: { xs: 5, md: 6.5 },
+              pb: { xs: 4, md: 0 },
+            }}
+          >
+            {/* LEFT — copy */}
+            <Box>
+              {/* Live pill */}
+              <Box
+                className="fu1"
+                onClick={() => navigate('/live')}
+                sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.9,
+                  bgcolor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                  color: T.live, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em',
+                  px: 1.5, py: 0.65, borderRadius: 999, mb: 2.75,
+                  cursor: 'pointer', transition: 'background 0.15s',
+                  '&:hover': { bgcolor: 'rgba(239,68,68,0.16)' },
+                }}
+              >
+                <Box sx={{ width: 6, height: 6, bgcolor: T.live, borderRadius: '50%', flexShrink: 0, animation: 'livePulse 1.6s ease-in-out infinite' }} />
+                {liveCount > 0 ? `${liveCount} break${liveCount > 1 ? 's' : ''} live right now` : 'Marvel × InkStash — Limited Drop Live Now'}
+              </Box>
+
+              {/* Headline */}
+              <Box className="fu2">
+                <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: 'clamp(2.8rem, 6vw, 4.4rem)' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white, mb: 0.4 }}>
+                  Rip packs.
+                </Typography>
+                <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: 'clamp(2.8rem, 6vw, 4.4rem)' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.blue, mb: 0.4 }}>
+                  Chase keys.
+                </Typography>
+                <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: 'clamp(2.8rem, 6vw, 4.4rem)' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white }}>
+                  Go live.
+                </Typography>
+              </Box>
+
+              <Typography className="fu3" sx={{ color: 'rgba(240,240,245,0.52)', fontSize: '0.92rem', lineHeight: 1.7, mt: 2.25, mb: 3.5, maxWidth: 400 }}>
+                The only platform built for comic collectors. Blind bag pulls, live auction breaks, and a marketplace that speaks your language.
+              </Typography>
+
+              <Stack className="fu4" direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/packs')}
                   sx={{
-                    display: 'inline-flex', alignItems: 'center', gap: 1,
-                    bgcolor: 'rgba(239,68,68,0.08)', border: `1px solid rgba(239,68,68,0.22)`,
-                    color: T.live, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em',
-                    px: 1.5, py: 0.6, borderRadius: 999, mb: 3.5,
-                    cursor: 'pointer', transition: 'background 0.15s',
-                    '&:hover': { bgcolor: 'rgba(239,68,68,0.14)' },
+                    bgcolor: T.blue, color: '#fff', fontWeight: 700, px: 3.25, py: 1.4,
+                    borderRadius: 1.5, textTransform: 'none', fontSize: '0.92rem',
+                    fontFamily: "'Outfit', sans-serif", boxShadow: 'none',
+                    '&:hover': { bgcolor: '#0065d9', boxShadow: 'none' },
+                    '&:active': { transform: 'translateY(1px)' },
                   }}
                 >
-                  <Box sx={{ width: 7, height: 7, bgcolor: T.live, borderRadius: '50%', flexShrink: 0, animation: liveCount > 0 ? 'livePulse 1.6s ease-in-out infinite' : 'none' }} />
-                  {liveCount > 0 ? `${liveCount} break${liveCount > 1 ? 's' : ''} live right now` : 'Marvel × InkStash — Limited Drop Live Now'}
-                </Box>
-
-                {/* Headline */}
-                <Box className="fu2">
-                  <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: '4rem', lg: '4.8rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white, mb: 0.5 }}>
-                    Rip packs.
-                  </Typography>
-                  <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: '4rem', lg: '4.8rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.blue, mb: 0.5 }}>
-                    Chase keys.
-                  </Typography>
-                  <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2.8rem', md: '4rem', lg: '4.8rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white }}>
-                    Go live.
-                  </Typography>
-                </Box>
-
-                <Typography className="fu3" sx={{ color: T.muted, fontSize: '0.97rem', lineHeight: 1.7, mt: 2.5, mb: 3.5, maxWidth: 430 }}>
-                  The only platform built for comic collectors. Blind bag pulls, live auction breaks, and a marketplace that speaks your language.
-                </Typography>
-
-                <Stack className="fu4" direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="contained"
-                    onClick={() => navigate('/packs')}
-                    sx={{
-                      bgcolor: T.blue, color: '#fff', fontWeight: 700, px: 3.5, py: 1.5,
-                      borderRadius: 1.75, textTransform: 'none', fontSize: '0.95rem',
-                      fontFamily: "'Outfit', sans-serif", boxShadow: 'none',
-                      '&:hover': { bgcolor: '#0065d9', boxShadow: 'none' },
-                      '&:active': { transform: 'translateY(1px)' },
-                    }}
-                  >
-                    Open a Pack — $9.99
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => navigate('/live')}
-                    sx={{
-                      bgcolor: 'transparent', borderColor: T.borderLit, color: T.white,
-                      fontWeight: 600, px: 3.5, py: 1.5, borderRadius: 1.75,
-                      textTransform: 'none', fontSize: '0.95rem',
-                      fontFamily: "'Outfit', sans-serif",
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.25)' },
-                      '&:active': { transform: 'translateY(1px)' },
-                    }}
-                  >
-                    Watch Live Breaks
-                  </Button>
-                </Stack>
-              </Box>
-
-              {/* RIGHT — pack reveal preview */}
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
-                  {PREVIEW_CARDS.map((card, i) => {
-                    const rs = card.rarity ? RARITY_STYLE[card.rarity] : null;
-                    return (
-                      <Box
-                        key={i}
-                        onClick={() => navigate('/packs')}
-                        sx={{
-                          aspectRatio: '0.68',
-                          borderRadius: 2,
-                          border: `1px solid ${rs ? rs.border : T.border}`,
-                          background: card.rarity === 'LEGENDARY'
-                            ? 'linear-gradient(160deg, #1f1200, #2a1600)'
-                            : card.revealed
-                            ? 'linear-gradient(160deg, #0d1535, #0a1828)'
-                            : 'linear-gradient(160deg, #0e0e18, #0a0b14)',
-                          display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center',
-                          position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                          animation: card.rarity === 'LEGENDARY' ? 'legendGlow 2.8s ease-in-out infinite' : 'none',
-                          transition: 'transform 0.18s',
-                          '&:hover': { transform: 'scale(1.04)' },
-                        }}
-                      >
-                        {/* Rarity chip */}
-                        {rs && (
-                          <Box sx={{ position: 'absolute', top: 6, right: 6, px: 0.7, py: 0.2, borderRadius: 0.6, bgcolor: rs.chip, color: rs.fg, fontSize: '0.46rem', fontWeight: 800, letterSpacing: '0.05em' }}>
-                            {card.rarity}
-                          </Box>
-                        )}
-
-                        {/* Icon */}
-                        {card.revealed ? (
-                          <Package size={28} strokeWidth={1.25} color={rs?.chip || T.dimmed} />
-                        ) : (
-                          <Lock size={20} strokeWidth={1.5} color="rgba(255,255,255,0.2)" />
-                        )}
-
-                        {/* Label */}
-                        {card.label && (
-                          <Typography sx={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.65)', textAlign: 'center', px: 0.75, fontWeight: 600, lineHeight: 1.3, mt: 0.75 }}>
-                            {card.label}
-                          </Typography>
-                        )}
-
-                        {/* Locked price strip */}
-                        {!card.revealed && (
-                          <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, py: 0.6, textAlign: 'center', fontSize: '0.55rem', fontWeight: 800, color: T.green, bgcolor: 'rgba(0,0,0,0.65)', letterSpacing: '0.05em', fontFamily: T.mono }}>
-                            $9.99
-                          </Box>
-                        )}
-
-                        {/* Legendary shimmer */}
-                        {card.rarity === 'LEGENDARY' && (
-                          <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, transparent 25%, rgba(217,119,6,0.07) 50%, transparent 75%)', pointerEvents: 'none' }} />
-                        )}
-                      </Box>
-                    );
-                  })}
-                </Box>
-                <Typography sx={{ mt: 1.75, textAlign: 'center', fontSize: '0.68rem', color: T.dimmed, fontStyle: 'italic', fontFamily: T.mono }}>
-                  6-card pack preview — tap to open
-                </Typography>
-              </Box>
+                  Open a Pack — $9.99
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/live')}
+                  sx={{
+                    borderColor: 'rgba(255,255,255,0.14)', color: T.white,
+                    fontWeight: 600, px: 3.25, py: 1.4, borderRadius: 1.5,
+                    textTransform: 'none', fontSize: '0.92rem',
+                    fontFamily: "'Outfit', sans-serif",
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.22)' },
+                    '&:active': { transform: 'translateY(1px)' },
+                  }}
+                >
+                  Watch Live Breaks
+                </Button>
+              </Stack>
             </Box>
-          </Container>
+
+            {/* RIGHT — 3-col pack preview (hidden on mobile) */}
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.25 }}>
+                {PREVIEW_CARDS.map((card, i) => {
+                  const rs = card.rarity ? RARITY_STYLE[card.rarity] : null;
+                  return (
+                    <Box
+                      key={i}
+                      onClick={() => navigate('/packs')}
+                      sx={{
+                        aspectRatio: '0.68',
+                        borderRadius: '12px',
+                        border: `1px solid ${rs ? rs.border : T.border}`,
+                        background: card.rarity === 'LEGENDARY'
+                          ? 'linear-gradient(160deg, #1a0e00, #261400)'
+                          : card.revealed
+                          ? 'linear-gradient(160deg, #0d1535, #0a1828)'
+                          : 'linear-gradient(160deg, #0e0e18, #0a0b14)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        position: 'relative', overflow: 'hidden', cursor: 'pointer',
+                        animation: card.rarity === 'LEGENDARY' ? 'legendGlow 2.8s ease-in-out infinite' : 'none',
+                        transition: 'transform 0.18s',
+                        '&:hover': { transform: 'scale(1.04)' },
+                      }}
+                    >
+                      {rs && (
+                        <Box sx={{ position: 'absolute', top: 6, right: 6, px: 0.6, py: 0.2, borderRadius: '4px', bgcolor: rs.chip, color: rs.fg, fontSize: '0.42rem', fontWeight: 800, letterSpacing: '0.05em', fontFamily: T.mono }}>
+                          {card.rarity}
+                        </Box>
+                      )}
+                      {card.revealed ? (
+                        <Package size={card.rarity === 'LEGENDARY' ? 28 : 24} strokeWidth={1.25} color={rs?.chip || T.dimmed} />
+                      ) : (
+                        <Lock size={20} strokeWidth={1.5} color="rgba(255,255,255,0.2)" />
+                      )}
+                      {card.label && (
+                        <Typography sx={{ fontSize: '0.48rem', color: 'rgba(255,255,255,0.62)', textAlign: 'center', px: 0.75, fontWeight: 600, lineHeight: 1.3, mt: 0.75 }}>
+                          {card.label}
+                        </Typography>
+                      )}
+                      {!card.revealed && (
+                        <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, py: 0.5, textAlign: 'center', fontSize: '0.5rem', fontWeight: 800, color: T.green, bgcolor: 'rgba(0,0,0,0.65)', letterSpacing: '0.05em', fontFamily: T.mono }}>
+                          $9.99
+                        </Box>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+              <Typography sx={{ mt: 1.75, textAlign: 'center', fontSize: '0.65rem', color: 'rgba(240,240,245,0.28)', fontStyle: 'italic', fontFamily: T.mono }}>
+                6-card pack preview — tap to open
+              </Typography>
+            </Box>
+          </Box>
 
           {/* ── Drop countdown banner ── */}
           <Box
             sx={{
-              background: 'linear-gradient(90deg, rgba(217,119,6,0.06) 0%, rgba(239,68,68,0.04) 100%)',
-              borderTop: `1px solid rgba(217,119,6,0.14)`,
-              px: { xs: 2, md: 5 }, py: 1.4,
+              mt: { xs: 0, md: 5 },
+              background: 'linear-gradient(90deg, rgba(217,119,6,0.07) 0%, rgba(239,68,68,0.04) 100%)',
+              borderTop: `1px solid rgba(217,119,6,0.15)`,
+              px: { xs: 2.5, md: 5 }, py: 1.5,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               flexWrap: 'wrap', gap: 1.5,
             }}
@@ -805,16 +821,16 @@ export default function Home() {
             <Stack direction="row" spacing={0.6} alignItems="center">
               {[h, m, s].map((unit, i) => (
                 <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-                  <Box sx={{ bgcolor: 'rgba(217,119,6,0.1)', border: `1px solid rgba(217,119,6,0.2)`, borderRadius: 1, px: 1.25, py: 0.5, fontWeight: 800, fontSize: '0.82rem', color: '#fbbf24', fontFamily: T.mono, minWidth: 36, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                  <Box sx={{ bgcolor: 'rgba(217,119,6,0.1)', border: `1px solid rgba(217,119,6,0.22)`, borderRadius: '6px', px: 1.25, py: 0.5, fontWeight: 800, fontSize: '0.82rem', color: '#fbbf24', fontFamily: T.mono, minWidth: 36, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                     {unit}
                   </Box>
-                  {i < 2 && <Typography sx={{ color: 'rgba(217,119,6,0.45)', fontWeight: 400, fontSize: '0.8rem' }}>:</Typography>}
+                  {i < 2 && <Typography sx={{ color: 'rgba(217,119,6,0.4)', fontSize: '0.8rem' }}>:</Typography>}
                 </Box>
               ))}
               <Button
                 size="small"
                 onClick={() => navigate('/drops')}
-                sx={{ bgcolor: T.green, color: '#fff', fontWeight: 700, fontSize: '0.72rem', px: 1.75, py: 0.6, borderRadius: 1.25, textTransform: 'none', ml: 0.75, '&:hover': { bgcolor: '#059669' } }}
+                sx={{ bgcolor: T.green, color: '#fff', fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: '0.72rem', px: 1.75, py: 0.65, borderRadius: '8px', textTransform: 'none', ml: 0.75, '&:hover': { bgcolor: '#059669' }, boxShadow: 'none' }}
               >
                 Notify Me
               </Button>
@@ -822,14 +838,14 @@ export default function Home() {
           </Box>
         </Box>
 
-        {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        {/* ── MAIN CONTENT — max-width 960px, matches Concept A sections ── */}
+        <Box sx={{ maxWidth: 960, mx: 'auto', px: { xs: 2.5, md: 2.5 }, py: { xs: 5, md: 6.5 } }}>
 
-          {/* ── Open Now — pack grid (uses auction data as proxy) ── */}
-          <Box className="sec" sx={{ mb: { xs: 5, md: 7 } }}>
+          {/* ── Open Now ── */}
+          <Box className="sec" sx={{ mb: { xs: 5.5, md: 7 } }}>
             <SectionHeader title="Open Now" cta="See all packs" onCta={() => navigate('/packs')} />
             {loadingFeatured ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 1.5 } }}>
                 {[1,2,3,4].map(i => <CardSkeleton key={i} />)}
               </Box>
             ) : errorFeatured ? (
@@ -837,19 +853,19 @@ export default function Home() {
             ) : featured.length === 0 ? (
               <EmptyState icon={Package} message="No active listings yet — check back soon" />
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 1.5 } }}>
                 {featured.map(item => <AuctionCard key={item.id} item={item} />)}
               </Box>
             )}
           </Box>
 
           {/* ── Live Breaks — portrait card grid ── */}
-          <Box className="sec" sx={{ mb: { xs: 5, md: 7 } }}>
+          <Box className="sec" sx={{ mb: { xs: 5.5, md: 7 } }}>
             <SectionHeader title="Live Breaks" cta="See all streams" onCta={() => navigate('/live')} />
             {loadingStreams ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 1.5 } }}>
                 {[1,2,3,4].map(i => (
-                  <Box key={i} sx={{ aspectRatio: '9/16', borderRadius: 3, overflow: 'hidden' }}>
+                  <Box key={i} sx={{ aspectRatio: '9/16', borderRadius: '14px', overflow: 'hidden' }}>
                     <Skeleton variant="rectangular" height="100%" sx={{ bgcolor: T.surfaceB }} />
                   </Box>
                 ))}
@@ -859,7 +875,7 @@ export default function Home() {
             ) : streams.length === 0 ? (
               <EmptyState icon={Radio} message="No live or upcoming breaks right now" />
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 2 } }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 1.5 } }}>
                 {streams.slice(0, 4).map(s => <StreamCard key={s.id} stream={s} />)}
               </Box>
             )}
@@ -868,7 +884,7 @@ export default function Home() {
           {/* ── Trending ── */}
           <Box className="sec">
             <SectionHeader title="Trending This Week" cta="View marketplace" onCta={() => navigate('/marketplace')} />
-            <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5, overflow: 'hidden' }}>
+            <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: '14px', overflow: 'hidden' }}>
               {loadingTrending ? (
                 <TrendingSkeleton />
               ) : errorTrending ? (
@@ -882,31 +898,28 @@ export default function Home() {
                     onClick={() => navigate(`/auction/${item.id}`)}
                     sx={{
                       display: 'grid', gridTemplateColumns: '28px 1fr auto auto',
-                      alignItems: 'center', gap: { xs: 1.5, md: 2 },
-                      px: 2.5, py: 1.75,
-                      borderBottom: idx < trending.length - 1 ? `1px solid ${T.border}` : 'none',
-                      cursor: 'pointer', transition: 'background 0.13s',
+                      alignItems: 'center', gap: { xs: 1.5, md: 1.75 },
+                      px: 2.25, py: 1.75,
+                      borderBottom: idx < trending.length - 1 ? `1px solid rgba(255,255,255,0.05)` : 'none',
+                      cursor: 'pointer', transition: 'background 0.12s',
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.025)' },
-                      '&:active': { bgcolor: 'rgba(255,255,255,0.04)' },
                     }}
                   >
-                    <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.dimmed, fontWeight: 500 }}>
+                    <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: 'rgba(240,240,245,0.22)', fontWeight: 700, textAlign: 'center' }}>
                       {String(idx + 1).padStart(2, '0')}
                     </Typography>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.84rem', color: T.white, lineHeight: 1.3 }} noWrap>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: T.white, lineHeight: 1.3 }} noWrap>
                         {item.title}
                       </Typography>
-                      <Typography sx={{ fontSize: '0.63rem', color: T.dimmed, fontFamily: T.mono }}>
+                      <Typography sx={{ fontSize: '0.62rem', color: 'rgba(240,240,245,0.35)', fontFamily: T.mono, mt: 0.25 }}>
                         {item.bid_count} bid{item.bid_count !== 1 ? 's' : ''} · {item.category}
                       </Typography>
                     </Box>
-                    <Chip
-                      label={`+${Math.floor(Math.random() * 20 + 3)}%`}
-                      size="small"
-                      sx={{ bgcolor: 'rgba(16,185,129,0.1)', color: T.green, fontSize: '0.62rem', fontWeight: 700, height: 20, '& .MuiChip-label': { px: 0.85 } }}
-                    />
-                    <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '0.85rem', color: T.blue, minWidth: 60, textAlign: 'right' }}>
+                    <Typography sx={{ fontFamily: T.mono, fontSize: '0.62rem', color: 'rgba(240,240,245,0.3)', textAlign: 'right' }}>
+                      {item.bid_count} bids
+                    </Typography>
+                    <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '0.88rem', color: T.blue, minWidth: 56, textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {formatCurrency(item.current_bid)}
                     </Typography>
                   </Box>
@@ -915,7 +928,7 @@ export default function Home() {
             </Box>
           </Box>
 
-        </Container>
+        </Box>
       </Box>
 
       <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
