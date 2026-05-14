@@ -20,10 +20,8 @@ import {
   getLiveAndUpcomingStreams,
   getTrendingAuctions,
   getFeaturedAuctions,
-  LiveStream,
-  TrendingAuction,
-  FeaturedAuction,
 } from '../api/home';
+import type { LiveStream, TrendingAuction, FeaturedAuction } from '../api/home';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -33,8 +31,8 @@ const T = {
   border:   'rgba(255,255,255,0.06)',
   borderLit:'rgba(255,255,255,0.12)',
   live:     '#ef4444',
-  gold:     '#d97706',      // amber-600, desaturated from pure yellow
-  teal:     '#0d9488',      // teal-600 as price accent
+  gold:     '#d97706',
+  teal:     '#0078FF',      // InkStash primary blue
   blue:     '#0078FF',
   white:    '#f1f5f9',      // slate-100, never pure white
   muted:    'rgba(241,245,249,0.45)',
