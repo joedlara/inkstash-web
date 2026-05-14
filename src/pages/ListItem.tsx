@@ -52,17 +52,15 @@ const CONDITION_OPTIONS = [
   { value: 'used-poor', label: 'Used - Poor' },
 ];
 
-// Category options
+// Category options — comic-niche only
 const CATEGORY_OPTIONS = [
-  { value: 'tcg-trading-cards', label: 'TCG - Trading Cards' },
-  { value: 'pokemon-cards', label: 'Pokemon Cards' },
-  { value: 'sports-cards', label: 'Sports cards' },
-  { value: 'funko-pop', label: 'Funko pop' },
-  { value: 'action-figures', label: 'Action figures' },
-  { value: 'comics', label: 'Comics & graphic novels' },
-  { value: 'art-prints', label: 'Art Prints' },
-  { value: 'video-games', label: 'Video Games' },
-  { value: 'other', label: 'Other' },
+  { value: 'floppies', label: 'Floppies (Single Issues)' },
+  { value: 'trade-paperbacks', label: 'Trade Paperbacks / OGNs' },
+  { value: 'graded-slabs', label: 'Graded Slabs (CGC, CBCS, PGX)' },
+  { value: 'variant-covers', label: 'Variant Covers' },
+  { value: 'keys-first-appearances', label: 'Keys & First Appearances' },
+  { value: 'golden-silver-age', label: 'Golden Age / Silver Age' },
+  { value: 'limited-signed', label: 'Limited Edition / Signed' },
 ];
 import DashboardHeader from '../components/home/DashboardHeader';
 import PhotoUploadSection from '../components/listing/PhotoUploadSection';
@@ -601,7 +599,7 @@ export default function ListItem() {
                 <TextField
                   fullWidth
                   ref={searchInputRef}
-                  placeholder="Tell us what you're selling (e.g., Funko Pop Luffy Gear 5)"
+                  placeholder="Tell us what you're selling (e.g., Amazing Spider-Man #300 CGC 9.8)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={handleSearchFocus}
