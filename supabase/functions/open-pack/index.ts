@@ -57,7 +57,9 @@ serve(async (req) => {
     // @ts-expect-error Deno env
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    const userClient = createClient(supabaseUrl, serviceRoleKey, {
+    // @ts-expect-error Deno env
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     })
     const serviceClient = createClient(supabaseUrl, serviceRoleKey)
@@ -143,6 +145,14 @@ serve(async (req) => {
       decrementMap[selectedItem.id] = (decrementMap[selectedItem.id] || 0) + 1
     }
 
+    if (drawn.length === 0) {
+      return new Response(JSON.stringify({ error: 'Could not draw any items from this pack' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Decrement remaining counts — guarded by DB CHECK constraint (remaining >= 0)
     for (const [itemId, count] of Object.entries(decrementMap)) {
       const { data: currentItem } = await serviceClient
         .from('pack_items')
@@ -150,11 +160,12 @@ serve(async (req) => {
         .eq('id', itemId)
         .single()
 
-      if (currentItem) {
+      if (currentItem && currentItem.remaining >= count) {
         await serviceClient
           .from('pack_items')
-          .update({ remaining: Math.max(0, currentItem.remaining - count) })
+          .update({ remaining: currentItem.remaining - count })
           .eq('id', itemId)
+          .gte('remaining', count)  // extra guard: only update if remaining still sufficient
       }
     }
 
