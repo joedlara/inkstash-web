@@ -151,12 +151,12 @@ function ErrorRetry({ onRetry }: { onRetry: () => void }) {
 function SectionHeader({ title, cta, onCta }: { title: string; cta: string; onCta: () => void }) {
   return (
     <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5}>
-      <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1rem', color: T.white, letterSpacing: '-0.01em' }}>
+      <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '1.1rem', md: '1.25rem' }, color: T.white, letterSpacing: '-0.02em' }}>
         {title}
       </Typography>
       <Box
         onClick={onCta}
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.4, color: T.dimmed, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.15s', '&:hover': { color: T.white } }}
+        sx={{ display: 'flex', alignItems: 'center', gap: 0.4, color: T.dimmed, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'color 0.15s', '&:hover': { color: T.white } }}
       >
         {cta} <ChevronRight size={13} strokeWidth={2.5} />
       </Box>
@@ -181,7 +181,7 @@ function AuctionCard({ item }: { item: FeaturedAuction }) {
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      <Box sx={{ position: 'relative', height: { xs: 140, md: 165 }, overflow: 'hidden', bgcolor: T.surfaceB }}>
+      <Box sx={{ position: 'relative', height: { xs: 155, md: 185 }, overflow: 'hidden', bgcolor: T.surfaceB }}>
         <Box
           component="img"
           src={item.image_url || picsum(item.id)}
@@ -227,44 +227,56 @@ function StreamCard({ stream }: { stream: LiveStream }) {
     <Box
       onClick={() => navigate('/live')}
       sx={{
-        bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5,
-        overflow: 'hidden', cursor: 'pointer',
+        position: 'relative',
+        aspectRatio: '9/16',
+        borderRadius: 3,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        border: `1px solid ${stream.is_live ? 'rgba(239,68,68,0.18)' : T.border}`,
+        bgcolor: T.surfaceB,
         transition: 'border-color 0.18s, transform 0.18s',
-        '&:hover': { borderColor: 'rgba(239,68,68,0.3)', transform: 'translateY(-3px)' },
+        '&:hover': { borderColor: stream.is_live ? 'rgba(239,68,68,0.4)' : T.borderLit, transform: 'translateY(-4px)' },
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      <Box sx={{ position: 'relative', height: 130, overflow: 'hidden', bgcolor: T.surfaceB }}>
-        <Box
-          component="img"
-          src={stream.thumbnail_url || picsum(stream.id, 600, 280)}
-          alt={stream.title}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.src = picsum(stream.id + 'fb'); }}
-        />
-        <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,14,0.8) 0%, transparent 55%)' }} />
+      <Box
+        component="img"
+        src={stream.thumbnail_url || picsum(stream.id, 540, 960)}
+        alt={stream.title}
+        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.src = picsum(stream.id + 'fb', 540, 960); }}
+      />
 
-        <Box sx={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 0.6, bgcolor: stream.is_live ? T.live : 'rgba(8,8,14,0.7)', border: stream.is_live ? 'none' : `1px solid ${T.borderLit}`, color: '#fff', fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', px: 0.9, py: 0.35, borderRadius: 0.75 }}>
-          <Radio size={8} strokeWidth={2.5} style={stream.is_live ? { animation: 'livePulse 1.6s ease-in-out infinite' } : {}} />
-          {stream.is_live ? 'LIVE' : 'SOON'}
-        </Box>
+      {/* Bottom gradient */}
+      <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,14,0.96) 0%, rgba(8,8,14,0.5) 35%, transparent 60%)' }} />
 
-        {stream.is_live && (
-          <Box sx={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(8,8,14,0.75)', color: T.muted, fontSize: '0.6rem', fontWeight: 600, fontFamily: T.mono, px: 0.85, py: 0.3, borderRadius: 0.75 }}>
-            <Eye size={10} strokeWidth={2} />
-            {stream.current_viewers.toLocaleString()}
-          </Box>
-        )}
+      {/* LIVE / SOON badge */}
+      <Box sx={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 0.6, bgcolor: stream.is_live ? T.live : 'rgba(8,8,14,0.72)', border: stream.is_live ? 'none' : `1px solid ${T.borderLit}`, color: '#fff', fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', px: 1, py: 0.4, borderRadius: 0.75 }}>
+        <Radio size={8} strokeWidth={2.5} style={stream.is_live ? { animation: 'livePulse 1.6s ease-in-out infinite' } : {}} />
+        {stream.is_live ? 'LIVE' : 'SOON'}
       </Box>
 
-      <Box sx={{ p: 1.75, display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
-        <Avatar src={stream.seller_avatar || undefined} sx={{ width: 28, height: 28, flexShrink: 0, fontSize: '0.7rem', bgcolor: T.blue }}>
-          {stream.seller_username?.[0]?.toUpperCase()}
-        </Avatar>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: T.white, lineHeight: 1.3 }} noWrap>{stream.title}</Typography>
-          <Typography sx={{ fontSize: '0.67rem', color: T.dimmed, fontFamily: T.mono, mt: 0.25 }}>@{stream.seller_username || 'inkstash'}</Typography>
+      {/* Viewer count */}
+      {stream.is_live && (
+        <Box sx={{ position: 'absolute', top: 10, right: 10, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(8,8,14,0.72)', color: T.muted, fontSize: '0.6rem', fontWeight: 600, fontFamily: T.mono, px: 0.85, py: 0.4, borderRadius: 0.75 }}>
+          <Eye size={10} strokeWidth={2} />
+          {stream.current_viewers.toLocaleString()}
         </Box>
+      )}
+
+      {/* Info overlay at bottom */}
+      <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.6 }}>
+          <Avatar src={stream.seller_avatar || undefined} sx={{ width: 24, height: 24, flexShrink: 0, fontSize: '0.6rem', bgcolor: T.blue }}>
+            {stream.seller_username?.[0]?.toUpperCase()}
+          </Avatar>
+          <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: 'rgba(241,245,249,0.65)' }} noWrap>
+            @{stream.seller_username || 'inkstash'}
+          </Typography>
+        </Box>
+        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: T.white, lineHeight: 1.3 }} noWrap>
+          {stream.title}
+        </Typography>
       </Box>
     </Box>
   );
@@ -831,20 +843,24 @@ export default function Home() {
             )}
           </Box>
 
-          {/* ── Live Breaks — 3-col ── */}
+          {/* ── Live Breaks — portrait card grid ── */}
           <Box className="sec" sx={{ mb: { xs: 5, md: 7 } }}>
             <SectionHeader title="Live Breaks" cta="See all streams" onCta={() => navigate('/live')} />
             {loadingStreams ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3,1fr)' }, gap: 2 }}>
-                {[1,2,3].map(i => <CardSkeleton key={i} />)}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 2 } }}>
+                {[1,2,3,4].map(i => (
+                  <Box key={i} sx={{ aspectRatio: '9/16', borderRadius: 3, overflow: 'hidden' }}>
+                    <Skeleton variant="rectangular" height="100%" sx={{ bgcolor: T.surfaceB }} />
+                  </Box>
+                ))}
               </Box>
             ) : errorStreams ? (
               <ErrorRetry onRetry={loadData} />
             ) : streams.length === 0 ? (
               <EmptyState icon={Radio} message="No live or upcoming breaks right now" />
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3,1fr)' }, gap: 2 }}>
-                {streams.slice(0, 3).map(s => <StreamCard key={s.id} stream={s} />)}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' }, gap: { xs: 1.5, md: 2 } }}>
+                {streams.slice(0, 4).map(s => <StreamCard key={s.id} stream={s} />)}
               </Box>
             )}
           </Box>
