@@ -25,6 +25,8 @@ import {
   getFeaturedAuctions,
 } from '../api/home';
 import type { LiveStream, TrendingAuction, FeaturedAuction } from '../api/home';
+import { dropsAPI } from '../api/dropsRaffles';
+import type { Drop } from '../api/dropsRaffles';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -80,18 +82,13 @@ function picsum(seed: string, w = 480, h = 300): string {
   return `https://picsum.photos/seed/${num}/${w}/${h}`;
 }
 
-// ── Countdown hook ────────────────────────────────────────────────────────────
-function useCountdown(totalSeconds: number) {
-  const [secs, setSecs] = useState(totalSeconds);
+// ── Next drop hook ────────────────────────────────────────────────────────────
+function useNextDrop() {
+  const [drop, setDrop] = useState<Drop | null>(null);
   useEffect(() => {
-    const id = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
+    dropsAPI.getNextUpcoming().then(setDrop).catch(() => setDrop(null));
   }, []);
-  return [
-    String(Math.floor(secs / 3600)).padStart(2, '0'),
-    String(Math.floor((secs % 3600) / 60)).padStart(2, '0'),
-    String(secs % 60).padStart(2, '0'),
-  ] as const;
+  return drop;
 }
 
 // ── Hero pack preview cards ───────────────────────────────────────────────────
@@ -283,7 +280,16 @@ function SplashPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [h, m, s] = useCountdown(2 * 3600 + 34 * 60 + 11);
+  const nextDrop = useNextDrop();
+  const dropTarget = nextDrop?.drop_at ?? new Date(Date.now() + 9999 * 3600000).toISOString();
+  const [dropSecs, setDropSecs] = useState(() => Math.max(0, Math.floor((new Date(dropTarget).getTime() - Date.now()) / 1000)));
+  useEffect(() => {
+    const id = setInterval(() => setDropSecs(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [dropTarget]);
+  const h = String(Math.floor(dropSecs / 3600)).padStart(2, '0');
+  const m = String(Math.floor((dropSecs % 3600) / 60)).padStart(2, '0');
+  const s = String(dropSecs % 60).padStart(2, '0');
 
   const handleGoogle = async () => {
     try {
@@ -430,7 +436,9 @@ function SplashPage() {
             <Box sx={{ mt: 4, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                 <Box sx={{ width: 6, height: 6, bgcolor: T.gold, borderRadius: '50%', animation: 'livePulse 1.6s ease-in-out infinite' }} />
-                <Typography sx={{ color: T.gold, fontWeight: 700, fontSize: '0.72rem' }}>Next Drop</Typography>
+                <Typography sx={{ color: T.gold, fontWeight: 700, fontSize: '0.72rem' }}>
+                {nextDrop ? `Next Drop: ${nextDrop.name}` : 'Next Drop'}
+              </Typography>
               </Box>
               <Stack direction="row" spacing={0.5} alignItems="center">
                 {[h, m, s].map((unit, i) => (
@@ -552,7 +560,16 @@ export default function Home() {
   const [errorTrending, setErrorTrending] = useState(false);
   const [errorFeatured, setErrorFeatured] = useState(false);
 
-  const [h, m, s] = useCountdown(2 * 3600 + 34 * 60 + 11);
+  const nextDrop = useNextDrop();
+  const dropTarget = nextDrop?.drop_at ?? new Date(Date.now() + 9999 * 3600000).toISOString();
+  const [dropSecs, setDropSecs] = useState(() => Math.max(0, Math.floor((new Date(dropTarget).getTime() - Date.now()) / 1000)));
+  useEffect(() => {
+    const id = setInterval(() => setDropSecs(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [dropTarget]);
+  const h = String(Math.floor(dropSecs / 3600)).padStart(2, '0');
+  const m = String(Math.floor((dropSecs % 3600) / 60)).padStart(2, '0');
+  const s = String(dropSecs % 60).padStart(2, '0');
 
   const loadData = useCallback(async () => {
     setLoadingStreams(true); setLoadingTrending(true); setLoadingFeatured(true);
@@ -770,7 +787,7 @@ export default function Home() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
               <Box sx={{ width: 7, height: 7, bgcolor: T.gold, borderRadius: '50%', animation: 'livePulse 1.6s ease-in-out infinite', flexShrink: 0 }} />
               <Typography sx={{ color: T.gold, fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.01em' }}>
-                Next Drop: Image Comics × InkStash "Spawn Origins Pack"
+                {nextDrop ? `Next Drop: ${nextDrop.partner} — "${nextDrop.name}"` : 'Next Drop: Loading...'}
               </Typography>
             </Box>
             <Stack direction="row" spacing={0.6} alignItems="center">
