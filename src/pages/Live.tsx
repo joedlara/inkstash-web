@@ -83,17 +83,8 @@ function formatViewers(n: number): string {
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 function StreamSkeleton() {
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5, overflow: 'hidden' }}>
-      <Skeleton variant="rectangular" height={190} sx={{ bgcolor: T.surfaceB }} />
-      <Box sx={{ p: 2 }}>
-        <Stack direction="row" gap={1.25} alignItems="flex-start">
-          <Skeleton variant="circular" width={32} height={32} sx={{ bgcolor: T.surfaceB, flexShrink: 0 }} />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Skeleton variant="text" width="80%" sx={{ bgcolor: T.surfaceB, mb: 0.5 }} />
-            <Skeleton variant="text" width="45%" sx={{ bgcolor: T.surfaceB }} />
-          </Box>
-        </Stack>
-      </Box>
+    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden', aspectRatio: '9/16' }}>
+      <Skeleton variant="rectangular" sx={{ width: '100%', height: '100%', bgcolor: T.surfaceB }} />
     </Box>
   );
 }
@@ -103,7 +94,7 @@ function EmptySection({ message }: { message: string }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 1.5 }}>
       <Tv size={30} strokeWidth={1.25} color={T.dimmed} />
-      <Typography sx={{ fontSize: '0.82rem', color: T.dimmed, fontFamily: T.mono }}>{message}</Typography>
+      <Typography sx={{ fontSize: '0.9rem', color: T.muted, fontFamily: T.mono }}>{message}</Typography>
     </Box>
   );
 }
@@ -112,11 +103,11 @@ function EmptySection({ message }: { message: string }) {
 function ErrorRetry({ onRetry }: { onRetry: () => void }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 4 }}>
-      <AlertCircle size={15} strokeWidth={1.5} color={T.dimmed} />
-      <Typography sx={{ fontSize: '0.78rem', color: T.dimmed }}>Failed to load streams.</Typography>
+      <AlertCircle size={15} strokeWidth={1.5} color={T.muted} />
+      <Typography sx={{ fontSize: '0.85rem', color: T.muted }}>Failed to load streams.</Typography>
       <Box
         onClick={onRetry}
-        sx={{ fontSize: '0.78rem', color: T.blue, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+        sx={{ fontSize: '0.85rem', fontWeight: 600, color: T.blue, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
       >
         Retry
       </Box>
@@ -126,16 +117,18 @@ function ErrorRetry({ onRetry }: { onRetry: () => void }) {
 
 // ── Stream card ───────────────────────────────────────────────────────────────
 function StreamCard({ stream }: { stream: Stream }) {
-  const imgSrc = stream.thumbnail_url || picsum(stream.id);
+  const imgSrc = stream.thumbnail_url || picsum(stream.id, 540, 960);
 
   return (
     <Box
       sx={{
+        position: 'relative',
         bgcolor: T.surface,
         border: `1px solid ${stream.is_live ? 'rgba(239,68,68,0.0)' : T.border}`,
-        borderRadius: 2.5,
+        borderRadius: 3,
         overflow: 'hidden',
         cursor: 'pointer',
+        aspectRatio: '9/16',
         transition: 'border-color 0.18s, transform 0.18s, box-shadow 0.18s',
         '&:hover': {
           transform: 'translateY(-4px)',
@@ -145,149 +138,175 @@ function StreamCard({ stream }: { stream: Stream }) {
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      {/* Thumbnail */}
-      <Box sx={{ position: 'relative', height: { xs: 170, md: 190 }, overflow: 'hidden', bgcolor: T.surfaceB }}>
-        <Box
-          component="img"
-          src={imgSrc}
-          alt={stream.title}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-            e.currentTarget.src = picsum(stream.id + '_fb');
-          }}
-        />
-        {/* Gradient overlay */}
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(to top, rgba(8,8,14,0.88) 0%, rgba(8,8,14,0.1) 55%, transparent 100%)',
-          }}
-        />
+      {/* Thumbnail fills the entire card */}
+      <Box
+        component="img"
+        src={imgSrc}
+        alt={stream.title}
+        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+          e.currentTarget.src = picsum(stream.id + '_fb', 540, 960);
+        }}
+      />
 
-        {/* LIVE / SOON badge — top-left */}
+      {/* LIVE / SOON badge — top-left */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 10,
+          left: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.6,
+          bgcolor: stream.is_live ? T.live : 'rgba(8,8,14,0.75)',
+          border: stream.is_live ? 'none' : `1px solid ${T.borderLit}`,
+          color: '#fff',
+          fontSize: '0.6rem',
+          fontWeight: 800,
+          letterSpacing: '0.08em',
+          px: 0.9,
+          py: 0.4,
+          borderRadius: 0.75,
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <Radio
+          size={9}
+          strokeWidth={2.5}
+          style={stream.is_live ? { animation: 'livePulse 1.6s ease-in-out infinite' } : {}}
+        />
+        {stream.is_live ? 'LIVE' : 'SOON'}
+      </Box>
+
+      {/* Viewer count — top-right (live only) */}
+      {stream.is_live && (
         <Box
           sx={{
             position: 'absolute',
             top: 10,
-            left: 10,
+            right: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: 0.6,
-            bgcolor: stream.is_live ? T.live : 'rgba(8,8,14,0.75)',
-            border: stream.is_live ? 'none' : `1px solid ${T.borderLit}`,
-            color: '#fff',
-            fontSize: '0.58rem',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            px: 0.9,
+            gap: 0.5,
+            bgcolor: 'rgba(8,8,14,0.75)',
+            color: T.white,
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            fontFamily: T.mono,
+            px: 0.85,
             py: 0.4,
             borderRadius: 0.75,
+            backdropFilter: 'blur(8px)',
           }}
         >
-          <Radio
-            size={8}
-            strokeWidth={2.5}
-            style={stream.is_live ? { animation: 'livePulse 1.6s ease-in-out infinite' } : {}}
-          />
-          {stream.is_live ? 'LIVE' : 'SOON'}
+          <Eye size={11} strokeWidth={2} />
+          {formatViewers(stream.current_viewers)}
         </Box>
+      )}
 
-        {/* Viewer count — bottom-right (live only) */}
-        {stream.is_live && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 10,
-              right: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              bgcolor: 'rgba(8,8,14,0.75)',
-              color: T.muted,
-              fontSize: '0.6rem',
-              fontWeight: 600,
-              fontFamily: T.mono,
-              px: 0.85,
-              py: 0.35,
-              borderRadius: 0.75,
-            }}
-          >
-            <Eye size={10} strokeWidth={2} />
-            {formatViewers(stream.current_viewers)}
-          </Box>
-        )}
-
-        {/* Scheduled time — bottom-right (scheduled only) */}
-        {!stream.is_live && stream.scheduled_start_time && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 10,
-              right: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              bgcolor: 'rgba(8,8,14,0.75)',
-              color: T.muted,
-              fontSize: '0.6rem',
-              fontWeight: 600,
-              fontFamily: T.mono,
-              px: 0.85,
-              py: 0.35,
-              borderRadius: 0.75,
-            }}
-          >
-            <Calendar size={10} strokeWidth={2} />
-            {formatTime(stream.scheduled_start_time)}
-          </Box>
-        )}
-      </Box>
-
-      {/* Card body */}
-      <Box sx={{ p: { xs: 1.5, md: 1.75 }, display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
-        <Avatar
-          src={stream.seller_avatar || undefined}
+      {/* Scheduled time — top-right (scheduled only) */}
+      {!stream.is_live && stream.scheduled_start_time && (
+        <Box
           sx={{
-            width: 30,
-            height: 30,
-            flexShrink: 0,
-            fontSize: '0.7rem',
-            bgcolor: T.blue,
-            border: stream.is_live ? `1.5px solid rgba(239,68,68,0.5)` : `1.5px solid ${T.border}`,
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            bgcolor: 'rgba(8,8,14,0.75)',
+            color: T.white,
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            fontFamily: T.mono,
+            px: 0.85,
+            py: 0.4,
+            borderRadius: 0.75,
+            backdropFilter: 'blur(8px)',
           }}
         >
-          {(stream.seller_username?.[0] ?? 'I').toUpperCase()}
-        </Avatar>
-
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            sx={{ fontWeight: 700, fontSize: '0.85rem', color: T.white, lineHeight: 1.35, mb: 0.3 }}
-            noWrap
-          >
-            {stream.title}
-          </Typography>
-          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-            <Typography sx={{ fontSize: '0.66rem', color: T.dimmed, fontFamily: T.mono }}>
-              @{stream.seller_username ?? 'inkstash'}
-            </Typography>
-            {stream.category && (
-              <Chip
-                label={stream.category}
-                size="small"
-                sx={{
-                  height: 16,
-                  fontSize: '0.55rem',
-                  fontWeight: 700,
-                  bgcolor: 'rgba(0,120,255,0.1)',
-                  color: T.blue,
-                  border: `1px solid rgba(0,120,255,0.2)`,
-                  '& .MuiChip-label': { px: 0.75 },
-                }}
-              />
-            )}
-          </Stack>
+          <Calendar size={11} strokeWidth={2} />
+          {formatTime(stream.scheduled_start_time)}
         </Box>
+      )}
+
+      {/* Bottom glass overlay — title + streamer */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: 1.5,
+          background: 'linear-gradient(to top, rgba(8,8,14,0.92) 0%, rgba(8,8,14,0.4) 50%, transparent 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+      >
+        <Typography
+          sx={{
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: T.white,
+            lineHeight: 1.25,
+            letterSpacing: '-0.01em',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+          }}
+        >
+          {stream.title}
+        </Typography>
+        <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
+          <Avatar
+            src={stream.seller_avatar || undefined}
+            sx={{
+              width: 24,
+              height: 24,
+              flexShrink: 0,
+              fontSize: '0.65rem',
+              bgcolor: T.blue,
+              border: stream.is_live ? `1.5px solid rgba(239,68,68,0.6)` : `1.5px solid rgba(255,255,255,0.2)`,
+            }}
+          >
+            {(stream.seller_username?.[0] ?? 'I').toUpperCase()}
+          </Avatar>
+          <Typography
+            sx={{
+              fontSize: '0.72rem',
+              color: T.white,
+              fontFamily: T.mono,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              opacity: 0.85,
+            }}
+          >
+            @{stream.seller_username ?? 'inkstash'}
+          </Typography>
+          {stream.category && (
+            <Chip
+              label={stream.category}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.6rem',
+                fontWeight: 700,
+                bgcolor: 'rgba(0,120,255,0.2)',
+                color: '#7ab8ff',
+                border: `1px solid rgba(0,120,255,0.3)`,
+                backdropFilter: 'blur(8px)',
+                flexShrink: 0,
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          )}
+        </Stack>
       </Box>
     </Box>
   );
@@ -297,12 +316,12 @@ function StreamCard({ stream }: { stream: Stream }) {
 function SectionLabel({ icon: Icon, label, count, color }: { icon: React.ElementType; label: string; count: number; color: string }) {
   return (
     <Stack direction="row" alignItems="center" gap={1.25} mb={2.5}>
-      <Icon size={16} strokeWidth={2} color={color} />
+      <Icon size={18} strokeWidth={2} color={color} />
       <Typography
         sx={{
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 800,
-          fontSize: '0.95rem',
+          fontSize: '1.1rem',
           color: T.white,
           letterSpacing: '-0.01em',
         }}
@@ -312,8 +331,8 @@ function SectionLabel({ icon: Icon, label, count, color }: { icon: React.Element
       <Box
         sx={{
           bgcolor: color === T.live ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-          color: color === T.live ? T.live : T.dimmed,
-          fontSize: '0.62rem',
+          color: color === T.live ? T.live : T.muted,
+          fontSize: '0.7rem',
           fontWeight: 700,
           fontFamily: T.mono,
           px: 0.85,
@@ -457,7 +476,7 @@ export default function Live() {
                 >
                   Live Breaks
                 </Typography>
-                <Typography sx={{ fontSize: '0.9rem', color: T.muted, lineHeight: 1.5, maxWidth: 420 }}>
+                <Typography sx={{ fontSize: '0.95rem', color: T.muted, lineHeight: 1.5, maxWidth: 460 }}>
                   Watch collectors break packs, auction keys, and drop exclusives
                 </Typography>
               </Box>
@@ -572,8 +591,8 @@ export default function Live() {
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
-                    gap: { xs: 2, md: 2.5 },
+                    gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' },
+                    gap: { xs: 1.5, md: 2 },
                   }}
                 >
                   {[1, 2, 3].map(i => <StreamSkeleton key={i} />)}
@@ -588,8 +607,8 @@ export default function Live() {
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
-                    gap: { xs: 2, md: 2.5 },
+                    gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' },
+                    gap: { xs: 1.5, md: 2 },
                   }}
                 >
                   {[1, 2, 3].map(i => <StreamSkeleton key={i} />)}

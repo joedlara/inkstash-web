@@ -41,8 +41,8 @@ function PackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: string) 
   const soldOut = pack.status === 'sold_out';
 
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: soldOut ? 'default' : 'pointer', transition: 'border-color 0.18s, transform 0.18s', '&:hover': soldOut ? {} : { borderColor: T.borderLit, transform: 'translateY(-4px)' } }}>
-      <Box sx={{ position: 'relative', aspectRatio: '400/520', overflow: 'hidden' }}>
+    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: soldOut ? 'default' : 'pointer', transition: 'border-color 0.18s, transform 0.18s', '&:hover': soldOut ? {} : { borderColor: T.borderLit, transform: 'translateY(-4px)' } }}>
+      <Box sx={{ position: 'relative', height: { xs: 160, md: 200 }, overflow: 'hidden' }}>
         {pack.cover_image ? (
           <Box component="img" src={pack.cover_image} alt={pack.name} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: soldOut ? 'grayscale(60%) brightness(0.65)' : 'none', transition: 'transform 0.3s', '.MuiBox-root:hover &': soldOut ? {} : { transform: 'scale(1.03)' } }} />
         ) : (
@@ -55,31 +55,31 @@ function PackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: string) 
           {badge}
         </Box>
       </Box>
-      <Box sx={{ p: 2, pt: 1.75, display: 'flex', flexDirection: 'column', flex: 1, gap: 1 }}>
-        <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '0.95rem', color: T.white, lineHeight: 1.2, letterSpacing: '-0.01em' }}>{pack.name}</Typography>
-        <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, letterSpacing: '0.04em' }}>{pack.partner}</Typography>
+      <Box sx={{ p: { xs: 2, md: 2.5 }, display: 'flex', flexDirection: 'column', flex: 1, gap: 1 }}>
+        <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1rem', color: T.white, lineHeight: 1.2, letterSpacing: '-0.01em' }}>{pack.name}</Typography>
+        <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: T.muted, letterSpacing: '0.04em' }}>{pack.partner}</Typography>
         <Stack direction="row" alignItems="center" gap={0.75}>
-          <BookOpen size={11} strokeWidth={1.75} color={T.dimmed} />
-          <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.dimmed }}>{pack.item_count} comics per pack</Typography>
+          <BookOpen size={12} strokeWidth={1.75} color={T.muted} />
+          <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>{pack.item_count} comics per pack</Typography>
         </Stack>
         <Stack direction="row" alignItems="center" gap={1.25} flexWrap="wrap">
           <Stack direction="row" alignItems="center" gap={0.5}>
             <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: T.gold, flexShrink: 0 }} />
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>LEG {rarityLabel(pack.rarity_tiers)}</Typography>
+            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>LEG {rarityLabel(pack.rarity_tiers)}</Typography>
           </Stack>
           <Stack direction="row" alignItems="center" gap={0.5}>
             <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: T.blue, flexShrink: 0 }} />
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>RARE {Math.round(pack.rarity_tiers.rare * 100)}%</Typography>
+            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>RARE {Math.round(pack.rarity_tiers.rare * 100)}%</Typography>
           </Stack>
           <Stack direction="row" alignItems="center" gap={0.5}>
             <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#374151', flexShrink: 0 }} />
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.dimmed }}>COM {Math.round(pack.rarity_tiers.common * 100)}%</Typography>
+            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>COM {Math.round(pack.rarity_tiers.common * 100)}%</Typography>
           </Stack>
         </Stack>
         <Box sx={{ flex: 1 }} />
         <Stack direction="row" alignItems="center" justifyContent="space-between" mt={0.5}>
-          <Typography sx={{ fontFamily: T.mono, fontWeight: 700, fontSize: '1rem', color: soldOut ? T.dimmed : T.white }}>{soldOut ? '—' : `$${pack.price.toFixed(2)}`}</Typography>
-          <Button variant="contained" disabled={soldOut || opening} size="small" onClick={(e) => { e.stopPropagation(); onOpen(pack.id); }} sx={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', px: 2, py: 0.75, bgcolor: soldOut ? 'rgba(55,65,81,0.6)' : T.blue, color: soldOut ? '#6b7280' : '#fff', borderRadius: 1.25, boxShadow: 'none', '&:hover': { bgcolor: soldOut ? 'rgba(55,65,81,0.6)' : '#005fcc', boxShadow: 'none' }, '&.Mui-disabled': { bgcolor: 'rgba(55,65,81,0.6)', color: '#6b7280' } }}>
+          <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '1.1rem', color: soldOut ? T.dimmed : T.white }}>{soldOut ? '—' : `$${pack.price.toFixed(2)}`}</Typography>
+          <Button variant="contained" disabled={soldOut || opening} size="small" onClick={(e) => { e.stopPropagation(); onOpen(pack.id); }} sx={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', px: 2, py: 0.75, bgcolor: soldOut ? 'rgba(55,65,81,0.6)' : T.blue, color: soldOut ? '#6b7280' : '#fff', borderRadius: 1.25, boxShadow: 'none', '&:hover': { bgcolor: soldOut ? 'rgba(55,65,81,0.6)' : '#005fcc', boxShadow: 'none' }, '&.Mui-disabled': { bgcolor: 'rgba(55,65,81,0.6)', color: '#6b7280' } }}>
             {opening ? 'Opening...' : soldOut ? 'Sold Out' : 'Open Pack'}
           </Button>
         </Stack>
@@ -90,9 +90,9 @@ function PackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: string) 
 
 function PackCardSkeleton() {
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 2.5, overflow: 'hidden' }}>
-      <Skeleton variant="rectangular" sx={{ aspectRatio: '400/520', width: '100%', bgcolor: T.surfaceB }} />
-      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden' }}>
+      <Skeleton variant="rectangular" sx={{ height: { xs: 160, md: 200 }, width: '100%', bgcolor: T.surfaceB }} />
+      <Box sx={{ p: { xs: 2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Skeleton variant="text" width="70%" sx={{ bgcolor: T.surfaceB }} />
         <Skeleton variant="text" width="50%" sx={{ bgcolor: T.surfaceB }} />
         <Skeleton variant="rectangular" height={28} sx={{ bgcolor: T.surfaceB, borderRadius: 1 }} />
@@ -136,7 +136,7 @@ export default function Packs() {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, mb: 3, bgcolor: 'rgba(217,119,6,0.1)', border: `1px solid rgba(217,119,6,0.25)`, borderRadius: 1.5, gap: 1 }}>
             <Stack direction="row" alignItems="center" gap={1}>
               <Package size={14} strokeWidth={1.75} color={T.gold} />
-              <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.gold, letterSpacing: '0.02em' }}>Phase 2 — Pack purchasing goes live soon. These are preview cards.</Typography>
+              <Typography sx={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.gold, letterSpacing: '0.02em' }}>Phase 2 — Pack purchasing goes live soon. These are preview cards.</Typography>
             </Stack>
             <Box onClick={() => setNoticeDismissed(true)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: 'rgba(217,119,6,0.6)', flexShrink: 0, '&:hover': { color: T.gold }, transition: 'color 0.15s' }}>
               <X size={14} strokeWidth={2} />
@@ -146,18 +146,18 @@ export default function Packs() {
         {error && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1, mb: 2, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 1.5 }}>
             <AlertCircle size={14} color={T.live} />
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.live }}>{error}</Typography>
+            <Typography sx={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.live }}>{error}</Typography>
           </Box>
         )}
         <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} justifyContent="space-between" gap={2} mb={3.5}>
           <Box>
-            <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '1.6rem', md: '2rem' }, color: T.white, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Packs</Typography>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: T.muted, mt: 0.5, letterSpacing: '0.02em' }}>Blind bag comic packs — pull legendary keys, rare variants, and more</Typography>
+            <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2rem', md: '2.6rem' }, color: T.white, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Packs</Typography>
+            <Typography sx={{ fontSize: '0.85rem', color: T.muted, mt: 0.75, lineHeight: 1.5 }}>Blind bag comic packs — pull legendary keys, rare variants, and more</Typography>
           </Box>
           <Stack direction="row" gap={0.75} flexWrap="wrap">
             {FILTERS.map(f => {
               const active = f === activeFilter;
-              return <Chip key={f} label={f} onClick={() => setActiveFilter(f)} size="small" sx={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.04em', height: 28, bgcolor: active ? T.blue : T.surfaceB, color: active ? '#fff' : T.muted, border: `1px solid ${active ? T.blue : T.border}`, borderRadius: 1, cursor: 'pointer', transition: 'all 0.15s', '&:hover': { bgcolor: active ? '#005fcc' : T.surface, color: active ? '#fff' : T.white }, '& .MuiChip-label': { px: 1.25 } }} />;
+              return <Chip key={f} label={f} onClick={() => setActiveFilter(f)} size="small" sx={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', height: 30, bgcolor: active ? T.blue : T.surfaceB, color: active ? '#fff' : T.muted, border: `1px solid ${active ? T.blue : T.border}`, borderRadius: 1, cursor: 'pointer', transition: 'all 0.15s', '&:hover': { bgcolor: active ? '#005fcc' : T.surface, color: active ? '#fff' : T.white }, '& .MuiChip-label': { px: 1.5 } }} />;
             })}
           </Stack>
         </Stack>
