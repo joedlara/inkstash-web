@@ -76,9 +76,10 @@ VALUES
   ('11111111-0000-0000-0000-000000000006', 'Golden Age Mystery Box', 'InkStash House',   49.99, 4, '{"common":0.55,"rare":0.35,"legendary":0.10}', 'active',   'https://picsum.photos/seed/golden1/400/520', 'NEW')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed pack_items for the DC Legends Pack (pack 1)
+-- Seed pack_items for all active packs
 INSERT INTO public.pack_items (pack_id, comic_title, issue_number, grade, rarity, estimated_value, quantity, remaining)
 VALUES
+  -- DC Legends Pack
   ('11111111-0000-0000-0000-000000000001', 'Action Comics', '#1 Facsimile', 'Raw NM', 'legendary', 29.99, 50, 50),
   ('11111111-0000-0000-0000-000000000001', 'Batman', '#232 (1st Ra''s al Ghul)', 'Raw VF', 'rare', 89.99, 100, 100),
   ('11111111-0000-0000-0000-000000000001', 'Superman', '#75 (Death of Superman)', 'Raw NM', 'rare', 14.99, 200, 200),
@@ -86,4 +87,41 @@ VALUES
   ('11111111-0000-0000-0000-000000000001', 'Green Lantern', '#76 (Adams Run)', 'Raw VG', 'common', 8.99, 500, 500),
   ('11111111-0000-0000-0000-000000000001', 'The Flash', '#123 (Flash of Two Worlds)', 'Raw GD', 'common', 5.99, 500, 500),
   ('11111111-0000-0000-0000-000000000001', 'Justice League', '#1 (New 52)', 'Raw NM', 'common', 3.99, 1000, 1000),
-  ('11111111-0000-0000-0000-000000000001', 'Wonder Woman', '#1 (2016)', 'Raw NM', 'common', 2.99, 1000, 1000);
+  ('11111111-0000-0000-0000-000000000001', 'Wonder Woman', '#1 (2016)', 'Raw NM', 'common', 2.99, 1000, 1000),
+
+  -- Spider-Verse Keys
+  ('11111111-0000-0000-0000-000000000002', 'Amazing Fantasy', '#15 Facsimile', 'Raw NM', 'legendary', 39.99, 30, 30),
+  ('11111111-0000-0000-0000-000000000002', 'Amazing Spider-Man', '#300 (1st Venom)', 'Raw VF', 'rare', 124.99, 75, 75),
+  ('11111111-0000-0000-0000-000000000002', 'Miles Morales: Spider-Man', '#1', 'Raw NM', 'rare', 24.99, 150, 150),
+  ('11111111-0000-0000-0000-000000000002', 'Spider-Woman', '#1 (1978)', 'Raw FN', 'common', 9.99, 400, 400),
+  ('11111111-0000-0000-0000-000000000002', 'Web of Spider-Man', '#1', 'Raw VG', 'common', 4.99, 600, 600),
+  ('11111111-0000-0000-0000-000000000002', 'Spider-Man', '#1 (McFarlane)', 'Raw NM', 'common', 6.99, 500, 500),
+
+  -- Image Horror Bundle
+  ('11111111-0000-0000-0000-000000000003', 'Spawn', '#1 (Newsstand)', 'Raw NM', 'legendary', 49.99, 20, 20),
+  ('11111111-0000-0000-0000-000000000003', 'Saga', '#1', 'Raw NM', 'rare', 34.99, 100, 100),
+  ('11111111-0000-0000-0000-000000000003', 'The Walking Dead', '#1', 'Raw VF', 'rare', 79.99, 50, 50),
+  ('11111111-0000-0000-0000-000000000003', 'Spawn', '#1 (Direct)', 'Raw VG', 'common', 7.99, 500, 500),
+  ('11111111-0000-0000-0000-000000000003', 'Invincible', '#1', 'Raw FN', 'common', 12.99, 300, 300),
+  ('11111111-0000-0000-0000-000000000003', 'Savage Dragon', '#1', 'Raw NM', 'common', 5.99, 600, 600),
+  ('11111111-0000-0000-0000-000000000003', 'Witchblade', '#1', 'Raw VG', 'common', 4.99, 700, 700),
+
+  -- Marvel Silver Age
+  ('11111111-0000-0000-0000-000000000005', 'X-Men', '#1 Facsimile', 'Raw NM', 'legendary', 44.99, 25, 25),
+  ('11111111-0000-0000-0000-000000000005', 'Fantastic Four', '#48 (1st Silver Surfer)', 'Raw GD', 'legendary', 199.99, 10, 10),
+  ('11111111-0000-0000-0000-000000000005', 'Avengers', '#1 Facsimile', 'Raw NM', 'rare', 19.99, 150, 150),
+  ('11111111-0000-0000-0000-000000000005', 'Thor', '#165 (1st Adam Warlock)', 'Raw VG', 'rare', 44.99, 75, 75),
+  ('11111111-0000-0000-0000-000000000005', 'Iron Man', '#128 (Demon in a Bottle)', 'Raw FN', 'rare', 29.99, 100, 100),
+  ('11111111-0000-0000-0000-000000000005', 'Captain America', '#100', 'Raw GD', 'common', 14.99, 400, 400),
+  ('11111111-0000-0000-0000-000000000005', 'Daredevil', '#1 Facsimile', 'Raw NM', 'common', 6.99, 500, 500),
+  ('11111111-0000-0000-0000-000000000005', 'Sub-Mariner', '#1 (1968)', 'Raw VG', 'common', 8.99, 400, 400),
+
+  -- Golden Age Mystery Box
+  ('11111111-0000-0000-0000-000000000006', 'All-Star Comics', '#8 Facsimile (1st Wonder Woman)', 'Raw NM', 'legendary', 59.99, 15, 15),
+  ('11111111-0000-0000-0000-000000000006', 'Captain America Comics', '#1 Facsimile', 'Raw NM', 'legendary', 54.99, 15, 15),
+  ('11111111-0000-0000-0000-000000000006', 'More Fun Comics', '#101 (1st Superboy)', 'Raw GD', 'rare', 149.99, 20, 20),
+  ('11111111-0000-0000-0000-000000000006', 'Batman', '#1 Facsimile', 'Raw NM', 'rare', 24.99, 100, 100),
+  ('11111111-0000-0000-0000-000000000006', 'Adventure Comics', '#247 (1st Legion)', 'Raw VG', 'rare', 39.99, 60, 60),
+  ('11111111-0000-0000-0000-000000000006', 'Whiz Comics', '#2 Facsimile (1st Captain Marvel)', 'Raw NM', 'common', 9.99, 400, 400),
+  ('11111111-0000-0000-0000-000000000006', 'Master Comics', '#21 (1st Captain Marvel Jr.)', 'Raw GD', 'common', 6.99, 500, 500),
+  ('11111111-0000-0000-0000-000000000006', 'Green Lantern', '#1 (1941) Facsimile', 'Raw NM', 'common', 7.99, 500, 500);

@@ -88,14 +88,21 @@ export const packsAPI = {
   },
 
   async openPack(packId: string, stripePaymentIntentId?: string): Promise<OpenPackResult> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in to open a pack');
+
     const { data, error } = await supabase.functions.invoke('open-pack', {
       body: {
         pack_id: packId,
         stripe_payment_intent_id: stripePaymentIntentId ?? null,
       },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     });
 
     if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
     return data as OpenPackResult;
   },
 };

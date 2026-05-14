@@ -20,7 +20,7 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   const wasAuthenticated = useRef(false);
 
-  // Public routes that don't require authentication
+  // Public routes that don't require authentication (landing page only)
   const publicRoutes = [
     '/',
     '/login',
@@ -28,30 +28,37 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/forgot-password',
     '/reset-password',
     '/verify-email',
-    '/pieces',
-    '/artists',
-    '/livestreams',
-    '/auctions',
     '/about',
     '/contact',
     '/privacy',
     '/terms',
-    '/sell',
-    '/onboarding', // Onboarding is accessible to authenticated users only
+    '/onboarding',
   ];
 
   // Routes that should redirect authenticated users away
   const authRoutes = ['/login', '/signup', '/forgot-password'];
 
-  // Protected routes that require authentication
+  // All app routes require auth — anything not in publicRoutes is protected
   const protectedRoutes = [
-    '/dashboard',
-    '/profile',
+    '/packs',
+    '/pack-reveal',
+    '/live',
+    '/drops',
+    '/raffles',
+    '/marketplace',
+    '/sell',
+    '/item',
+    '/auction',
+    '/checkout',
+    '/order',
+    '/cart',
+    '/my-bids',
+    '/my-stash',
     '/settings',
-    '/collection',
-    '/messages',
-    '/notifications',
-    '/saved-items',
+    '/profile',
+    '/seller-dashboard',
+    '/seller-onboarding',
+    '/list-item',
   ];
 
   const isPublicRoute = (path: string): boolean => {
@@ -115,8 +122,8 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
       return;
     }
 
-    // If user is not authenticated and trying to access protected routes, redirect to home
-    if (!isAuthenticated && isProtectedRoute(currentPath)) {
+    // If user is not authenticated and on any non-public route, redirect to home
+    if (!isAuthenticated && !isPublicRoute(currentPath)) {
       navigate('/', {
         state: { from: location },
         replace: true,
