@@ -84,7 +84,8 @@ export default function SideNav({ collapsed }: SideNavProps) {
         <Box sx={{ mt: 'auto', pt: 1.75 }}>
           <Box
             component="button"
-            onClick={() => navigate('/sell/list-item')}
+            type="button"
+            onClick={() => navigate('/list-item')}
             sx={{
               width: '100%',
               background: colors.accent,
