@@ -1,4 +1,4 @@
-export const C = {
+export const colors = {
   bg:         '#f5f0e8',
   bgElev:     '#ffffff',
   bgSub:      '#ede6d8',
