@@ -1,95 +1,176 @@
-import { Link, useNavigate } from 'react-router-dom';
+// src/components/home/LiveBreaksRow.tsx
+import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
-import type { LiveStream } from '../../api/home';
-import { colors, easing, fonts } from '../../theme/conceptCTokens';
+import { LIVE_BREAKS, type LiveBreak } from '../../data/handoffSeed';
+import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface LiveBreaksRowProps {
-  streams: LiveStream[];
-  loading: boolean;
-  error: boolean;
+  breaks?: LiveBreak[];
 }
 
-const GRADIENTS = [
-  'linear-gradient(165deg,#1a4fc4,#0a1e54)',
-  'linear-gradient(165deg,#e82c2c,#5a0606)',
-  'linear-gradient(165deg,#0a0a0a,#3a3a3a)',
-  'linear-gradient(165deg,#f59e0b,#9a4d04)',
-];
-
-export default function LiveBreaksRow({ streams, loading, error }: LiveBreaksRowProps) {
+export default function LiveBreaksRow({ breaks = LIVE_BREAKS }: LiveBreaksRowProps) {
   const navigate = useNavigate();
 
   return (
-    <Box component="section" sx={{ mt: 5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="h2" sx={{
-          fontFamily: fonts.display, fontSize: '1.5rem', fontWeight: 800,
-          letterSpacing: '-0.02em', color: colors.ink, m: 0,
-        }}>Live Breaks</Box>
-        <Box component={Link} to="/live" sx={{
-          color: colors.inkSoft, textDecoration: 'none', fontSize: '0.84rem', fontWeight: 600,
-          transition: `color 180ms ${easing.out}`,
-          '&:hover': { color: colors.accent },
-        }}>See all streams →</Box>
+    <Box component="section" sx={{ mb: 5.5 }}>
+      <Box sx={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        mb: 2, gap: 2,
+      }}>
+        <Box>
+          <Box component="h2" sx={{
+            fontFamily: inkstashFonts.display, fontWeight: 800,
+            fontSize: 'clamp(22px, 3vw, 30px)',
+            letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+            color: inkstashColors.ink,
+          }}>Live Breaks</Box>
+          <Box sx={{ color: inkstashColors.muted, fontSize: 13, mt: 0.5 }}>
+            Watch collectors rip in real time and chat along
+          </Box>
+        </Box>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => navigate('/live')}
+          sx={{
+            bgcolor: 'transparent', border: 'none', cursor: 'pointer',
+            color: inkstashColors.muted, fontSize: 13, fontWeight: 500,
+            fontFamily: inkstashFonts.ui, padding: '6px 0',
+            transition: 'color 120ms ease',
+            '&:hover': { color: inkstashColors.ink },
+          }}
+        >
+          See all streams →
+        </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.75 }}>
-        {loading && Array.from({ length: 4 }).map((_, i) => (
-          <Box key={i} sx={{ bgcolor: colors.bgElev, border: `1px solid ${colors.line}`, borderRadius: '12px', height: 220 }} />
-        ))}
-
-        {!loading && !error && streams.length === 0 && (
-          <Box sx={{ gridColumn: '1 / -1', textAlign: 'center', color: colors.inkMute, py: 4 }}>
-            No live streams right now — check back soon.
-          </Box>
-        )}
-
-        {!loading && streams.slice(0, 4).map((s, i) => (
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+        gap: { xs: '10px', md: 2 },
+      }}>
+        {breaks.map(b => (
           <Box
-            key={s.id}
-            onClick={() => navigate(`/live/${s.id}`)}
+            key={b.id}
+            onClick={() => navigate('/live')}
             sx={{
-              bgcolor: colors.bgElev, border: `1px solid ${colors.line}`,
-              borderRadius: '12px', overflow: 'hidden',
+              borderRadius: inkstashRadii.lg,
+              overflow: 'hidden',
               cursor: 'pointer',
-              transition: `transform 220ms ${easing.out}, border-color 220ms ${easing.out}, box-shadow 220ms ${easing.out}`,
-              '&:hover': { transform: 'translateY(-3px)', borderColor: colors.lineStrong, boxShadow: '0 14px 36px rgba(20,17,13,0.08)' },
+              bgcolor: inkstashColors.ink,
+              transition: 'transform 140ms ease, box-shadow 140ms ease',
+              '&:hover': { transform: 'translateY(-3px)', boxShadow: inkstashShadows.lg },
             }}
           >
             <Box sx={{
-              aspectRatio: '9 / 16', maxHeight: 200,
-              background: GRADIENTS[i % GRADIENTS.length],
-              position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-              padding: 1.25, color: '#fff',
+              position: 'relative',
+              aspectRatio: '9 / 16',
+              overflow: 'hidden',
+              color: '#fff',
+              display: 'flex', alignItems: 'flex-end',
+              background: `linear-gradient(160deg, ${b.gradient[0]} 0%, ${b.gradient[1]} 100%)`,
+              '&::before': {
+                content: '""',
+                position: 'absolute', inset: 0,
+                background:
+                  'radial-gradient(circle at 50% 25%, rgba(255,255,255,0.14), transparent 50%),' +
+                  'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.85) 100%)',
+                pointerEvents: 'none',
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute', inset: 0,
+                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1.2px)',
+                backgroundSize: '10px 10px',
+                pointerEvents: 'none',
+                mixBlendMode: 'overlay',
+              },
             }}>
-              {s.is_live && (
-                <Box sx={{
-                  alignSelf: 'flex-start',
-                  display: 'inline-flex', alignItems: 'center', gap: 0.6,
-                  bgcolor: colors.accent, color: '#fff',
-                  px: 1, py: 0.3, borderRadius: '999px',
-                  fontFamily: fonts.mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em',
-                }}>
-                  <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#fff', animation: 'cd-pulse 1.6s ease-in-out infinite' }} />
-                  LIVE
-                </Box>
-              )}
+              {/* LIVE pill */}
               <Box sx={{
-                alignSelf: 'flex-end',
-                bgcolor: 'rgba(0,0,0,0.5)', fontFamily: fonts.mono,
-                fontSize: '0.72rem', fontWeight: 700,
-                px: 0.85, py: 0.3, borderRadius: '4px',
-              }}>{s.current_viewers.toLocaleString()} watching</Box>
-            </Box>
-            <Box sx={{ padding: 1.5 }}>
-              <Box sx={{ color: colors.ink, fontWeight: 700, fontSize: '0.86rem', lineHeight: 1.3, mb: 0.5 }}>{s.title}</Box>
-              <Box sx={{ color: colors.inkMute, fontFamily: fonts.mono, fontSize: '0.7rem' }}>
-                @{s.seller_username || 'unknown'}
+                position: 'absolute', top: 12, left: 12, zIndex: 3,
+                display: 'inline-flex', alignItems: 'center', gap: 0.65,
+                bgcolor: inkstashColors.live, color: '#fff',
+                fontFamily: inkstashFonts.mono, fontSize: 10.5, fontWeight: 700,
+                letterSpacing: '0.08em',
+                padding: '4px 10px 4px 8px', borderRadius: 999,
+                boxShadow: '0 2px 8px rgba(220,38,38,0.4)',
+              }}>
+                <Box sx={{
+                  width: 6, height: 6, borderRadius: '50%', bgcolor: '#fff',
+                  animation: 'inkstashLivePulse 1.4s ease-in-out infinite',
+                }} />
+                LIVE
+              </Box>
+
+              {/* Watcher count */}
+              <Box sx={{
+                position: 'absolute', top: 12, right: 12, zIndex: 3,
+                bgcolor: 'rgba(0,0,0,0.55)',
+                borderRadius: 999,
+                padding: '5px 10px',
+                fontFamily: inkstashFonts.mono,
+                display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                border: '1px solid rgba(255,255,255,0.12)',
+                backdropFilter: 'blur(6px)',
+                WebkitBackdropFilter: 'blur(6px)',
+              }}>
+                <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: '#fff', lineHeight: 1 }}>{b.viewers}</Box>
+                <Box component="span" sx={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>watching</Box>
+              </Box>
+
+              {/* Pack name overlay */}
+              <Box sx={{
+                position: 'absolute', top: '38%', left: '50%',
+                transform: 'translate(-50%, -50%) rotate(-3deg)',
+                fontFamily: inkstashFonts.display, fontWeight: 900,
+                fontSize: 'clamp(20px, 1.7vw, 26px)',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.95)',
+                letterSpacing: '0.01em', textAlign: 'center',
+                padding: '0 16px',
+                lineHeight: 0.95,
+                textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+                zIndex: 1,
+                maxWidth: '92%',
+              }}>{b.packLabel}</Box>
+
+              {/* Info overlay */}
+              <Box sx={{ position: 'relative', padding: '16px 16px 18px', zIndex: 2, width: '100%' }}>
+                <Box sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.85,
+                  fontFamily: inkstashFonts.mono, fontSize: 11.5,
+                  color: 'rgba(255,255,255,0.85)',
+                  mb: 1, fontWeight: 500,
+                }}>
+                  <Box sx={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontFamily: inkstashFonts.display,
+                    fontWeight: 800, fontSize: 11,
+                    border: '1.5px solid rgba(255,255,255,0.18)',
+                    flexShrink: 0,
+                  }}>{b.host[0].toUpperCase()}</Box>
+                  @{b.host}
+                </Box>
+                <Box sx={{
+                  fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3,
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden', textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                }}>{b.title}</Box>
               </Box>
             </Box>
           </Box>
         ))}
       </Box>
+
+      <style>{`
+        @keyframes inkstashLivePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+      `}</style>
     </Box>
   );
 }
