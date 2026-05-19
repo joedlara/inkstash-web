@@ -3,6 +3,7 @@ import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { Box } from '@mui/material';
 import AppSidebar from './AppSidebar';
 import AppTopnav from './AppTopnav';
+import { useSuppressMobileNav } from './MobileNavContext';
 import { inkstashColors, inkstashFonts, inkstashLayout } from '../../theme/inkstashTokens';
 
 const LS_KEY = 'inkstash.sidebar.collapsed';
@@ -12,6 +13,7 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children }: AppShellProps) {
+  useSuppressMobileNav();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(LS_KEY) === 'true';
