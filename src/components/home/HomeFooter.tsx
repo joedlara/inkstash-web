@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Box } from '@mui/material';
-import { colors, easing, fonts } from '../../theme/conceptCTokens';
+import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 const col1 = [
   { label: 'Home', to: '/' },
@@ -18,7 +18,7 @@ export default function HomeFooter() {
   return (
     <Box component="footer" sx={{
       mt: 7, pt: 3.5,
-      borderTop: `1px solid ${colors.line}`,
+      borderTop: `1px solid ${inkstashColors.border}`,
       display: 'flex', justifyContent: 'space-between',
       flexWrap: 'wrap', gap: 2.75,
     }}>
@@ -31,10 +31,10 @@ export default function HomeFooter() {
                 component={Link}
                 to={link.to}
                 sx={{
-                  color: colors.inkSoft, textDecoration: 'none',
+                  color: inkstashColors.ink2, textDecoration: 'none',
                   fontSize: '0.84rem', fontWeight: 500,
-                  transition: `color 160ms ${easing.out}`,
-                  '&:hover': { color: colors.ink },
+                  transition: 'color 160ms ease',
+                  '&:hover': { color: inkstashColors.ink },
                 }}
               >{link.label}</Box>
             ))}
@@ -42,7 +42,7 @@ export default function HomeFooter() {
         ))}
       </Box>
       <Box sx={{
-        color: colors.inkMute, fontFamily: fonts.mono, fontSize: '0.72rem',
+        color: inkstashColors.muted, fontFamily: inkstashFonts.mono, fontSize: '0.72rem',
         display: 'flex', alignItems: 'center', gap: 1,
         alignSelf: 'flex-end',
       }}>
