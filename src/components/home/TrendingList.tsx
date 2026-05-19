@@ -1,80 +1,103 @@
-import { Link, useNavigate } from 'react-router-dom';
+// src/components/home/TrendingList.tsx
+import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
-import type { TrendingAuction } from '../../api/home';
-import { colors, easing, fonts } from '../../theme/conceptCTokens';
+import { TRENDING_WEEK, type TrendingItem } from '../../data/handoffSeed';
+import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface TrendingListProps {
-  items: TrendingAuction[];
-  loading: boolean;
-  error: boolean;
+  items?: TrendingItem[];
 }
 
-export default function TrendingList({ items, loading, error }: TrendingListProps) {
+export default function TrendingList({ items = TRENDING_WEEK }: TrendingListProps) {
   const navigate = useNavigate();
 
   return (
-    <Box component="section" sx={{ mt: 5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="h2" sx={{
-          fontFamily: fonts.display, fontSize: '1.5rem', fontWeight: 800,
-          letterSpacing: '-0.02em', color: colors.ink, m: 0,
-        }}>Trending This Week</Box>
-        <Box component={Link} to="/marketplace" sx={{
-          color: colors.inkSoft, textDecoration: 'none', fontSize: '0.84rem', fontWeight: 600,
-          transition: `color 180ms ${easing.out}`,
-          '&:hover': { color: colors.accent },
-        }}>See marketplace →</Box>
+    <Box component="section" sx={{ mb: 5.5 }}>
+      <Box sx={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        mb: 2, gap: 2,
+      }}>
+        <Box>
+          <Box component="h2" sx={{
+            fontFamily: inkstashFonts.display, fontWeight: 800,
+            fontSize: 'clamp(22px, 3vw, 30px)',
+            letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+            color: inkstashColors.ink,
+          }}>Trending This Week</Box>
+          <Box sx={{ color: inkstashColors.muted, fontSize: 13, mt: 0.5 }}>
+            Hot single-card auctions across the community
+          </Box>
+        </Box>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => navigate('/marketplace')}
+          sx={{
+            bgcolor: 'transparent', border: 'none', cursor: 'pointer',
+            color: inkstashColors.muted, fontSize: 13, fontWeight: 500,
+            fontFamily: inkstashFonts.ui, padding: '6px 0',
+            '&:hover': { color: inkstashColors.ink },
+          }}
+        >
+          See marketplace →
+        </Box>
       </Box>
 
       <Box sx={{
-        bgcolor: colors.bgElev, border: `1px solid ${colors.line}`,
-        borderRadius: '12px', overflow: 'hidden',
+        bgcolor: inkstashColors.bgElev,
+        border: `1px solid ${inkstashColors.border}`,
+        borderRadius: inkstashRadii.lg,
+        overflow: 'hidden',
       }}>
-        {loading && Array.from({ length: 5 }).map((_, i) => (
-          <Box key={i} sx={{ height: 56, borderBottom: i < 4 ? `1px solid ${colors.line}` : 'none' }} />
-        ))}
+        {items.map((t, i) => (
+          <Box
+            key={t.rank}
+            onClick={() => navigate('/marketplace')}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '36px 1fr auto', md: '56px 1fr auto' },
+              alignItems: 'center',
+              gap: { xs: 1.5, md: 2.25 },
+              padding: { xs: '14px 16px', md: '18px 24px' },
+              borderBottom: i < items.length - 1 ? `1px solid ${inkstashColors.border}` : 'none',
+              cursor: 'pointer',
+              transition: 'background 120ms ease',
+              '&:hover': { background: inkstashColors.bgSunken },
+            }}
+          >
+            <Box sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: { xs: 11, md: 12 },
+              color: inkstashColors.muted2,
+              letterSpacing: '0.06em', fontWeight: 500,
+            }}>{String(t.rank).padStart(2, '0')}</Box>
 
-        {!loading && !error && items.length === 0 && (
-          <Box sx={{ textAlign: 'center', color: colors.inkMute, py: 4 }}>
-            No trending data yet.
-          </Box>
-        )}
-
-        {!loading && items.slice(0, 6).map((item, idx) => {
-          const visibleCount = Math.min(items.length, 6);
-          return (
-            <Box
-              key={item.id}
-              onClick={() => navigate(`/item/${item.id}`)}
-              sx={{
-                display: 'flex', alignItems: 'center', gap: 2,
-                padding: '14px 18px',
-                cursor: 'pointer',
-                borderBottom: idx < visibleCount - 1 ? `1px solid ${colors.line}` : 'none',
-                transition: `background 180ms ${easing.out}`,
-                '&:hover': { background: colors.bgSub },
-              }}
-            >
+            <Box sx={{ minWidth: 0 }}>
               <Box sx={{
-                fontFamily: fonts.mono, fontSize: '0.72rem', fontWeight: 700,
-                color: colors.inkMute, width: 24,
-              }}>{String(idx + 1).padStart(2, '0')}</Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{
-                  color: colors.ink, fontWeight: 700, fontSize: '0.88rem', lineHeight: 1.3,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{item.title}</Box>
-                <Box sx={{ color: colors.inkMute, fontFamily: fonts.mono, fontSize: '0.7rem' }}>
-                  {item.bid_count} bids · @{item.seller_username || 'unknown'}
-                </Box>
+                fontWeight: 600,
+                fontSize: { xs: 13.5, md: 14.5 },
+                color: inkstashColors.ink, lineHeight: 1.25, mb: 0.4,
+                textWrap: 'balance' as unknown as 'normal',
+              }}>{t.title}</Box>
+              <Box sx={{
+                fontFamily: inkstashFonts.mono, fontSize: 11.5,
+                color: inkstashColors.muted,
+                display: 'inline-flex', alignItems: 'center', gap: 0.75,
+              }}>
+                <Box component="span">{t.bids} bids</Box>
+                <Box component="span" sx={{ color: inkstashColors.muted2 }}>·</Box>
+                <Box component="span">{t.seller}</Box>
               </Box>
-              <Box sx={{
-                fontFamily: fonts.mono, fontWeight: 800, fontSize: '0.92rem',
-                color: colors.accent,
-              }}>${item.current_bid.toLocaleString()}</Box>
             </Box>
-          );
-        })}
+
+            <Box sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800,
+              fontSize: { xs: 17, md: 20 },
+              color: inkstashColors.brand,
+              letterSpacing: '0.005em', whiteSpace: 'nowrap',
+            }}>${t.price.toLocaleString()}</Box>
+          </Box>
+        ))}
       </Box>
     </Box>
   );
