@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, Stack, Alert, Divider, TextField, InputAdornment, IconButton } from '@mui/material';
 import {
@@ -11,20 +11,16 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
 import { authManager } from '../api/auth/authManager';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
-import {
-  getLiveAndUpcomingStreams,
-  getTrendingAuctions,
-  getFeaturedAuctions,
-} from '../api/home';
-import type { LiveStream, TrendingAuction, FeaturedAuction } from '../api/home';
 import { dropsAPI } from '../api/dropsRaffles';
 import type { Drop } from '../api/dropsRaffles';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import HeroCarousel from '../components/home/HeroCarousel';
-import JustPulledGrid from '../components/home/JustPulledGrid';
+import { PACKS } from '../data/handoffSeed';
+import AppShell from '../components/layout/AppShell';
+import HomeHero from '../components/home/HomeHero';
+import PickAPackSection from '../components/home/PickAPackSection';
 import LiveBreaksRow from '../components/home/LiveBreaksRow';
+import PublisherScroller from '../components/home/PublisherScroller';
 import TrendingList from '../components/home/TrendingList';
-import DiscoverRow from '../components/home/DiscoverRow';
+import Discover3Up from '../components/home/Discover3Up';
 import HomeFooter from '../components/home/HomeFooter';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -367,47 +363,6 @@ export default function Home() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const [streams, setStreams] = useState<LiveStream[]>([]);
-  const [trending, setTrending] = useState<TrendingAuction[]>([]);
-  const [featured, setFeatured] = useState<FeaturedAuction[]>([]);
-  const [loadingStreams, setLoadingStreams] = useState(true);
-  const [loadingTrending, setLoadingTrending] = useState(true);
-  const [loadingFeatured, setLoadingFeatured] = useState(true);
-  const [errorStreams, setErrorStreams] = useState(false);
-  const [errorTrending, setErrorTrending] = useState(false);
-  const [errorFeatured, setErrorFeatured] = useState(false);
-
-  const nextDrop = useNextDrop();
-  const dropTarget = nextDrop?.drop_at ?? new Date(Date.now() + 9999 * 3600000).toISOString();
-  const [dropSecs, setDropSecs] = useState(() => Math.max(0, Math.floor((new Date(dropTarget).getTime() - Date.now()) / 1000)));
-  useEffect(() => {
-    const id = setInterval(() => setDropSecs(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [dropTarget]);
-  const countdown = {
-    h: String(Math.floor(dropSecs / 3600)).padStart(2, '0'),
-    m: String(Math.floor((dropSecs % 3600) / 60)).padStart(2, '0'),
-    s: String(dropSecs % 60).padStart(2, '0'),
-  };
-
-  const loadData = useCallback(async () => {
-    setLoadingStreams(true); setLoadingTrending(true); setLoadingFeatured(true);
-    setErrorStreams(false);  setErrorTrending(false);  setErrorFeatured(false);
-    const [sr, tr, fr] = await Promise.allSettled([
-      getLiveAndUpcomingStreams(),
-      getTrendingAuctions(),
-      getFeaturedAuctions(),
-    ]);
-    if (sr.status === 'fulfilled') setStreams(sr.value); else setErrorStreams(true);
-    setLoadingStreams(false);
-    if (tr.status === 'fulfilled') setTrending(tr.value); else setErrorTrending(true);
-    setLoadingTrending(false);
-    if (fr.status === 'fulfilled') setFeatured(fr.value); else setErrorFeatured(true);
-    setLoadingFeatured(false);
-  }, []);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
   useEffect(() => {
     if (!authLoading && user && !user.onboarding_completed) setShowOnboarding(true);
     else setShowOnboarding(false);
@@ -415,15 +370,19 @@ export default function Home() {
 
   if (!authLoading && !isAuthenticated) return <SplashPage />;
 
+  // 3 hero packs for the carousel: Variant Vault, Holographic Heroes, Grail Hunter Pro
+  const heroPacks = [PACKS[0], PACKS[6], PACKS[7]];
+
   return (
-    <DashboardLayout>
-      <HeroCarousel countdown={countdown} />
-      <JustPulledGrid items={featured} loading={loadingFeatured} error={errorFeatured} />
-      <LiveBreaksRow streams={streams} loading={loadingStreams} error={errorStreams} />
-      <TrendingList items={trending} loading={loadingTrending} error={errorTrending} />
-      <DiscoverRow />
+    <AppShell>
+      <HomeHero packs={heroPacks} />
+      <PickAPackSection packs={PACKS} />
+      <LiveBreaksRow />
+      <PublisherScroller />
+      <TrendingList />
+      <Discover3Up />
       <HomeFooter />
       <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
-    </DashboardLayout>
+    </AppShell>
   );
 }
