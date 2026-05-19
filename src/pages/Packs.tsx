@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, Stack, Button, Chip, Skeleton } from '@mui/material';
 import { X, Package, BookOpen, AlertCircle } from 'lucide-react';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import { packsAPI, FALLBACK_PACKS } from '../api/packs';
 import type { Pack } from '../api/packs';
 
@@ -129,9 +129,8 @@ export default function Packs() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: T.bg }}>
-      <DashboardHeader />
-      <Container maxWidth="xl" sx={{ pt: { xs: 9, md: 10 }, pb: 8 }}>
+    <AppShell>
+      <Container maxWidth="xl" sx={{ pb: 8 }}>
         {!noticeDismissed && (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, mb: 3, bgcolor: 'rgba(217,119,6,0.1)', border: `1px solid rgba(217,119,6,0.25)`, borderRadius: 1.5, gap: 1 }}>
             <Stack direction="row" alignItems="center" gap={1}>
@@ -168,6 +167,6 @@ export default function Packs() {
           }
         </Box>
       </Container>
-    </Box>
+    </AppShell>
   );
 }
