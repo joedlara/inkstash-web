@@ -31,7 +31,7 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <Box sx={{ minHeight: '100dvh', bgcolor: inkstashColors.bg, color: inkstashColors.ink, fontFamily: inkstashFonts.ui }}>
       <AppSidebar
-        collapsed={collapsed}
+        collapsed={mobileOpen ? false : collapsed}
         mobileOpen={mobileOpen}
         onCollapseToggle={toggleCollapse}
         onMobileClose={closeMobile}
