@@ -3,9 +3,15 @@
  * Run: node scripts/seed-collectibles.mjs
  */
 
-const SUPABASE_URL = 'https://uhstjindafnvlrjkpggx.supabase.co';
-const SERVICE_ROLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoc3RqaW5kYWZudmxyamtwZ2d4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODI1NzgyMywiZXhwIjoyMDkzODMzODIzfQ.AVXYoWbOdaTmXZx--UYQjY7Y1uqSOBdsT1BhHR1VIKw';
+import 'dotenv/config';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+  process.exit(1);
+}
 
 const headers = {
   apikey: SERVICE_ROLE_KEY,
