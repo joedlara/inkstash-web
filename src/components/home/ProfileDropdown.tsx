@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   CreditCard,
   Bookmark,
-  Archive,
   Receipt,
   ShoppingCart,
   Users,
@@ -88,7 +87,6 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
       : { icon: UserPlus,   label: 'Become a Seller',     route: '/sell' },
     { icon: CreditCard,   label: 'Payments & Shipping', route: '/settings?tab=payments' },
     { icon: Bookmark,     label: 'Saved',               route: '/my-stash?tab=saved' },
-    { icon: Archive,      label: 'My Stash',            route: '/my-stash' },
     { icon: Receipt,      label: 'Purchases',           route: '/purchases' },
     { icon: ShoppingCart, label: 'Shopping Cart',       route: '/cart', badge: cartItemCount, isCart: true },
   ];
