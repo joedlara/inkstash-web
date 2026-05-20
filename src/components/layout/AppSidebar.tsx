@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { ChevronRight, PanelLeftClose } from 'lucide-react';
 import { appSidebarPrimary, appSidebarEvents } from './appSidebarConfig';
+import { useAuth } from '../../hooks/useAuth';
+import ProfileDropdown from '../home/ProfileDropdown';
 import { inkstashColors, inkstashFonts, inkstashLayout, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface AppSidebarProps {
@@ -13,7 +16,13 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, onMobileClose }: AppSidebarProps) {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
   const width = collapsed ? inkstashLayout.sidebarWidthCollapsed : inkstashLayout.sidebarWidth;
+
+  const username = user?.username || 'guest';
+  const initial = username[0]?.toUpperCase() || 'G';
+  const tier = user?.seller_verified ? 'Seller' : 'Free tier';
 
   return (
     <Box
@@ -194,29 +203,55 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         )}
       </Box>
 
-      <Box sx={{
-        borderTop: `1px solid ${inkstashColors.border}`,
-        padding: collapsed ? '12px 8px' : '12px 14px',
-        display: 'flex', alignItems: 'center', gap: 1.25,
-        position: 'relative',
-      }}>
-        <Box sx={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 13,
-          flexShrink: 0,
-        }}>YO</Box>
+      <Box
+        component={isAuthenticated ? 'button' : 'div'}
+        type={isAuthenticated ? 'button' : undefined}
+        onClick={isAuthenticated ? () => setProfileOpen(true) : undefined}
+        sx={{
+          borderTop: `1px solid ${inkstashColors.border}`,
+          padding: collapsed ? '12px 8px' : '12px 14px',
+          display: 'flex', alignItems: 'center', gap: 1.25,
+          position: 'relative',
+          width: '100%',
+          bgcolor: 'transparent',
+          border: 'none',
+          textAlign: 'left',
+          cursor: isAuthenticated ? 'pointer' : 'default',
+          transition: 'background 140ms ease',
+          '&:hover': isAuthenticated ? { background: inkstashColors.bgSunken } : {},
+        }}
+      >
+        {user?.avatar_url ? (
+          <Box
+            component="img"
+            src={user.avatar_url}
+            alt={username}
+            sx={{
+              width: 32, height: 32, borderRadius: '50%',
+              objectFit: 'cover',
+              flexShrink: 0,
+              border: `1px solid ${inkstashColors.border}`,
+            }}
+          />
+        ) : (
+          <Box sx={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 13,
+            flexShrink: 0,
+          }}>{initial}</Box>
+        )}
         {!collapsed && (
           <>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ fontWeight: 600, fontSize: 13, color: inkstashColors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@you</Box>
-              <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 10.5, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Free tier</Box>
+              <Box sx={{ fontWeight: 600, fontSize: 13, color: inkstashColors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</Box>
+              <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 10.5, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tier}</Box>
             </Box>
             <Box
               component="button"
               type="button"
-              onClick={onCollapseToggle}
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onCollapseToggle(); }}
               aria-label="Collapse sidebar"
               sx={{
                 bgcolor: 'transparent', border: 'none', cursor: 'pointer',
@@ -234,7 +269,7 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
           <Box
             component="button"
             type="button"
-            onClick={onCollapseToggle}
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onCollapseToggle(); }}
             aria-label="Expand sidebar"
             sx={{
               position: 'absolute', bottom: 14, right: 8,
@@ -249,6 +284,8 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
           </Box>
         )}
       </Box>
+
+      <ProfileDropdown isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     </Box>
   );
 }
