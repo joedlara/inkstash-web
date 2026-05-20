@@ -146,22 +146,17 @@ export default function SellerOnboarding() {
 
   const handleSubmit = async () => {
     try {
-      console.log('📝 Submitting seller onboarding...');
       const result = await sellerApi.submitOnboarding({
         agreedToTerms: agreedToGuidelines,
         plaidBankToken: bankToken || undefined,
         plaidIdentityToken: identityToken || undefined,
         status: 'verified', // Mark as verified on submission
       });
-      console.log('✅ Seller onboarding submitted successfully:', result);
 
       // Refresh user data to get updated seller_verified status
-      console.log('🔄 Refreshing user data...');
       await refreshUser();
-      console.log('✅ User data refreshed');
 
       // Redirect to creator dashboard after successful verification
-      console.log('🚀 Redirecting to creator dashboard...');
       navigate('/seller-dashboard');
     } catch (error) {
       console.error('❌ Error submitting seller onboarding:', error);

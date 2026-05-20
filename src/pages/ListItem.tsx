@@ -568,12 +568,6 @@ export default function ListItem() {
       // Step 4: Clear the draft and navigate to success page
       clearDraft();
       navigate('/seller-dashboard?tab=mystore');
-
-      console.log('Listing created successfully!', {
-        itemId,
-        photoCount: finalUploadedPhotos.length,
-        title,
-      });
     } catch (error: any) {
       console.error('Error creating listing:', error);
       setSubmitError(error.message || 'Failed to create listing. Please try again.');

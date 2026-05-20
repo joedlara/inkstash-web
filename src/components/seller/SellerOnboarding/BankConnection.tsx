@@ -73,7 +73,6 @@ export default function BankConnection({ onSuccess, onError, onLinkTokenCreated 
   const { open, ready } = usePlaidLink(isMockMode ? { token: null, onSuccess: () => {}, onExit: () => {} } : config);
 
   const handleDevBypass = () => {
-    console.log('🔓 Using development bypass for bank connection');
     setIsConnected(true);
     onSuccess('dev-bypass-bank-token-' + Date.now(), {
       institution: { name: 'Development Bypass', institution_id: 'dev_bypass' },

@@ -1,29 +1,33 @@
 import { ReactNode } from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import MobileBottomNav from '../home/MobileBottomNav';
+import { MobileNavProvider, useMobileNav } from './MobileNavContext';
 
 interface AppLayoutProps {
   children: ReactNode;
   showMobileNav?: boolean;
 }
 
-export default function AppLayout({ children, showMobileNav = true }: AppLayoutProps) {
+function AppLayoutInner({ children, showMobileNav = true }: AppLayoutProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { hidden } = useMobileNav();
+  const visible = isMobile && showMobileNav && !hidden;
 
   return (
     <Box sx={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Main content */}
-      <Box
-        sx={{
-          pb: isMobile && showMobileNav ? '80px' : 0, // Add padding for mobile nav
-        }}
-      >
+      <Box sx={{ pb: visible ? '80px' : 0 }}>
         {children}
       </Box>
-
-      {/* Mobile Bottom Navigation - only show on mobile */}
-      {isMobile && showMobileNav && <MobileBottomNav />}
+      {visible && <MobileBottomNav />}
     </Box>
+  );
+}
+
+export default function AppLayout(props: AppLayoutProps) {
+  return (
+    <MobileNavProvider>
+      <AppLayoutInner {...props} />
+    </MobileNavProvider>
   );
 }

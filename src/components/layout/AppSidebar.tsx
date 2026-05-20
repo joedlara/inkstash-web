@@ -1,9 +1,7 @@
-// src/components/layout/AppSidebar.tsx
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { ChevronRight, PanelLeftClose } from 'lucide-react';
-import { appSidebarPrimary } from './appSidebarConfig';
-import { PUBLISHERS } from '../../data/handoffSeed';
+import { appSidebarPrimary, appSidebarEvents } from './appSidebarConfig';
 import { inkstashColors, inkstashFonts, inkstashLayout, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface AppSidebarProps {
@@ -38,7 +36,6 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         boxShadow: { xs: mobileOpen ? inkstashShadows.lg : 'none', md: 'none' },
       }}
     >
-      {/* Logo cell */}
       <Box sx={{
         height: inkstashLayout.topnavHeight,
         display: 'flex', alignItems: 'center', gap: 1.2,
@@ -65,7 +62,6 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         )}
       </Box>
 
-      {/* Nav */}
       <Box sx={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '14px 12px' }}>
         {appSidebarPrimary.map(item => {
           const Icon = item.icon;
@@ -83,16 +79,33 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
                 padding: collapsed ? '10px 0' : '10px 12px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 borderRadius: 8,
-                color: isActive ? inkstashColors.ink : inkstashColors.ink2,
-                background: isActive ? inkstashColors.bgSunken : 'transparent',
+                color: isActive ? '#fff' : inkstashColors.ink2,
+                background: isActive ? inkstashColors.brand : 'transparent',
                 fontSize: 14,
                 fontWeight: isActive ? 600 : 500,
                 marginBottom: 2,
                 transition: 'background 140ms ease, color 140ms ease',
               })}
             >
-              <Icon size={18} />
-              {!collapsed && <span>{item.label}</span>}
+              {({ isActive }) => (
+                <>
+                  <Icon size={18} />
+                  {!collapsed && (
+                    <>
+                      <Box component="span" sx={{ flex: 1 }}>{item.label}</Box>
+                      {item.count != null && (
+                        <Box component="span" sx={{
+                          fontFamily: inkstashFonts.mono, fontSize: 11,
+                          color: isActive ? 'rgba(255,255,255,0.7)' : inkstashColors.muted2,
+                          letterSpacing: '0.04em',
+                        }}>
+                          {item.count}
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </NavLink>
           );
         })}
@@ -107,13 +120,13 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
             letterSpacing: '0.08em',
             fontWeight: 600,
           }}>
-            Publishers
+            Events
           </Box>
         )}
-        {PUBLISHERS.map(pub => (
+        {appSidebarEvents.map(ev => (
           <Box
-            key={pub.id}
-            onClick={() => navigate('/marketplace')}
+            key={ev.label}
+            onClick={() => navigate(ev.route)}
             sx={{
               display: 'flex', alignItems: 'center', gap: 1.5,
               padding: collapsed ? '8px 0' : '8px 12px',
@@ -128,15 +141,18 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
           >
             <Box sx={{
               width: 18, height: 18, borderRadius: '4px',
-              background: `linear-gradient(135deg, ${pub.gradient[0]}, ${pub.gradient[1]})`,
+              background: `linear-gradient(135deg, ${ev.gradient[0]}, ${ev.gradient[1]})`,
               flexShrink: 0,
             }} />
             {!collapsed && (
               <>
-                <Box component="span" sx={{ flex: 1 }}>{pub.name}</Box>
+                <Box component="span" sx={{
+                  flex: 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{ev.label}</Box>
                 <Box component="span" sx={{
                   fontFamily: inkstashFonts.mono, fontSize: 11, color: inkstashColors.muted2,
-                }}>{pub.count}</Box>
+                }}>{ev.count}</Box>
               </>
             )}
           </Box>
@@ -178,7 +194,6 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         )}
       </Box>
 
-      {/* User footer */}
       <Box sx={{
         borderTop: `1px solid ${inkstashColors.border}`,
         padding: collapsed ? '12px 8px' : '12px 14px',

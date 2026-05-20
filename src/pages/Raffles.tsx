@@ -1,31 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Container, Typography, Stack, Button, Avatar, LinearProgress, Chip, Skeleton } from '@mui/material';
+import { Box, Container, Stack, Avatar, LinearProgress, Skeleton } from '@mui/material';
 import { Ticket, Clock, AlertCircle } from 'lucide-react';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import { rafflesAPI, FALLBACK_RAFFLES } from '../api/dropsRaffles';
 import type { Raffle } from '../api/dropsRaffles';
+import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
 
-const T = {
-  bg:        '#08080e',
-  surface:   '#0f0f18',
-  surfaceB:  '#141420',
-  border:    'rgba(255,255,255,0.07)',
-  borderLit: 'rgba(255,255,255,0.13)',
-  blue:      '#0078FF',
-  live:      '#ef4444',
-  gold:      '#d97706',
-  green:     '#10b981',
-  white:     '#f1f5f9',
-  muted:     'rgba(241,245,249,0.5)',
-  dimmed:    'rgba(241,245,249,0.22)',
-  mono:      "'DM Mono', 'Courier New', monospace",
+const STATUS_STYLES: Record<Raffle['status'], { label: string; bg: string; fg: string }> = {
+  live:     { label: 'LIVE',     bg: inkstashColors.live,      fg: '#fff' },
+  upcoming: { label: 'UPCOMING', bg: inkstashColors.goldSoft,  fg: inkstashColors.gold },
+  ended:    { label: 'ENDED',    bg: inkstashColors.bgSunken,  fg: inkstashColors.muted },
 };
 
-const STATUS_META: Record<Raffle['status'], { label: string; bg: string; fg: string }> = {
-  live:     { label: 'LIVE',     bg: T.live,                 fg: '#fff' },
-  upcoming: { label: 'UPCOMING', bg: 'rgba(217,119,6,0.15)', fg: T.gold },
-  ended:    { label: 'ENDED',    bg: 'rgba(55,65,81,0.7)',   fg: '#6b7280' },
-};
+type Filter = 'all' | 'live' | 'upcoming' | 'ended';
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'all',      label: 'All' },
+  { key: 'live',     label: 'Live' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'ended',    label: 'Ended' },
+];
 
 function timeLeft(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now();
@@ -38,36 +32,106 @@ function timeLeft(iso: string): string {
 
 function RaffleCard({ raffle }: { raffle: Raffle }) {
   const pct = Math.round((raffle.spots_filled / raffle.max_spots) * 100);
-  const sm = STATUS_META[raffle.status];
+  const sm = STATUS_STYLES[raffle.status];
   const isLive = raffle.status === 'live';
   const isEnded = raffle.status === 'ended';
   const spotsLeft = raffle.max_spots - raffle.spots_filled;
+  const isFull = raffle.spots_filled >= raffle.max_spots;
 
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${isLive ? 'rgba(239,68,68,0.2)' : T.border}`, borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, transition: 'border-color 0.18s', '&:hover': { borderColor: isLive ? 'rgba(239,68,68,0.38)' : T.borderLit } }}>
-      {/* Image */}
-      <Box sx={{ position: 'relative', width: { xs: '100%', sm: 160 }, height: { xs: 160, sm: 'auto' }, flexShrink: 0, bgcolor: T.surfaceB, overflow: 'hidden' }}>
+    <Box sx={{
+      bgcolor: inkstashColors.bgElev,
+      border: `1px solid ${isLive ? `${inkstashColors.brand}33` : inkstashColors.border}`,
+      borderRadius: inkstashRadii.lg,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: { xs: 'column', sm: 'row' },
+      transition: 'transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease',
+      '&:hover': isEnded ? {} : {
+        transform: 'translateY(-2px)',
+        boxShadow: inkstashShadows.md,
+        borderColor: isLive ? `${inkstashColors.brand}66` : inkstashColors.borderStrong,
+      },
+    }}>
+      <Box sx={{
+        position: 'relative',
+        width: { xs: '100%', sm: 200 },
+        height: { xs: 180, sm: 'auto' },
+        flexShrink: 0,
+        bgcolor: inkstashColors.bgSunken,
+        overflow: 'hidden',
+      }}>
         {raffle.item_image_url && (
-          <Box component="img" src={raffle.item_image_url} alt={raffle.item_title} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: isEnded ? 'grayscale(60%) brightness(0.6)' : 'none' }} />
+          <Box
+            component="img"
+            src={raffle.item_image_url}
+            alt={raffle.item_title}
+            sx={{
+              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+              filter: isEnded ? 'grayscale(60%) brightness(0.85)' : 'none',
+            }}
+          />
         )}
-        <Box sx={{ position: 'absolute', top: 8, left: 8, px: 0.75, py: 0.3, borderRadius: 0.6, bgcolor: sm.bg, border: `1px solid ${isLive ? T.live : 'transparent'}`, color: sm.fg, fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.07em' }}>
+        <Box sx={{
+          position: 'absolute', top: 12, left: 12,
+          bgcolor: sm.bg,
+          color: sm.fg,
+          fontFamily: inkstashFonts.mono,
+          fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
+          padding: '4px 10px', borderRadius: 999,
+          border: raffle.status === 'upcoming' ? `1px solid ${inkstashColors.gold}55` : 'none',
+        }}>
           {sm.label}
         </Box>
       </Box>
 
-      {/* Body */}
-      <Box sx={{ p: { xs: 2, md: 2.25 }, flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0 }}>
+      <Box sx={{
+        padding: { xs: '16px 18px', md: '20px 22px' },
+        flex: 1,
+        display: 'flex', flexDirection: 'column', gap: 1.5,
+        minWidth: 0,
+      }}>
         <Box>
-          <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1rem', color: isEnded ? T.dimmed : T.white, lineHeight: 1.25, mb: 0.4 }} noWrap>
+          <Box sx={{
+            fontFamily: inkstashFonts.display, fontWeight: 800,
+            fontSize: 18, lineHeight: 1.2,
+            textTransform: 'uppercase', letterSpacing: '0.005em',
+            color: isEnded ? inkstashColors.muted : inkstashColors.ink,
+            mb: 0.75,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             {raffle.item_title}
-          </Typography>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Avatar src={raffle.seller_avatar || undefined} sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: T.blue }}>
+          </Box>
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+            <Avatar
+              src={raffle.seller_avatar || undefined}
+              sx={{
+                width: 22, height: 22,
+                fontSize: 11, fontWeight: 700,
+                bgcolor: inkstashColors.brand,
+                fontFamily: inkstashFonts.display,
+              }}
+            >
               {(raffle.seller_username?.[0] ?? 'I').toUpperCase()}
             </Avatar>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: T.muted }}>@{raffle.seller_username ?? 'inkstash'}</Typography>
-            {raffle.estimated_value && (
-              <Chip label={`Est. $${raffle.estimated_value.toLocaleString()}`} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: 'rgba(16,185,129,0.1)', color: T.green, '& .MuiChip-label': { px: 0.75 } }} />
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 12,
+              color: inkstashColors.muted,
+            }}>
+              @{raffle.seller_username ?? 'inkstash'}
+            </Box>
+            {raffle.estimated_value != null && (
+              <Box sx={{
+                display: 'inline-flex', alignItems: 'center',
+                bgcolor: inkstashColors.goldSoft,
+                color: inkstashColors.gold,
+                border: `1px solid ${inkstashColors.gold}33`,
+                fontFamily: inkstashFonts.mono,
+                fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em',
+                padding: '2px 8px', borderRadius: 999,
+              }}>
+                Est. ${raffle.estimated_value.toLocaleString()}
+              </Box>
             )}
           </Stack>
         </Box>
@@ -75,28 +139,87 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
         {/* Progress */}
         <Box>
           <Stack direction="row" justifyContent="space-between" mb={0.6}>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.68rem', color: T.muted }}>{raffle.spots_filled} / {raffle.max_spots} spots filled</Typography>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.68rem', color: pct >= 80 ? T.live : T.muted }}>{pct}% full</Typography>
+            <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 11, color: inkstashColors.muted }}>
+              {raffle.spots_filled} / {raffle.max_spots} spots filled
+            </Box>
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 11,
+              color: pct >= 80 ? inkstashColors.brand : inkstashColors.muted,
+              fontWeight: 600,
+            }}>
+              {pct}% full
+            </Box>
           </Stack>
-          <LinearProgress variant="determinate" value={pct} sx={{ height: 4, borderRadius: 2, bgcolor: T.surfaceB, '& .MuiLinearProgress-bar': { bgcolor: pct >= 80 ? T.live : T.blue, borderRadius: 2 } }} />
+          <LinearProgress
+            variant="determinate"
+            value={pct}
+            sx={{
+              height: 4, borderRadius: 2,
+              bgcolor: inkstashColors.bgSunken,
+              '& .MuiLinearProgress-bar': {
+                bgcolor: pct >= 80 ? inkstashColors.brand : inkstashColors.ink,
+                borderRadius: 2,
+              },
+            }}
+          />
         </Box>
 
-        {/* Footer */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
-          <Stack direction="row" alignItems="center" gap={0.6}>
-            <Clock size={13} strokeWidth={2} color={T.muted} />
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: isEnded ? T.dimmed : T.muted }}>
+        <Stack
+          direction="row"
+          alignItems="flex-end"
+          justifyContent="space-between"
+          flexWrap="wrap"
+          gap={1.25}
+          sx={{ mt: 'auto' }}
+        >
+          <Stack direction="row" alignItems="center" gap={0.75}>
+            <Clock size={13} color={isEnded ? inkstashColors.muted2 : inkstashColors.muted} />
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 12,
+              color: isEnded ? inkstashColors.muted2 : inkstashColors.muted,
+            }}>
               {isEnded ? 'Ended' : timeLeft(raffle.ends_at)}
-            </Typography>
-          </Stack>
-          <Stack direction="row" alignItems="center" gap={1.25}>
-            <Box>
-              <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, letterSpacing: '0.05em' }}>TICKET</Typography>
-              <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '1rem', color: isEnded ? T.dimmed : T.white }}>${raffle.ticket_price.toFixed(2)}</Typography>
             </Box>
-            <Button variant="contained" size="small" disabled={isEnded || raffle.spots_filled >= raffle.max_spots} sx={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', px: 2, py: 0.75, bgcolor: isEnded ? 'rgba(55,65,81,0.6)' : T.blue, color: isEnded ? '#6b7280' : '#fff', borderRadius: 1.25, boxShadow: 'none', '&:hover': { bgcolor: '#005fcc', boxShadow: 'none' }, '&.Mui-disabled': { bgcolor: 'rgba(55,65,81,0.6)', color: '#6b7280' } }}>
-              {isEnded ? 'Ended' : raffle.spots_filled >= raffle.max_spots ? 'Full' : `Enter · ${spotsLeft} left`}
-            </Button>
+          </Stack>
+          <Stack direction="row" alignItems="center" gap={1.5}>
+            <Box>
+              <Box sx={{
+                fontFamily: inkstashFonts.mono, fontSize: 10,
+                color: inkstashColors.muted, letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}>
+                Ticket
+              </Box>
+              <Box sx={{
+                fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 18,
+                color: isEnded ? inkstashColors.muted : inkstashColors.ink,
+                lineHeight: 1,
+              }}>
+                ${raffle.ticket_price.toFixed(2)}
+              </Box>
+            </Box>
+            <Box
+              component="button"
+              type="button"
+              disabled={isEnded || isFull}
+              sx={{
+                bgcolor: (isEnded || isFull) ? inkstashColors.bgSunken : inkstashColors.brand,
+                color: (isEnded || isFull) ? inkstashColors.muted : '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 1.25,
+                fontFamily: inkstashFonts.ui,
+                fontWeight: 600, fontSize: 13,
+                cursor: (isEnded || isFull) ? 'not-allowed' : 'pointer',
+                transition: 'background 140ms ease, transform 100ms ease',
+                whiteSpace: 'nowrap',
+                '&:hover': (isEnded || isFull) ? {} : { bgcolor: inkstashColors.brandDeep },
+                '&:active': (isEnded || isFull) ? {} : { transform: 'scale(0.97)' },
+                '&:disabled': { opacity: 0.65 },
+              }}
+            >
+              {isEnded ? 'Ended' : isFull ? 'Full' : `Enter · ${spotsLeft} left`}
+            </Box>
           </Stack>
         </Stack>
       </Box>
@@ -106,12 +229,30 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
 
 function RaffleSkeleton() {
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden', display: 'flex', height: 160 }}>
-      <Skeleton variant="rectangular" width={160} sx={{ bgcolor: T.surfaceB, flexShrink: 0 }} />
-      <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Skeleton variant="text" width="70%" sx={{ bgcolor: T.surfaceB }} />
-        <Skeleton variant="text" width="40%" sx={{ bgcolor: T.surfaceB }} />
-        <Skeleton variant="rectangular" height={4} sx={{ bgcolor: T.surfaceB, borderRadius: 2, mt: 'auto' }} />
+    <Box sx={{
+      bgcolor: inkstashColors.bgElev,
+      border: `1px solid ${inkstashColors.border}`,
+      borderRadius: inkstashRadii.lg,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: { xs: 'column', sm: 'row' },
+    }}>
+      <Skeleton
+        variant="rectangular"
+        sx={{
+          width: { xs: '100%', sm: 200 },
+          height: { xs: 180, sm: 'auto' },
+          aspectRatio: { xs: 'auto', sm: 'auto' },
+          minHeight: { sm: 180 },
+          bgcolor: inkstashColors.bgSunken,
+          flexShrink: 0,
+        }}
+      />
+      <Box sx={{ padding: '20px 22px', flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Skeleton variant="text" width="70%" height={28} sx={{ bgcolor: inkstashColors.bgSunken }} />
+        <Skeleton variant="text" width="45%" sx={{ bgcolor: inkstashColors.bgSunken }} />
+        <Skeleton variant="rectangular" height={4} sx={{ bgcolor: inkstashColors.bgSunken, borderRadius: 2, mt: 'auto' }} />
+        <Skeleton variant="rectangular" height={36} sx={{ bgcolor: inkstashColors.bgSunken, borderRadius: 1.25, mt: 0.5 }} />
       </Box>
     </Box>
   );
@@ -121,7 +262,7 @@ export default function Raffles() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'live' | 'upcoming' | 'ended'>('all');
+  const [filter, setFilter] = useState<Filter>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,69 +280,128 @@ export default function Raffles() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = filter === 'all' ? raffles : raffles.filter(r => r.status === filter);
+  const filtered  = filter === 'all' ? raffles : raffles.filter(r => r.status === filter);
   const liveCount = raffles.filter(r => r.status === 'live').length;
 
-  const FILTERS = [
-    { key: 'all' as const,      label: 'All' },
-    { key: 'live' as const,     label: 'Live' },
-    { key: 'upcoming' as const, label: 'Upcoming' },
-    { key: 'ended' as const,    label: 'Ended' },
-  ];
-
   return (
-    <>
-      <style>{`@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.25;transform:scale(0.6)} }`}</style>
-      <Box sx={{ minHeight: '100dvh', bgcolor: T.bg }}>
-        <DashboardHeader />
-        <Container maxWidth="xl" sx={{ pt: { xs: 9, md: 10 }, pb: 8 }}>
-
-          {/* Header */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'flex-end' }} justifyContent="space-between" gap={2} mb={3.5}>
-            <Box>
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2rem', md: '2.6rem' }, color: T.white, letterSpacing: '-0.03em', lineHeight: 1.05 }}>Raffles</Typography>
-              <Typography sx={{ fontSize: '0.85rem', color: T.muted, mt: 0.75, lineHeight: 1.5 }}>Win rare comics from live stream hosts — one ticket gets you in</Typography>
+    <AppShell>
+      <Container maxWidth="xl" sx={{ pb: 8 }}>
+        {/* Page header */}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+          justifyContent="space-between"
+          gap={2}
+          sx={{ mb: 3.5 }}
+        >
+          <Box>
+            <Box component="h1" sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800,
+              fontSize: 'clamp(28px, 4vw, 44px)',
+              letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+              color: inkstashColors.ink,
+            }}>
+              Raffles
             </Box>
-            {liveCount > 0 && (
-              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', color: T.live, fontSize: '0.75rem', fontWeight: 700, px: 1.5, py: 0.7, borderRadius: 999 }}>
-                <Box sx={{ width: 6, height: 6, bgcolor: T.live, borderRadius: '50%', animation: 'livePulse 1.6s ease-in-out infinite' }} />
-                {liveCount} raffle{liveCount !== 1 ? 's' : ''} live
-              </Box>
-            )}
-          </Stack>
+            <Box sx={{
+              color: inkstashColors.muted, fontSize: 13.5, mt: 0.75, lineHeight: 1.5,
+            }}>
+              Win rare comics from live stream hosts — one ticket gets you in.
+            </Box>
+          </Box>
+          {liveCount > 0 && (
+            <Stack direction="row" alignItems="center" gap={0.85} sx={{
+              bgcolor: inkstashColors.brandSoft,
+              border: `1px solid ${inkstashColors.brand}33`,
+              color: inkstashColors.brandDeep,
+              fontSize: 12, fontWeight: 700,
+              padding: '6px 12px', borderRadius: 999,
+              fontFamily: inkstashFonts.mono, letterSpacing: '0.04em',
+            }}>
+              <Box sx={{
+                width: 6, height: 6, borderRadius: '50%',
+                bgcolor: inkstashColors.live,
+                animation: 'inkstashLivePulseRaffles 1.6s ease-in-out infinite',
+              }} />
+              {liveCount} raffle{liveCount !== 1 ? 's' : ''} live
+            </Stack>
+          )}
+        </Stack>
 
-          {/* Filter chips */}
-          <Stack direction="row" gap={0.75} mb={3.5} flexWrap="wrap">
-            {FILTERS.map(f => (
-              <Box key={f.key} onClick={() => setFilter(f.key)} sx={{ px: 1.75, py: 0.7, borderRadius: 999, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.14s', color: filter === f.key ? T.white : T.muted, bgcolor: filter === f.key ? 'rgba(255,255,255,0.09)' : 'transparent', border: `1px solid ${filter === f.key ? T.borderLit : 'transparent'}`, '&:hover': { color: T.white, bgcolor: 'rgba(255,255,255,0.05)' } }}>
+        {/* Filter pills (segmented control) */}
+        <Box sx={{
+          display: 'inline-flex', gap: 0.5, padding: 0.5,
+          bgcolor: inkstashColors.bgSunken, borderRadius: 999,
+          mb: 3.5,
+        }}>
+          {FILTERS.map(f => {
+            const active = filter === f.key;
+            return (
+              <Box
+                key={f.key}
+                component="button"
+                type="button"
+                onClick={() => setFilter(f.key)}
+                sx={{
+                  padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
+                  bgcolor: active ? inkstashColors.bgElev : 'transparent',
+                  color: active ? inkstashColors.ink : inkstashColors.ink2,
+                  boxShadow: active ? inkstashShadows.sm : 'none',
+                  transition: 'all 140ms ease',
+                }}
+              >
                 {f.label}
               </Box>
-            ))}
-          </Stack>
+            );
+          })}
+        </Box>
 
-          {error && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1, mb: 3, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 1.5 }}>
-              <AlertCircle size={14} color={T.live} />
-              <Typography sx={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.live }}>{error}</Typography>
+        {/* Error banner */}
+        {error && (
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 1.25,
+            padding: '10px 16px', mb: 3,
+            bgcolor: inkstashColors.brandSoft,
+            border: `1px solid ${inkstashColors.brand}33`,
+            borderRadius: inkstashRadii.md,
+          }}>
+            <AlertCircle size={14} color={inkstashColors.brand} />
+            <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 12, color: inkstashColors.brandDeep }}>
+              {error}
             </Box>
-          )}
+          </Box>
+        )}
 
-          {/* List */}
-          <Stack gap={2}>
-            {loading
-              ? [1,2,3,4].map(i => <RaffleSkeleton key={i} />)
-              : filtered.length === 0
+        <Stack gap={2}>
+          {loading
+            ? [1, 2, 3, 4].map(i => <RaffleSkeleton key={i} />)
+            : filtered.length === 0
               ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10, gap: 1.5 }}>
-                  <Ticket size={30} strokeWidth={1.25} color={T.dimmed} />
-                  <Typography sx={{ fontFamily: T.mono, fontSize: '0.9rem', color: T.muted }}>No {filter === 'all' ? '' : filter} raffles right now</Typography>
+                <Box sx={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  padding: '64px 0', gap: 1.5,
+                  bgcolor: inkstashColors.bgElev,
+                  border: `1px solid ${inkstashColors.border}`,
+                  borderRadius: inkstashRadii.lg,
+                }}>
+                  <Ticket size={30} strokeWidth={1.25} color={inkstashColors.muted2} />
+                  <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 13, color: inkstashColors.muted }}>
+                    No {filter === 'all' ? '' : filter} raffles right now
+                  </Box>
                 </Box>
               )
               : filtered.map(r => <RaffleCard key={r.id} raffle={r} />)
-            }
-          </Stack>
-        </Container>
-      </Box>
-    </>
+          }
+        </Stack>
+
+        <style>{`
+          @keyframes inkstashLivePulseRaffles {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.25; transform: scale(0.6); }
+          }
+        `}</style>
+      </Container>
+    </AppShell>
   );
 }

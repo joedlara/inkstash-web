@@ -25,8 +25,6 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
         setIsLoading(true);
         const data = await sellerApi.createPlaidIdentityVerificationToken();
 
-        console.log('✅ Received link token response:', data);
-        console.log('🔑 Link token:', data.link_token);
 
         setLinkToken(data.link_token);
         if (onLinkTokenCreated) {
@@ -112,7 +110,6 @@ export default function IdentityVerification({ onSuccess, onError, onLinkTokenCr
   };
 
   const handleDevBypass = () => {
-    console.log('🔓 Using development bypass for identity verification');
     setIsVerified(true);
     onSuccess('dev-bypass-identity-token-' + Date.now(), {
       status: 'success',

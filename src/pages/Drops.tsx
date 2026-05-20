@@ -1,26 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, Typography, Stack, Button, Skeleton, LinearProgress } from '@mui/material';
+import { Box, Container, Stack, Skeleton, LinearProgress } from '@mui/material';
 import { Zap, Clock, Package, Bell, AlertCircle } from 'lucide-react';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import { dropsAPI, FALLBACK_DROPS } from '../api/dropsRaffles';
 import type { Drop } from '../api/dropsRaffles';
-
-const T = {
-  bg:        '#08080e',
-  surface:   '#0f0f18',
-  surfaceB:  '#141420',
-  border:    'rgba(255,255,255,0.07)',
-  borderLit: 'rgba(255,255,255,0.13)',
-  blue:      '#0078FF',
-  live:      '#ef4444',
-  gold:      '#d97706',
-  green:     '#10b981',
-  white:     '#f1f5f9',
-  muted:     'rgba(241,245,249,0.5)',
-  dimmed:    'rgba(241,245,249,0.22)',
-  mono:      "'DM Mono', 'Courier New', monospace",
-};
+import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
 
 function useCountdownTo(isoTarget: string) {
   const [remaining, setRemaining] = useState(() => Math.max(0, new Date(isoTarget).getTime() - Date.now()));
@@ -38,21 +23,44 @@ function useCountdownTo(isoTarget: string) {
 
 function DropCountdown({ drop_at }: { drop_at: string }) {
   const { h, m, s, done } = useCountdownTo(drop_at);
-  if (done) return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-      <Box sx={{ width: 7, height: 7, bgcolor: T.live, borderRadius: '50%', animation: 'livePulse 1.6s ease-in-out infinite' }} />
-      <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '0.78rem', color: T.live }}>LIVE NOW</Typography>
-    </Box>
-  );
+  if (done) {
+    return (
+      <Stack direction="row" alignItems="center" gap={0.75}>
+        <Box sx={{
+          width: 7, height: 7, borderRadius: '50%',
+          bgcolor: inkstashColors.live,
+          animation: 'inkstashLivePulseDrops 1.6s ease-in-out infinite',
+        }} />
+        <Box sx={{
+          fontFamily: inkstashFonts.mono, fontWeight: 700, fontSize: 12,
+          color: inkstashColors.live, letterSpacing: '0.06em',
+        }}>
+          LIVE NOW
+        </Box>
+      </Stack>
+    );
+  }
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
       {[h, m, s].map((unit, i) => (
-        <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Box sx={{ bgcolor: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 0.75, px: 1, py: 0.4, fontWeight: 800, fontSize: '0.8rem', color: '#fbbf24', fontFamily: T.mono, minWidth: 30, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+        <Stack key={i} direction="row" alignItems="center" gap={0.5}>
+          <Box sx={{
+            bgcolor: inkstashColors.goldSoft,
+            border: `1px solid ${inkstashColors.gold}33`,
+            color: inkstashColors.gold,
+            borderRadius: '6px',
+            padding: '3px 8px',
+            fontWeight: 700, fontSize: 12,
+            fontFamily: inkstashFonts.mono,
+            minWidth: 30, textAlign: 'center',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
             {unit}
           </Box>
-          {i < 2 && <Typography sx={{ color: 'rgba(217,119,6,0.4)', fontSize: '0.75rem' }}>:</Typography>}
-        </Box>
+          {i < 2 && (
+            <Box sx={{ color: inkstashColors.gold, fontSize: 12, opacity: 0.5 }}>:</Box>
+          )}
+        </Stack>
       ))}
     </Stack>
   );
@@ -64,59 +72,182 @@ function DropCard({ drop }: { drop: Drop }) {
   const isLive = drop.status === 'live';
 
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${isLive ? 'rgba(239,68,68,0.25)' : T.border}`, borderRadius: 3, overflow: 'hidden', transition: 'border-color 0.18s, transform 0.18s', '&:hover': { borderColor: isLive ? 'rgba(239,68,68,0.45)' : T.borderLit, transform: 'translateY(-3px)' } }}>
-      {/* Image */}
-      <Box sx={{ position: 'relative', height: { xs: 160, md: 200 }, overflow: 'hidden', bgcolor: T.surfaceB }}>
+    <Box sx={{
+      bgcolor: inkstashColors.bgElev,
+      border: `1px solid ${isLive ? `${inkstashColors.brand}33` : inkstashColors.border}`,
+      borderRadius: inkstashRadii.lg,
+      overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+      transition: 'transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease',
+      '&:hover': {
+        transform: 'translateY(-3px)',
+        boxShadow: inkstashShadows.md,
+        borderColor: isLive ? `${inkstashColors.brand}66` : inkstashColors.borderStrong,
+      },
+    }}>
+      <Box sx={{
+        position: 'relative',
+        aspectRatio: '16 / 10',
+        overflow: 'hidden',
+        bgcolor: inkstashColors.bgSunken,
+      }}>
         {drop.image_url && (
-          <Box component="img" src={drop.image_url} alt={drop.name} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
+          <Box
+            component="img"
+            src={drop.image_url}
+            alt={drop.name}
+            sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }}
+          />
         )}
-        <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(8,8,14,0.9) 0%, transparent 55%)' }} />
+        <Box sx={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(22,17,14,0.45) 0%, transparent 55%)',
+        }} />
+
         {/* Status badge */}
-        <Box sx={{ position: 'absolute', top: 10, left: 10, display: 'flex', alignItems: 'center', gap: 0.6, bgcolor: isLive ? T.live : 'rgba(217,119,6,0.15)', border: `1px solid ${isLive ? T.live : 'rgba(217,119,6,0.35)'}`, color: isLive ? '#fff' : T.gold, fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', px: 0.9, py: 0.4, borderRadius: 0.75 }}>
-          <Zap size={8} strokeWidth={2.5} />
+        <Box sx={{
+          position: 'absolute', top: 12, left: 12,
+          display: 'inline-flex', alignItems: 'center', gap: 0.6,
+          bgcolor: isLive ? inkstashColors.live : inkstashColors.goldSoft,
+          border: isLive ? 'none' : `1px solid ${inkstashColors.gold}55`,
+          color: isLive ? '#fff' : inkstashColors.gold,
+          fontFamily: inkstashFonts.mono,
+          fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
+          padding: '4px 10px', borderRadius: 999,
+        }}>
+          <Zap size={10} strokeWidth={2.5} />
           {isLive ? 'LIVE' : 'UPCOMING'}
         </Box>
+
         {/* Tag chips */}
-        <Stack direction="row" gap={0.5} sx={{ position: 'absolute', bottom: 10, left: 10 }}>
-          {drop.tags.slice(0, 3).map(tag => (
-            <Box key={tag} sx={{ px: 0.7, py: 0.2, borderRadius: 0.5, bgcolor: 'rgba(8,8,14,0.75)', color: T.muted, fontSize: '0.52rem', fontWeight: 600, fontFamily: T.mono }}>{tag}</Box>
-          ))}
-        </Stack>
+        {drop.tags.length > 0 && (
+          <Stack direction="row" gap={0.5} sx={{ position: 'absolute', bottom: 12, left: 12 }}>
+            {drop.tags.slice(0, 3).map(tag => (
+              <Box key={tag} sx={{
+                padding: '2px 8px',
+                borderRadius: '4px',
+                bgcolor: 'rgba(22,17,14,0.7)',
+                color: '#fff',
+                fontFamily: inkstashFonts.mono,
+                fontSize: 9.5, fontWeight: 600,
+                letterSpacing: '0.05em',
+              }}>{tag}</Box>
+            ))}
+          </Stack>
+        )}
       </Box>
 
-      {/* Body */}
-      <Box sx={{ p: { xs: 1.75, md: 2 } }}>
-        <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1rem', color: T.white, lineHeight: 1.2, mb: 0.5 }}>{drop.name}</Typography>
-        <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: T.muted, mb: 1.25 }}>{drop.partner}</Typography>
+      <Box sx={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 1.25, flex: 1 }}>
+        <Box>
+          <Box sx={{
+            fontFamily: inkstashFonts.display, fontWeight: 800,
+            fontSize: 20, lineHeight: 1.05,
+            textTransform: 'uppercase', letterSpacing: '0.005em',
+            color: inkstashColors.ink,
+          }}>
+            {drop.name}
+          </Box>
+          <Box sx={{
+            fontFamily: inkstashFonts.mono, fontSize: 11,
+            color: inkstashColors.muted,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            mt: 0.5,
+          }}>
+            {drop.partner}
+          </Box>
+        </Box>
+
         {drop.description && (
-          <Typography sx={{ fontSize: '0.85rem', color: T.muted, lineHeight: 1.55, mb: 1.5 }} noWrap>{drop.description}</Typography>
+          <Box sx={{
+            fontSize: 13.5,
+            color: inkstashColors.ink2,
+            lineHeight: 1.5,
+            overflow: 'hidden', textOverflow: 'ellipsis',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}>
+            {drop.description}
+          </Box>
         )}
 
         {/* Progress bar */}
-        <Box sx={{ mb: 1.5 }}>
+        <Box>
           <Stack direction="row" justifyContent="space-between" mb={0.6}>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted }}>{drop.quantity - drop.remaining} / {drop.quantity} claimed</Typography>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.7rem', color: soldPct > 80 ? T.live : T.muted }}>{soldPct}%</Typography>
+            <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 11, color: inkstashColors.muted }}>
+              {drop.quantity - drop.remaining} / {drop.quantity} claimed
+            </Box>
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 11,
+              color: soldPct > 80 ? inkstashColors.brand : inkstashColors.muted,
+              fontWeight: 600,
+            }}>
+              {soldPct}%
+            </Box>
           </Stack>
-          <LinearProgress variant="determinate" value={soldPct} sx={{ height: 4, borderRadius: 2, bgcolor: T.surfaceB, '& .MuiLinearProgress-bar': { bgcolor: soldPct > 80 ? T.live : T.blue, borderRadius: 2 } }} />
+          <LinearProgress
+            variant="determinate"
+            value={soldPct}
+            sx={{
+              height: 4, borderRadius: 2,
+              bgcolor: inkstashColors.bgSunken,
+              '& .MuiLinearProgress-bar': {
+                bgcolor: soldPct > 80 ? inkstashColors.brand : inkstashColors.ink,
+                borderRadius: 2,
+              },
+            }}
+          />
         </Box>
 
-        {/* Footer */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+        <Stack direction="row" alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" gap={1.5} sx={{ mt: 'auto' }}>
           <Box>
-            <Typography sx={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, letterSpacing: '0.05em', mb: 0.25 }}>
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 10,
+              color: inkstashColors.muted, letterSpacing: '0.08em',
+              textTransform: 'uppercase', mb: 0.5,
+            }}>
               {isLive ? 'LIVE NOW' : 'DROPS IN'}
-            </Typography>
+            </Box>
             {isLive
-              ? <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '0.95rem', color: T.live }}>Open now</Typography>
+              ? (
+                <Box sx={{
+                  fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 16,
+                  color: inkstashColors.live,
+                }}>
+                  Open now
+                </Box>
+              )
               : <DropCountdown drop_at={drop.drop_at} />
             }
           </Box>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography sx={{ fontFamily: T.mono, fontWeight: 800, fontSize: '1.1rem', color: T.white }}>${drop.price.toFixed(2)}</Typography>
-            <Button variant="contained" size="small" onClick={() => navigate('/packs')} disabled={!isLive} sx={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', px: 2, py: 0.75, bgcolor: isLive ? T.blue : 'rgba(55,65,81,0.6)', color: isLive ? '#fff' : '#6b7280', borderRadius: 1.25, boxShadow: 'none', '&:hover': { bgcolor: isLive ? '#005fcc' : 'rgba(55,65,81,0.6)', boxShadow: 'none' }, '&.Mui-disabled': { bgcolor: 'rgba(55,65,81,0.6)', color: '#6b7280' } }}>
+          <Stack direction="row" alignItems="center" gap={1.25}>
+            <Box sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 20,
+              color: inkstashColors.ink, lineHeight: 1,
+            }}>
+              ${drop.price.toFixed(2)}
+            </Box>
+            <Box
+              component="button"
+              type="button"
+              disabled={!isLive}
+              onClick={() => navigate('/packs')}
+              sx={{
+                bgcolor: isLive ? inkstashColors.brand : inkstashColors.bgSunken,
+                color: isLive ? '#fff' : inkstashColors.muted,
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 1.25,
+                fontFamily: inkstashFonts.ui,
+                fontWeight: 600, fontSize: 13,
+                cursor: isLive ? 'pointer' : 'not-allowed',
+                transition: 'background 140ms ease, transform 100ms ease',
+                '&:hover': isLive ? { bgcolor: inkstashColors.brandDeep } : {},
+                '&:active': isLive ? { transform: 'scale(0.97)' } : {},
+                '&:disabled': { opacity: 0.65 },
+              }}
+            >
               {isLive ? 'Buy Now' : 'Notify Me'}
-            </Button>
+            </Box>
           </Stack>
         </Stack>
       </Box>
@@ -126,15 +257,46 @@ function DropCard({ drop }: { drop: Drop }) {
 
 function DropSkeleton() {
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden' }}>
-      <Skeleton variant="rectangular" height={200} sx={{ bgcolor: T.surfaceB }} />
-      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Skeleton variant="text" width="65%" sx={{ bgcolor: T.surfaceB }} />
-        <Skeleton variant="text" width="45%" sx={{ bgcolor: T.surfaceB }} />
-        <Skeleton variant="rectangular" height={4} sx={{ bgcolor: T.surfaceB, borderRadius: 2, mt: 0.5 }} />
-        <Skeleton variant="rectangular" height={32} sx={{ bgcolor: T.surfaceB, borderRadius: 1.25, mt: 0.5 }} />
+    <Box sx={{
+      bgcolor: inkstashColors.bgElev,
+      border: `1px solid ${inkstashColors.border}`,
+      borderRadius: inkstashRadii.lg,
+      overflow: 'hidden',
+    }}>
+      <Skeleton variant="rectangular" sx={{ aspectRatio: '16 / 10', bgcolor: inkstashColors.bgSunken }} />
+      <Box sx={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Skeleton variant="text" width="65%" height={24} sx={{ bgcolor: inkstashColors.bgSunken }} />
+        <Skeleton variant="text" width="45%" sx={{ bgcolor: inkstashColors.bgSunken }} />
+        <Skeleton variant="rectangular" height={4} sx={{ bgcolor: inkstashColors.bgSunken, borderRadius: 2, mt: 0.5 }} />
+        <Skeleton variant="rectangular" height={36} sx={{ bgcolor: inkstashColors.bgSunken, borderRadius: 1.25, mt: 0.5 }} />
       </Box>
     </Box>
+  );
+}
+
+function SectionHeader({ icon, title, accent }: { icon: React.ReactNode; title: string; accent?: 'live' | 'gold' }) {
+  return (
+    <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 2.5 }}>
+      {icon}
+      <Box sx={{
+        fontFamily: inkstashFonts.display, fontWeight: 800,
+        fontSize: 'clamp(16px, 2vw, 20px)',
+        color: inkstashColors.ink,
+        textTransform: 'uppercase',
+        letterSpacing: '0.005em',
+        lineHeight: 1,
+      }}>
+        {title}
+      </Box>
+      {accent === 'live' && (
+        <Box sx={{
+          width: 7, height: 7, borderRadius: '50%',
+          bgcolor: inkstashColors.live,
+          animation: 'inkstashLivePulseDrops 1.6s ease-in-out infinite',
+          ml: 0.5,
+        }} />
+      )}
+    </Stack>
   );
 }
 
@@ -159,71 +321,122 @@ export default function Drops() {
 
   useEffect(() => { load(); }, [load]);
 
-  const liveDrops      = drops.filter(d => d.status === 'live');
-  const upcomingDrops  = drops.filter(d => d.status === 'upcoming');
+  const liveDrops     = drops.filter(d => d.status === 'live');
+  const upcomingDrops = drops.filter(d => d.status === 'upcoming');
 
   return (
-    <>
-      <style>{`@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.25;transform:scale(0.6)} }`}</style>
-      <Box sx={{ minHeight: '100dvh', bgcolor: T.bg }}>
-        <DashboardHeader />
-        <Container maxWidth="xl" sx={{ pt: { xs: 9, md: 10 }, pb: 8 }}>
-
-          {/* Header */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'flex-end' }} justifyContent="space-between" gap={2} mb={4}>
-            <Box>
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '2rem', md: '2.6rem' }, color: T.white, letterSpacing: '-0.03em', lineHeight: 1.05 }}>Drops</Typography>
-              <Typography sx={{ fontSize: '0.85rem', color: T.muted, mt: 0.75, lineHeight: 1.5 }}>Publisher collabs and InkStash house drops — first come, first served</Typography>
-            </Box>
-            <Stack direction="row" alignItems="center" gap={0.75}>
-              <Bell size={14} strokeWidth={2} color={T.muted} />
-              <Typography sx={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.muted }}>{drops.length} drop{drops.length !== 1 ? 's' : ''} scheduled</Typography>
-            </Stack>
-          </Stack>
-
-          {error && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1, mb: 3, bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 1.5 }}>
-              <AlertCircle size={14} color={T.live} />
-              <Typography sx={{ fontFamily: T.mono, fontSize: '0.75rem', color: T.live }}>{error}</Typography>
-            </Box>
-          )}
-
-          {/* Live drops */}
-          {(loading || liveDrops.length > 0) && (
-            <Box sx={{ mb: { xs: 5, md: 6 } }}>
-              <Stack direction="row" alignItems="center" gap={1} mb={2.5}>
-                <Box sx={{ width: 7, height: 7, bgcolor: T.live, borderRadius: '50%', animation: 'livePulse 1.6s ease-in-out infinite' }} />
-                <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.1rem', color: T.white }}>Live Now</Typography>
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' }, gap: { xs: 2, md: 2.5 } }}>
-                {loading ? [1,2].map(i => <DropSkeleton key={i} />) : liveDrops.map(d => <DropCard key={d.id} drop={d} />)}
-              </Box>
-            </Box>
-          )}
-
-          {/* Upcoming drops */}
+    <AppShell>
+      <Container maxWidth="xl" sx={{ pb: 8 }}>
+        {/* Page header */}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+          justifyContent="space-between"
+          gap={2}
+          sx={{ mb: 4 }}
+        >
           <Box>
-            <Stack direction="row" alignItems="center" gap={1} mb={2.5}>
-              <Clock size={15} strokeWidth={2} color={T.gold} />
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '0.95rem', color: T.white }}>Upcoming</Typography>
-            </Stack>
-            {loading ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' }, gap: { xs: 2, md: 2.5 } }}>
-                {[1,2,3].map(i => <DropSkeleton key={i} />)}
-              </Box>
-            ) : upcomingDrops.length === 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 1.5 }}>
-                <Package size={30} strokeWidth={1.25} color={T.dimmed} />
-                <Typography sx={{ fontFamily: T.mono, fontSize: '0.9rem', color: T.muted }}>No upcoming drops scheduled</Typography>
-              </Box>
-            ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' }, gap: { xs: 2, md: 2.5 } }}>
-                {upcomingDrops.map(d => <DropCard key={d.id} drop={d} />)}
-              </Box>
-            )}
+            <Box component="h1" sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800,
+              fontSize: 'clamp(28px, 4vw, 44px)',
+              letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+              color: inkstashColors.ink,
+            }}>
+              Drops
+            </Box>
+            <Box sx={{
+              color: inkstashColors.muted, fontSize: 13.5, mt: 0.75, lineHeight: 1.5,
+            }}>
+              Publisher collabs and InkStash house drops — first come, first served.
+            </Box>
           </Box>
-        </Container>
-      </Box>
-    </>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Bell size={14} color={inkstashColors.muted} />
+            <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 12, color: inkstashColors.muted }}>
+              {drops.length} drop{drops.length !== 1 ? 's' : ''} scheduled
+            </Box>
+          </Stack>
+        </Stack>
+
+        {/* Error banner */}
+        {error && (
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 1.25,
+            padding: '10px 16px', mb: 3,
+            bgcolor: inkstashColors.brandSoft,
+            border: `1px solid ${inkstashColors.brand}33`,
+            borderRadius: inkstashRadii.md,
+          }}>
+            <AlertCircle size={14} color={inkstashColors.brand} />
+            <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 12, color: inkstashColors.brandDeep }}>
+              {error}
+            </Box>
+          </Box>
+        )}
+
+        {/* Live drops */}
+        {(loading || liveDrops.length > 0) && (
+          <Box sx={{ mb: { xs: 5, md: 6 } }}>
+            <SectionHeader icon={null} title="Live Now" accent="live" />
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
+              gap: { xs: 2, md: 2.5 },
+            }}>
+              {loading
+                ? [1, 2].map(i => <DropSkeleton key={i} />)
+                : liveDrops.map(d => <DropCard key={d.id} drop={d} />)
+              }
+            </Box>
+          </Box>
+        )}
+
+        {/* Upcoming drops */}
+        <Box>
+          <SectionHeader
+            icon={<Clock size={15} color={inkstashColors.gold} />}
+            title="Upcoming"
+            accent="gold"
+          />
+          {loading ? (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
+              gap: { xs: 2, md: 2.5 },
+            }}>
+              {[1, 2, 3].map(i => <DropSkeleton key={i} />)}
+            </Box>
+          ) : upcomingDrops.length === 0 ? (
+            <Box sx={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              padding: '64px 0', gap: 1.5,
+              bgcolor: inkstashColors.bgElev,
+              border: `1px solid ${inkstashColors.border}`,
+              borderRadius: inkstashRadii.lg,
+            }}>
+              <Package size={30} strokeWidth={1.25} color={inkstashColors.muted2} />
+              <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 13, color: inkstashColors.muted }}>
+                No upcoming drops scheduled
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
+              gap: { xs: 2, md: 2.5 },
+            }}>
+              {upcomingDrops.map(d => <DropCard key={d.id} drop={d} />)}
+            </Box>
+          )}
+        </Box>
+
+        <style>{`
+          @keyframes inkstashLivePulseDrops {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.25; transform: scale(0.6); }
+          }
+        `}</style>
+      </Container>
+    </AppShell>
   );
 }
