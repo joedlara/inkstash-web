@@ -1,33 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Container,
-  Box,
-  Typography,
-  Paper,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  useTheme,
-  useMediaQuery,
-  Drawer,
-  IconButton,
-  AppBar,
-  Toolbar,
-} from '@mui/material';
-import {
-  Bookmark,
-  Favorite,
-  Gavel,
-  History,
-  Settings,
-  Dashboard,
-  Menu as MenuIcon,
-} from '@mui/icons-material';
-import DashboardHeader from '../components/home/DashboardHeader';
+import { Box, Container, Stack } from '@mui/material';
+import { LayoutGrid, Bookmark, Heart, Gavel, History, Settings } from 'lucide-react';
+import AppShell from '../components/layout/AppShell';
 import { useAuth } from '../hooks/useAuth';
 import SavedCollectiblesTab from '../components/mystash/SavedCollectiblesTab';
 import LikedCollectiblesTab from '../components/mystash/LikedCollectiblesTab';
@@ -35,45 +10,43 @@ import CurrentBidsTab from '../components/mystash/CurrentBidsTab';
 import PurchaseHistoryTab from '../components/mystash/PurchaseHistoryTab';
 import PreferencesTab from '../components/mystash/PreferencesTab';
 import DashboardTab from '../components/mystash/DashboardTab';
+import { inkstashColors, inkstashFonts, inkstashShadows } from '../theme/inkstashTokens';
+import type { LucideIcon } from 'lucide-react';
 
 type TabType = 'dashboard' | 'saved' | 'liked' | 'bids' | 'history' | 'preferences';
 
-interface SidebarItem {
+interface TabItem {
   id: TabType;
   label: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
 }
 
-const sidebarItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Summary', icon: <Dashboard /> },
-  { id: 'saved', label: 'Saved Collectibles', icon: <Bookmark /> },
-  { id: 'liked', label: 'Liked Collectibles', icon: <Favorite /> },
-  { id: 'bids', label: 'Current Bids', icon: <Gavel /> },
-  { id: 'history', label: 'My Stash', icon: <History /> },
-  { id: 'preferences', label: 'Preferences', icon: <Settings /> },
+const TABS: TabItem[] = [
+  { id: 'dashboard',   label: 'Summary',             icon: LayoutGrid },
+  { id: 'saved',       label: 'Saved Collectibles',  icon: Bookmark },
+  { id: 'liked',       label: 'Liked Collectibles',  icon: Heart },
+  { id: 'bids',        label: 'Current Bids',        icon: Gavel },
+  { id: 'history',     label: 'My Stash',            icon: History },
+  { id: 'preferences', label: 'Preferences',         icon: Settings },
 ];
 
 export default function MyStash() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>(
     (searchParams.get('tab') as TabType) || 'dashboard'
   );
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
       navigate('/');
-      return;
     }
   }, [user, navigate]);
 
   useEffect(() => {
     const tab = searchParams.get('tab') as TabType;
-    if (tab && sidebarItems.some(item => item.id === tab)) {
+    if (tab && TABS.some(item => item.id === tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -81,161 +54,83 @@ export default function MyStash() {
   const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId);
     setSearchParams({ tab: tabId });
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  };
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <DashboardTab />;
-      case 'saved':
-        return <SavedCollectiblesTab />;
-      case 'liked':
-        return <LikedCollectiblesTab />;
-      case 'bids':
-        return <CurrentBidsTab />;
-      case 'history':
-        return <PurchaseHistoryTab />;
-      case 'preferences':
-        return <PreferencesTab />;
-      default:
-        return <DashboardTab />;
+      case 'dashboard':   return <DashboardTab />;
+      case 'saved':       return <SavedCollectiblesTab />;
+      case 'liked':       return <LikedCollectiblesTab />;
+      case 'bids':        return <CurrentBidsTab />;
+      case 'history':     return <PurchaseHistoryTab />;
+      case 'preferences': return <PreferencesTab />;
+      default:            return <DashboardTab />;
     }
   };
 
-  const sidebarContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h5" fontWeight="bold" color="primary">
-          My Stash
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {user?.username || 'User'}
-        </Typography>
-      </Box>
-      <List sx={{ flex: 1, py: 2 }}>
-        {sidebarItems.map((item) => (
-          <ListItem key={item.id} disablePadding sx={{ px: 1, mb: 0.5 }}>
-            <ListItemButton
-              selected={activeTab === item.id}
-              onClick={() => handleTabChange(item.id)}
-              sx={{
-                borderRadius: 1,
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: 'white',
-                  },
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  color: activeTab === item.id ? 'white' : 'text.secondary',
-                  minWidth: 40,
-                }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{
-                  fontWeight: activeTab === item.id ? 600 : 400,
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
-
-      {/* Mobile App Bar */}
-      {isMobile && (
-        <AppBar
-          position="fixed"
-          sx={{
-            top: 64,
-            bgcolor: 'background.paper',
-            color: 'text.primary',
-            boxShadow: 1,
-          }}
-        >
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div" color="primary" fontWeight={700}>
-              My Stash
-            </Typography>
-          </Toolbar>
-        </AppBar>
-      )}
-
-      <Container maxWidth="xl" sx={{ py: 4, mt: isMobile ? 16 : 10 }}>
-        <Box sx={{ display: 'flex', gap: 3, minHeight: 'calc(100vh - 150px)' }}>
-          {/* Desktop Sidebar */}
-          {!isMobile && (
-            <Paper
-              elevation={2}
-              sx={{
-                width: 280,
-                height: 'fit-content',
-                position: 'sticky',
-                top: 100,
-              }}
-            >
-              {sidebarContent}
-            </Paper>
-          )}
-
-          {/* Mobile Drawer */}
-          {isMobile && (
-            <Drawer
-              variant="temporary"
-              anchor="left"
-              open={mobileOpen}
-              onClose={handleDrawerToggle}
-              ModalProps={{
-                keepMounted: true, // Better open performance on mobile.
-              }}
-              sx={{
-                '& .MuiDrawer-paper': {
-                  width: 280,
-                  boxSizing: 'border-box',
-                },
-              }}
-            >
-              {sidebarContent}
-            </Drawer>
-          )}
-
-          {/* Main Content Area */}
-          <Box sx={{ flex: 1 }}>
-            {renderTabContent()}
+    <AppShell>
+      <Container maxWidth="xl" sx={{ pb: 8 }}>
+        <Box sx={{ mb: 3.5 }}>
+          <Box component="h1" sx={{
+            fontFamily: inkstashFonts.display, fontWeight: 800,
+            fontSize: 'clamp(28px, 4vw, 44px)',
+            letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+            color: inkstashColors.ink,
+          }}>
+            My Stash
+          </Box>
+          <Box sx={{
+            color: inkstashColors.muted, fontSize: 13.5, mt: 0.75, lineHeight: 1.5,
+          }}>
+            {user?.username ? `@${user.username}` : 'Your collection'} — saved, liked, bid, owned, and tuned.
           </Box>
         </Box>
+
+        <Box sx={{
+          display: 'flex', gap: 0.5, padding: 0.5,
+          bgcolor: inkstashColors.bgSunken,
+          borderRadius: 999,
+          mb: 4,
+          overflowX: 'auto',
+          width: 'fit-content',
+          maxWidth: '100%',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}>
+          <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+            {TABS.map(t => {
+              const active = t.id === activeTab;
+              const Icon = t.icon;
+              return (
+                <Box
+                  key={t.id}
+                  component="button"
+                  type="button"
+                  onClick={() => handleTabChange(t.id)}
+                  sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.85,
+                    padding: '8px 16px',
+                    borderRadius: 999, border: 'none', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
+                    bgcolor: active ? inkstashColors.bgElev : 'transparent',
+                    color: active ? inkstashColors.ink : inkstashColors.ink2,
+                    boxShadow: active ? inkstashShadows.sm : 'none',
+                    transition: 'all 140ms ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <Icon size={14} />
+                  {t.label}
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        <Box>
+          {renderTabContent()}
+        </Box>
       </Container>
-    </Box>
+    </AppShell>
   );
 }
