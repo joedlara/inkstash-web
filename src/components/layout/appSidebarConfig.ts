@@ -1,4 +1,4 @@
-import { Home, Package, Store, Repeat, Ticket, Archive, Trophy } from 'lucide-react';
+import { Home, Package, Store, Repeat, Ticket, Archive } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface AppSidebarItem {
@@ -15,7 +15,6 @@ export const appSidebarPrimary: AppSidebarItem[] = [
   { label: 'Live Breaks', route: '/live',        icon: Repeat },
   { label: 'Raffles',     route: '/raffles',     icon: Ticket },
   { label: 'My Vault',    route: '/my-stash',    icon: Archive },
-  { label: 'Leaderboard', route: '/leaderboard', icon: Trophy },
 ];
 
 export interface AppSidebarEvent {

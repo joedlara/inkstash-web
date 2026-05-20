@@ -1,35 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Stack,
-  Avatar,
-  Skeleton,
-  Chip,
-} from '@mui/material';
-import { Radio, Eye, Calendar, AlertCircle, Tv } from 'lucide-react';
-import DashboardHeader from '../components/home/DashboardHeader';
+import { Box, Container, Stack, Skeleton } from '@mui/material';
+import { Radio, Calendar, AlertCircle, Tv } from 'lucide-react';
+import AppShell from '../components/layout/AppShell';
 import { supabase } from '../api/supabase/supabaseClient';
+import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const T = {
-  bg:        '#08080e',
-  surface:   '#0f0f18',
-  surfaceB:  '#141420',
-  border:    'rgba(255,255,255,0.07)',
-  borderLit: 'rgba(255,255,255,0.13)',
-  blue:      '#0078FF',
-  live:      '#ef4444',
-  gold:      '#d97706',
-  green:     '#10b981',
-  white:     '#f1f5f9',
-  muted:     'rgba(241,245,249,0.5)',
-  dimmed:    'rgba(241,245,249,0.22)',
-  mono:      "'DM Mono', 'Courier New', monospace",
-};
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface Stream {
   id: string;
   title: string;
@@ -46,7 +21,6 @@ interface Stream {
 
 type FilterTab = 'all' | 'live' | 'scheduled';
 
-// ── Fallback data ─────────────────────────────────────────────────────────────
 const FALLBACK: Stream[] = [
   { id: 'f1', title: 'Sunday Silver Age Comics Auction',         thumbnail_url: null, is_live: true,  status: 'live',      current_viewers: 312, category: 'Comics',        seller_id: '', seller_username: 'silveragedan',   seller_avatar: null, scheduled_start_time: null },
   { id: 'f2', title: 'Golden Age Keys Break — JSA & CGC Slabs', thumbnail_url: null, is_live: true,  status: 'live',      current_viewers: 521, category: 'Comics',        seller_id: '', seller_username: 'comicvaultpdx', seller_avatar: null, scheduled_start_time: null },
@@ -57,21 +31,19 @@ const FALLBACK: Stream[] = [
   { id: 'f7', title: 'Spider-Man Key Issues Box Break',         thumbnail_url: null, is_live: false, status: 'scheduled', current_viewers: 0,   category: 'Comics',        seller_id: '', seller_username: 'keymaster88',    seller_avatar: null, scheduled_start_time: new Date(Date.now() + 24 * 3600000).toISOString() },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function picsum(seed: string, w = 600, h = 340): string {
+function picsum(seed: string, w = 600, h = 1067): string {
   const num = seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 1000;
   return `https://picsum.photos/seed/${num}/${w}/${h}`;
 }
 
-function formatTime(iso: string | null): string {
+function formatStartIn(iso: string | null): string {
   if (!iso) return '';
-  const d = new Date(iso);
-  const diff = d.getTime() - Date.now();
+  const diff = new Date(iso).getTime() - Date.now();
   if (diff <= 0) return 'Starting soon';
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   if (h >= 24) return `in ${Math.floor(h / 24)}d ${h % 24}h`;
-  if (h > 0) return `in ${h}h ${m}m`;
+  if (h > 0)   return `in ${h}h ${m}m`;
   return `in ${m}m`;
 }
 
@@ -80,274 +52,252 @@ function formatViewers(n: number): string {
   return n.toLocaleString();
 }
 
-// ── Skeleton card ─────────────────────────────────────────────────────────────
 function StreamSkeleton() {
   return (
-    <Box sx={{ bgcolor: T.surface, border: `1px solid ${T.border}`, borderRadius: 3, overflow: 'hidden', aspectRatio: '9/16' }}>
-      <Skeleton variant="rectangular" sx={{ width: '100%', height: '100%', bgcolor: T.surfaceB }} />
+    <Box sx={{
+      bgcolor: inkstashColors.ink,
+      borderRadius: inkstashRadii.lg,
+      overflow: 'hidden',
+      aspectRatio: '9 / 16',
+    }}>
+      <Skeleton variant="rectangular" sx={{ width: '100%', height: '100%', bgcolor: inkstashColors.bgSunken, opacity: 0.5 }} />
     </Box>
   );
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-function EmptySection({ message }: { message: string }) {
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 1.5 }}>
-      <Tv size={30} strokeWidth={1.25} color={T.dimmed} />
-      <Typography sx={{ fontSize: '0.9rem', color: T.muted, fontFamily: T.mono }}>{message}</Typography>
-    </Box>
-  );
-}
-
-// ── Error state ───────────────────────────────────────────────────────────────
-function ErrorRetry({ onRetry }: { onRetry: () => void }) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 4 }}>
-      <AlertCircle size={15} strokeWidth={1.5} color={T.muted} />
-      <Typography sx={{ fontSize: '0.85rem', color: T.muted }}>Failed to load streams.</Typography>
-      <Box
-        onClick={onRetry}
-        sx={{ fontSize: '0.85rem', fontWeight: 600, color: T.blue, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-      >
-        Retry
-      </Box>
-    </Box>
-  );
-}
-
-// ── Stream card ───────────────────────────────────────────────────────────────
 function StreamCard({ stream }: { stream: Stream }) {
+  const isLive = stream.is_live;
   const imgSrc = stream.thumbnail_url || picsum(stream.id, 540, 960);
+  const handle = stream.seller_username || 'host';
+  const handleInitial = handle[0]?.toUpperCase() || 'L';
 
   return (
     <Box
       sx={{
-        position: 'relative',
-        bgcolor: T.surface,
-        border: `1px solid ${stream.is_live ? 'rgba(239,68,68,0.0)' : T.border}`,
-        borderRadius: 3,
+        borderRadius: inkstashRadii.lg,
         overflow: 'hidden',
         cursor: 'pointer',
-        aspectRatio: '9/16',
-        transition: 'border-color 0.18s, transform 0.18s, box-shadow 0.18s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          borderColor: stream.is_live ? 'rgba(239,68,68,0.35)' : T.borderLit,
-          boxShadow: stream.is_live ? '0 0 20px rgba(239,68,68,0.08)' : 'none',
-        },
-        '&:active': { transform: 'scale(0.985)' },
+        bgcolor: inkstashColors.ink,
+        transition: 'transform 140ms ease, box-shadow 140ms ease',
+        '&:hover': { transform: 'translateY(-3px)', boxShadow: inkstashShadows.lg },
       }}
     >
-      {/* Thumbnail fills the entire card */}
-      <Box
-        component="img"
-        src={imgSrc}
-        alt={stream.title}
-        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-          e.currentTarget.src = picsum(stream.id + '_fb', 540, 960);
-        }}
-      />
+      <Box sx={{
+        position: 'relative',
+        aspectRatio: '9 / 16',
+        overflow: 'hidden',
+        color: '#fff',
+        display: 'flex', alignItems: 'flex-end',
+        backgroundImage: `url(${imgSrc})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        '&::before': {
+          content: '""',
+          position: 'absolute', inset: 0,
+          background:
+            'radial-gradient(circle at 50% 25%, rgba(255,255,255,0.10), transparent 50%),' +
+            'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.45) 70%, rgba(0,0,0,0.85) 100%)',
+          pointerEvents: 'none',
+        },
+      }}>
+        {isLive ? (
+          <Box sx={{
+            position: 'absolute', top: 12, left: 12, zIndex: 3,
+            display: 'inline-flex', alignItems: 'center', gap: 0.65,
+            bgcolor: inkstashColors.live, color: '#fff',
+            fontFamily: inkstashFonts.mono, fontSize: 10.5, fontWeight: 700,
+            letterSpacing: '0.08em',
+            padding: '4px 10px 4px 8px', borderRadius: 999,
+            boxShadow: '0 2px 8px rgba(220,38,38,0.4)',
+          }}>
+            <Box sx={{
+              width: 6, height: 6, borderRadius: '50%', bgcolor: '#fff',
+              animation: 'inkstashLiveStreamPulse 1.4s ease-in-out infinite',
+            }} />
+            LIVE
+          </Box>
+        ) : (
+          <Box sx={{
+            position: 'absolute', top: 12, left: 12, zIndex: 3,
+            display: 'inline-flex', alignItems: 'center', gap: 0.65,
+            bgcolor: inkstashColors.goldSoft,
+            border: `1px solid ${inkstashColors.gold}55`,
+            color: inkstashColors.gold,
+            fontFamily: inkstashFonts.mono, fontSize: 10.5, fontWeight: 700,
+            letterSpacing: '0.08em',
+            padding: '4px 10px', borderRadius: 999,
+          }}>
+            <Calendar size={10} />
+            SCHEDULED
+          </Box>
+        )}
 
-      {/* LIVE / SOON badge — top-left */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.6,
-          bgcolor: stream.is_live ? T.live : 'rgba(8,8,14,0.75)',
-          border: stream.is_live ? 'none' : `1px solid ${T.borderLit}`,
-          color: '#fff',
-          fontSize: '0.6rem',
-          fontWeight: 800,
-          letterSpacing: '0.08em',
-          px: 0.9,
-          py: 0.4,
-          borderRadius: 0.75,
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        <Radio
-          size={9}
-          strokeWidth={2.5}
-          style={stream.is_live ? { animation: 'livePulse 1.6s ease-in-out infinite' } : {}}
-        />
-        {stream.is_live ? 'LIVE' : 'SOON'}
-      </Box>
+        {isLive && (
+          <Box sx={{
+            position: 'absolute', top: 12, right: 12, zIndex: 3,
+            display: 'inline-flex', alignItems: 'center', gap: 0.75,
+            bgcolor: 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 999,
+            padding: '5px 10px',
+            fontFamily: inkstashFonts.mono,
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+          }}>
+            <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: '#fff', lineHeight: 1 }}>
+              {formatViewers(stream.current_viewers)}
+            </Box>
+            <Box component="span" sx={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>
+              watching
+            </Box>
+          </Box>
+        )}
 
-      {/* Viewer count — top-right (live only) */}
-      {stream.is_live && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            bgcolor: 'rgba(8,8,14,0.75)',
-            color: T.white,
-            fontSize: '0.65rem',
-            fontWeight: 700,
-            fontFamily: T.mono,
-            px: 0.85,
-            py: 0.4,
-            borderRadius: 0.75,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <Eye size={11} strokeWidth={2} />
-          {formatViewers(stream.current_viewers)}
+        {!isLive && stream.scheduled_start_time && (
+          <Box sx={{
+            position: 'absolute', top: 12, right: 12, zIndex: 3,
+            bgcolor: 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 999,
+            padding: '5px 10px',
+            fontFamily: inkstashFonts.mono,
+            fontSize: 11, fontWeight: 600, color: '#fff',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            letterSpacing: '0.04em',
+          }}>
+            {formatStartIn(stream.scheduled_start_time)}
+          </Box>
+        )}
+
+        {stream.category && (
+          <Box sx={{
+            position: 'absolute', top: '38%', left: '50%',
+            transform: 'translate(-50%, -50%) rotate(-3deg)',
+            fontFamily: inkstashFonts.display, fontWeight: 900,
+            fontSize: 'clamp(20px, 1.7vw, 26px)',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.95)',
+            letterSpacing: '0.01em', textAlign: 'center',
+            padding: '0 16px',
+            lineHeight: 0.95,
+            textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+            zIndex: 1,
+            maxWidth: '92%',
+          }}>
+            {stream.category}
+          </Box>
+        )}
+
+        <Box sx={{ position: 'relative', padding: '16px 16px 18px', zIndex: 2, width: '100%' }}>
+          <Stack direction="row" alignItems="center" gap={0.85} sx={{ mb: 1 }}>
+            <Box sx={{
+              width: 22, height: 22, borderRadius: '50%',
+              overflow: 'hidden', flexShrink: 0,
+              background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontFamily: inkstashFonts.display,
+              fontWeight: 800, fontSize: 11,
+              border: '1.5px solid rgba(255,255,255,0.18)',
+            }}>
+              {stream.seller_avatar ? (
+                <Box
+                  component="img"
+                  src={stream.seller_avatar}
+                  alt={handle}
+                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : handleInitial}
+            </Box>
+            <Box sx={{
+              fontFamily: inkstashFonts.mono, fontSize: 11.5,
+              color: 'rgba(255,255,255,0.85)', fontWeight: 500,
+            }}>
+              @{handle}
+            </Box>
+          </Stack>
+          <Box sx={{
+            fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            overflow: 'hidden', textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+          }}>
+            {stream.title}
+          </Box>
         </Box>
-      )}
-
-      {/* Scheduled time — top-right (scheduled only) */}
-      {!stream.is_live && stream.scheduled_start_time && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            bgcolor: 'rgba(8,8,14,0.75)',
-            color: T.white,
-            fontSize: '0.65rem',
-            fontWeight: 700,
-            fontFamily: T.mono,
-            px: 0.85,
-            py: 0.4,
-            borderRadius: 0.75,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <Calendar size={11} strokeWidth={2} />
-          {formatTime(stream.scheduled_start_time)}
-        </Box>
-      )}
-
-      {/* Bottom glass overlay — title + streamer */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          p: 1.5,
-          background: 'linear-gradient(to top, rgba(8,8,14,0.92) 0%, rgba(8,8,14,0.4) 50%, transparent 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1,
-        }}
-      >
-        <Typography
-          sx={{
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 700,
-            fontSize: '1rem',
-            color: T.white,
-            lineHeight: 1.25,
-            letterSpacing: '-0.01em',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            textShadow: '0 1px 4px rgba(0,0,0,0.6)',
-          }}
-        >
-          {stream.title}
-        </Typography>
-        <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
-          <Avatar
-            src={stream.seller_avatar || undefined}
-            sx={{
-              width: 24,
-              height: 24,
-              flexShrink: 0,
-              fontSize: '0.65rem',
-              bgcolor: T.blue,
-              border: stream.is_live ? `1.5px solid rgba(239,68,68,0.6)` : `1.5px solid rgba(255,255,255,0.2)`,
-            }}
-          >
-            {(stream.seller_username?.[0] ?? 'I').toUpperCase()}
-          </Avatar>
-          <Typography
-            sx={{
-              fontSize: '0.72rem',
-              color: T.white,
-              fontFamily: T.mono,
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              opacity: 0.85,
-            }}
-          >
-            @{stream.seller_username ?? 'inkstash'}
-          </Typography>
-          {stream.category && (
-            <Chip
-              label={stream.category}
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: '0.6rem',
-                fontWeight: 700,
-                bgcolor: 'rgba(0,120,255,0.2)',
-                color: '#7ab8ff',
-                border: `1px solid rgba(0,120,255,0.3)`,
-                backdropFilter: 'blur(8px)',
-                flexShrink: 0,
-                '& .MuiChip-label': { px: 0.75 },
-              }}
-            />
-          )}
-        </Stack>
       </Box>
     </Box>
   );
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-function SectionLabel({ icon: Icon, label, count, color }: { icon: React.ElementType; label: string; count: number; color: string }) {
+function SectionHeader({
+  icon: Icon,
+  label,
+  count,
+  accent,
+  pulse,
+}: {
+  icon: typeof Radio;
+  label: string;
+  count: number;
+  accent: 'live' | 'gold';
+  pulse?: boolean;
+}) {
+  const color = accent === 'live' ? inkstashColors.live : inkstashColors.gold;
   return (
-    <Stack direction="row" alignItems="center" gap={1.25} mb={2.5}>
-      <Icon size={18} strokeWidth={2} color={color} />
-      <Typography
-        sx={{
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 800,
-          fontSize: '1.1rem',
-          color: T.white,
-          letterSpacing: '-0.01em',
-        }}
-      >
+    <Stack direction="row" alignItems="center" gap={1.25} sx={{ mb: 2.25 }}>
+      {pulse ? (
+        <Box sx={{
+          width: 8, height: 8, borderRadius: '50%',
+          bgcolor: color,
+          animation: 'inkstashLiveStreamPulse 1.6s ease-in-out infinite',
+        }} />
+      ) : (
+        <Icon size={16} color={color} />
+      )}
+      <Box sx={{
+        fontFamily: inkstashFonts.display, fontWeight: 800,
+        fontSize: 'clamp(16px, 2vw, 20px)',
+        color: inkstashColors.ink,
+        textTransform: 'uppercase',
+        letterSpacing: '0.005em',
+        lineHeight: 1,
+      }}>
         {label}
-      </Typography>
-      <Box
-        sx={{
-          bgcolor: color === T.live ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-          color: color === T.live ? T.live : T.muted,
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          fontFamily: T.mono,
-          px: 0.85,
-          py: 0.25,
-          borderRadius: 0.75,
-          border: `1px solid ${color === T.live ? 'rgba(239,68,68,0.22)' : T.border}`,
-        }}
-      >
+      </Box>
+      <Box sx={{
+        fontFamily: inkstashFonts.mono, fontSize: 11,
+        color: inkstashColors.muted2,
+        letterSpacing: '0.04em',
+      }}>
         {count}
       </Box>
     </Stack>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+function EmptySection({ message }: { message: string }) {
+  return (
+    <Box sx={{
+      bgcolor: inkstashColors.bgElev,
+      border: `1px solid ${inkstashColors.border}`,
+      borderRadius: inkstashRadii.lg,
+      padding: '48px 24px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5,
+    }}>
+      <Tv size={28} strokeWidth={1.5} color={inkstashColors.muted2} />
+      <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 13, color: inkstashColors.muted }}>
+        {message}
+      </Box>
+    </Box>
+  );
+}
+
+const FILTER_TABS: { key: FilterTab; label: string }[] = [
+  { key: 'all',       label: 'All' },
+  { key: 'live',      label: 'Live Now' },
+  { key: 'scheduled', label: 'Scheduled' },
+];
+
 export default function Live() {
   const [streams, setStreams] = useState<Stream[]>([]);
   const [loading, setLoading] = useState(true);
@@ -373,9 +323,8 @@ export default function Live() {
         return;
       }
 
-      // Fetch seller info
       const sellerIds = [...new Set(data.map((r: any) => r.seller_id).filter(Boolean))] as string[];
-      let usersMap = new Map<string, { username: string; avatar_url: string | null }>();
+      const usersMap = new Map<string, { username: string; avatar_url: string | null }>();
 
       if (sellerIds.length > 0) {
         const { data: users } = await supabase
@@ -414,255 +363,189 @@ export default function Live() {
 
   useEffect(() => { load(); }, [load]);
 
-  const liveStreams = streams.filter(s => s.is_live);
+  const liveStreams      = streams.filter(s => s.is_live);
   const scheduledStreams = streams.filter(s => !s.is_live);
   const liveCount = liveStreams.length;
 
   const showLive      = filter === 'all' || filter === 'live';
   const showScheduled = filter === 'all' || filter === 'scheduled';
 
-  const FILTER_TABS: { key: FilterTab; label: string }[] = [
-    { key: 'all',       label: 'All' },
-    { key: 'live',      label: 'Live Now' },
-    { key: 'scheduled', label: 'Scheduled' },
-  ];
-
   return (
-    <>
-      <style>{`
-        @keyframes livePulse {
-          0%,100% { opacity: 1; transform: scale(1); }
-          50%      { opacity: 0.25; transform: scale(0.6); }
-        }
-      `}</style>
-
-      <Box sx={{ minHeight: '100dvh', bgcolor: T.bg, fontFamily: "'Outfit', system-ui, sans-serif" }}>
-        <DashboardHeader />
-
-        {/* ── Page header ── */}
-        <Box
-          sx={{
-            pt: { xs: 9, md: 10 },
-            borderBottom: `1px solid ${T.border}`,
-            background: `
-              radial-gradient(ellipse 60% 80% at 10% 50%, rgba(239,68,68,0.05) 0%, transparent 70%),
-              ${T.bg}
-            `,
-          }}
+    <AppShell>
+      <Container maxWidth="xl" sx={{ pb: 8 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+          justifyContent="space-between"
+          gap={2}
+          sx={{ mb: 3.5 }}
         >
-          <Container maxWidth="xl">
-            <Box
-              sx={{
-                py: { xs: 4, md: 5 },
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { sm: 'center' },
-                justifyContent: 'space-between',
-                gap: 2,
-              }}
-            >
-              {/* Left — title + subtitle */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontFamily: "'Outfit', sans-serif",
-                    fontWeight: 900,
-                    fontSize: { xs: '2rem', md: '2.6rem' },
-                    color: T.white,
-                    letterSpacing: '-0.03em',
-                    lineHeight: 1,
-                    mb: 0.75,
-                  }}
-                >
-                  Live Breaks
-                </Typography>
-                <Typography sx={{ fontSize: '0.95rem', color: T.muted, lineHeight: 1.5, maxWidth: 460 }}>
-                  Watch collectors break packs, auction keys, and drop exclusives
-                </Typography>
-              </Box>
+          <Box>
+            <Box component="h1" sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800,
+              fontSize: 'clamp(28px, 4vw, 44px)',
+              letterSpacing: '0.005em', m: 0, textTransform: 'uppercase', lineHeight: 1,
+              color: inkstashColors.ink,
+            }}>
+              Live Breaks
+            </Box>
+            <Box sx={{
+              color: inkstashColors.muted, fontSize: 13.5, mt: 0.75, lineHeight: 1.5,
+            }}>
+              Watch collectors rip in real time — chat, bid, and pull along.
+            </Box>
+          </Box>
+          {liveCount > 0 && (
+            <Stack direction="row" alignItems="center" gap={0.85} sx={{
+              bgcolor: inkstashColors.brandSoft,
+              border: `1px solid ${inkstashColors.brand}33`,
+              color: inkstashColors.brandDeep,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+              padding: '6px 12px', borderRadius: 999,
+            }}>
+              <Box sx={{
+                width: 6, height: 6, borderRadius: '50%',
+                bgcolor: inkstashColors.live,
+                animation: 'inkstashLiveStreamPulse 1.6s ease-in-out infinite',
+              }} />
+              {liveCount} LIVE NOW
+            </Stack>
+          )}
+        </Stack>
 
-              {/* Right — live count badge */}
+        <Box sx={{
+          display: 'inline-flex', gap: 0.5, padding: 0.5,
+          bgcolor: inkstashColors.bgSunken, borderRadius: 999,
+          mb: 3.5,
+        }}>
+          {FILTER_TABS.map(t => {
+            const active = filter === t.key;
+            return (
               <Box
+                key={t.key}
+                component="button"
+                type="button"
+                onClick={() => setFilter(t.key)}
                 sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  bgcolor: liveCount > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${liveCount > 0 ? 'rgba(239,68,68,0.22)' : T.border}`,
-                  color: liveCount > 0 ? T.live : T.dimmed,
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  px: 1.75,
-                  py: 0.85,
-                  borderRadius: 999,
-                  flexShrink: 0,
-                  alignSelf: { xs: 'flex-start', sm: 'center' },
+                  padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                  fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
+                  bgcolor: active ? inkstashColors.bgElev : 'transparent',
+                  color: active ? inkstashColors.ink : inkstashColors.ink2,
+                  boxShadow: active ? inkstashShadows.sm : 'none',
+                  transition: 'all 140ms ease',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {liveCount > 0 && (
-                  <Box
-                    sx={{
-                      width: 7,
-                      height: 7,
-                      bgcolor: T.live,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      animation: 'livePulse 1.6s ease-in-out infinite',
-                    }}
-                  />
-                )}
-                {liveCount > 0
-                  ? `${liveCount} stream${liveCount !== 1 ? 's' : ''} live now`
-                  : 'No streams live'}
+                {t.label}
               </Box>
-            </Box>
-
-            {/* Filter tabs */}
-            <Stack direction="row" gap={0.75} pb={0} sx={{ overflowX: 'auto', pb: 0 }}>
-              {FILTER_TABS.map(tab => (
-                <Box
-                  key={tab.key}
-                  onClick={() => setFilter(tab.key)}
-                  sx={{
-                    px: 1.75,
-                    py: 0.75,
-                    borderRadius: 999,
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    mb: 0,
-                    transition: 'background 0.14s, color 0.14s',
-                    whiteSpace: 'nowrap',
-                    color: filter === tab.key ? T.white : T.muted,
-                    bgcolor: filter === tab.key ? 'rgba(255,255,255,0.09)' : 'transparent',
-                    border: `1px solid ${filter === tab.key ? T.borderLit : 'transparent'}`,
-                    '&:hover': {
-                      bgcolor: filter === tab.key ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.04)',
-                      color: T.white,
-                    },
-                  }}
-                >
-                  {tab.label}
-                  {tab.key === 'live' && liveCount > 0 && (
-                    <Box
-                      component="span"
-                      sx={{
-                        ml: 0.75,
-                        px: 0.6,
-                        py: 0.1,
-                        borderRadius: 0.5,
-                        bgcolor: T.live,
-                        color: '#fff',
-                        fontSize: '0.55rem',
-                        fontWeight: 800,
-                        verticalAlign: 'middle',
-                      }}
-                    >
-                      {liveCount}
-                    </Box>
-                  )}
-                </Box>
-              ))}
-            </Stack>
-
-            {/* Tab underline bar */}
-            <Box sx={{ height: '2px', mt: 0.75, bgcolor: T.border, borderRadius: 1 }}>
-              <Box sx={{ height: '100%', width: 0, bgcolor: 'transparent' }} />
-            </Box>
-          </Container>
+            );
+          })}
         </Box>
 
-        {/* ── Main content ── */}
-        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        {error && (
+          <Box sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', mb: 3,
+            bgcolor: inkstashColors.brandSoft,
+            border: `1px solid ${inkstashColors.brand}33`,
+            borderRadius: inkstashRadii.md,
+            gap: 1,
+          }}>
+            <Stack direction="row" alignItems="center" gap={1.25}>
+              <AlertCircle size={14} color={inkstashColors.brand} />
+              <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 12, color: inkstashColors.brandDeep }}>
+                Failed to load streams.
+              </Box>
+            </Stack>
+            <Box
+              component="button"
+              type="button"
+              onClick={load}
+              sx={{
+                bgcolor: 'transparent', border: 'none', cursor: 'pointer',
+                color: inkstashColors.brand,
+                fontFamily: inkstashFonts.ui, fontSize: 12, fontWeight: 600,
+                '&:hover': { color: inkstashColors.brandDeep, textDecoration: 'underline' },
+              }}
+            >
+              Retry
+            </Box>
+          </Box>
+        )}
 
-          {/* Error state */}
-          {error && <ErrorRetry onRetry={load} />}
-
-          {/* Loading state */}
-          {loading && !error && (
-            <>
-              {/* Live section skeleton */}
-              <Box sx={{ mb: { xs: 5, md: 7 } }}>
-                <Box sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Skeleton variant="circular" width={16} height={16} sx={{ bgcolor: T.surfaceB }} />
-                  <Skeleton variant="text" width={100} sx={{ bgcolor: T.surfaceB }} />
-                </Box>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' },
-                    gap: { xs: 1.5, md: 2 },
-                  }}
-                >
+        {loading ? (
+          <Box>
+            {showLive && (
+              <Box sx={{ mb: 5 }}>
+                <SectionHeader icon={Radio} label="Live Now" count={0} accent="live" pulse />
+                <Box sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                  gap: { xs: '10px', md: 2 },
+                }}>
                   {[1, 2, 3].map(i => <StreamSkeleton key={i} />)}
                 </Box>
               </Box>
-              {/* Scheduled section skeleton */}
+            )}
+            {showScheduled && (
               <Box>
-                <Box sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                  <Skeleton variant="circular" width={16} height={16} sx={{ bgcolor: T.surfaceB }} />
-                  <Skeleton variant="text" width={120} sx={{ bgcolor: T.surfaceB }} />
-                </Box>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(4,1fr)' },
-                    gap: { xs: 1.5, md: 2 },
-                  }}
-                >
+                <SectionHeader icon={Calendar} label="Coming Up" count={0} accent="gold" />
+                <Box sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                  gap: { xs: '10px', md: 2 },
+                }}>
                   {[1, 2, 3].map(i => <StreamSkeleton key={i} />)}
                 </Box>
               </Box>
-            </>
-          )}
+            )}
+          </Box>
+        ) : (
+          <Box>
+            {showLive && (
+              <Box sx={{ mb: 5 }}>
+                <SectionHeader icon={Radio} label="Live Now" count={liveStreams.length} accent="live" pulse />
+                {liveStreams.length === 0 ? (
+                  <EmptySection message="No live streams right now — check back soon." />
+                ) : (
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                    gap: { xs: '10px', md: 2 },
+                  }}>
+                    {liveStreams.map(s => <StreamCard key={s.id} stream={s} />)}
+                  </Box>
+                )}
+              </Box>
+            )}
 
-          {/* Streams content */}
-          {!loading && !error && (
-            <>
-              {/* Live Now section */}
-              {showLive && (
-                <Box sx={{ mb: { xs: 5, md: 7 } }}>
-                  <SectionLabel icon={Radio} label="Live Now" count={liveStreams.length} color={T.live} />
-                  {liveStreams.length === 0 ? (
-                    <EmptySection message="No live streams right now — check back soon" />
-                  ) : (
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
-                        gap: { xs: 2, md: 2.5 },
-                      }}
-                    >
-                      {liveStreams.map(s => <StreamCard key={s.id} stream={s} />)}
-                    </Box>
-                  )}
-                </Box>
-              )}
+            {showScheduled && (
+              <Box>
+                <SectionHeader icon={Calendar} label="Coming Up" count={scheduledStreams.length} accent="gold" />
+                {scheduledStreams.length === 0 ? (
+                  <EmptySection message="No scheduled streams at the moment." />
+                ) : (
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                    gap: { xs: '10px', md: 2 },
+                  }}>
+                    {scheduledStreams.map(s => <StreamCard key={s.id} stream={s} />)}
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Box>
+        )}
 
-              {/* Coming Up section */}
-              {showScheduled && (
-                <Box>
-                  <SectionLabel icon={Calendar} label="Coming Up" count={scheduledStreams.length} color={T.gold} />
-                  {scheduledStreams.length === 0 ? (
-                    <EmptySection message="No scheduled streams at the moment" />
-                  ) : (
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' },
-                        gap: { xs: 2, md: 2.5 },
-                      }}
-                    >
-                      {scheduledStreams.map(s => <StreamCard key={s.id} stream={s} />)}
-                    </Box>
-                  )}
-                </Box>
-              )}
-            </>
-          )}
-        </Container>
-      </Box>
-    </>
+        <style>{`
+          @keyframes inkstashLiveStreamPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.25; transform: scale(0.6); }
+          }
+        `}</style>
+      </Container>
+    </AppShell>
   );
 }
