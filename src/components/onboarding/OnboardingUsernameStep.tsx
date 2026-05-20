@@ -147,7 +147,7 @@ const OnboardingUsernameStep: React.FC<OnboardingUsernameStepProps> = ({
           width: 80,
           height: 80,
           borderRadius: '50%',
-          bgcolor: 'primary.main',
+          bgcolor: '#A1232C',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -159,7 +159,7 @@ const OnboardingUsernameStep: React.FC<OnboardingUsernameStepProps> = ({
         </Typography>
       </Box>
 
-      <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
+      <Typography variant="h4" gutterBottom align="center" sx={{ fontFamily: "Big Shoulders Display, sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.005em", color: "#16110E" }}>
         Welcome to Inkstash
       </Typography>
 

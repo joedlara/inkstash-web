@@ -17,6 +17,7 @@ import OnboardingFeedPreviewStep from './OnboardingFeedPreviewStep';
 import type { NotificationPreferences } from './OnboardingNotificationsStep';
 import { authManager } from '../../api/auth/authManager';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -93,6 +94,15 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
     setCurrentStep(2);
   };
 
+  // Wrap any promise in a timeout race so the modal can't hang forever on a stuck Supabase call.
+  const withTimeout = <T,>(p: Promise<T> | PromiseLike<T>, ms: number, label: string): Promise<T> =>
+    Promise.race([
+      Promise.resolve(p),
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
+      ),
+    ]);
+
   // Save onboarding data to database
   const saveOnboardingData = async (_isPartialComplete: boolean) => {
     setSaving(true);
@@ -111,11 +121,11 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       if (!user.created_at) {
         let attempts = 0;
         while (attempts < 20) {
-          const { data: row } = await supabase
-            .from('users')
-            .select('id')
-            .eq('id', user.id)
-            .maybeSingle();
+          const { data: row } = await withTimeout(
+            supabase.from('users').select('id').eq('id', user.id).maybeSingle(),
+            5000,
+            'User row check',
+          );
           if (row) break;
           await new Promise(resolve => setTimeout(resolve, 250));
           attempts++;
@@ -126,15 +136,18 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       }
 
       // 1. Update user profile with username
-      const { error: userError } = await supabase
-        .from('users')
-        .update({
-          username: username,
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
-
+      const { error: userError } = await withTimeout(
+        supabase
+          .from('users')
+          .update({
+            username: username,
+            onboarding_completed: true,
+            onboarding_completed_at: new Date().toISOString(),
+          })
+          .eq('id', user.id),
+        10000,
+        'Saving username',
+      );
       if (userError) throw userError;
 
       // 2. Create or update user preferences
@@ -146,10 +159,11 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         default_sort: 'newest',
       };
 
-      const { error: prefsError } = await supabase
-        .from('user_preferences')
-        .upsert(preferencesData, { onConflict: 'user_id' });
-
+      const { error: prefsError } = await withTimeout(
+        supabase.from('user_preferences').upsert(preferencesData, { onConflict: 'user_id' }),
+        10000,
+        'Saving preferences',
+      );
       if (prefsError && prefsError.code !== '23503') throw prefsError;
 
       // 3. Update notification preferences in users table
@@ -169,14 +183,14 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         push_messages: notifications?.push?.messages ?? true,
       };
 
-      const { error: notifError } = await supabase
-        .from('users')
-        .update({ notification_preferences: notificationPrefs })
-        .eq('id', user.id);
-
+      const { error: notifError } = await withTimeout(
+        supabase.from('users').update({ notification_preferences: notificationPrefs }).eq('id', user.id),
+        10000,
+        'Saving notification settings',
+      );
       if (notifError) throw notifError;
 
-      await authManager.refreshUser();
+      await withTimeout(authManager.refreshUser(), 5000, 'Refreshing user');
 
       localStorage.removeItem(ONBOARDING_USERNAME_KEY);
       setSaving(false);
@@ -195,16 +209,16 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          borderRadius: inkstashRadii.lg,
           maxHeight: '90vh',
           position: 'relative',
+          bgcolor: inkstashColors.bgElev,
+          fontFamily: inkstashFonts.ui,
         },
       }}
-      // Prevent closing by clicking outside or pressing escape on username step
       onClose={currentStep === 0 ? undefined : onClose}
       disableEscapeKeyDown={currentStep === 0}
     >
-      {/* Close button - only show after username step */}
       {currentStep > 0 && (
         <IconButton
           onClick={onClose}
@@ -212,10 +226,11 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
             position: 'absolute',
             right: 16,
             top: 16,
-            color: 'text.secondary',
+            color: inkstashColors.muted,
             zIndex: 1,
             '&:hover': {
-              bgcolor: 'action.hover',
+              bgcolor: inkstashColors.bgSunken,
+              color: inkstashColors.ink,
             },
           }}
         >
@@ -223,15 +238,14 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         </IconButton>
       )}
 
-      {/* Progress Bar */}
       <LinearProgress
         variant="determinate"
         value={progress}
         sx={{
-          height: 6,
-          bgcolor: 'divider',
+          height: 4,
+          bgcolor: inkstashColors.bgSunken,
           '& .MuiLinearProgress-bar': {
-            bgcolor: 'primary.main',
+            bgcolor: inkstashColors.brand,
           },
         }}
       />
@@ -289,26 +303,52 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
         </Alert>
       </Snackbar>
 
-      {/* Loading overlay */}
       {saving && (
         <Box
           sx={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            bgcolor: 'rgba(0, 0, 0, 0.7)',
+            top: 0, left: 0, right: 0, bottom: 0,
+            bgcolor: 'rgba(22,17,14,0.85)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            borderRadius: 2,
+            borderRadius: inkstashRadii.lg,
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
           }}
         >
-          <Box sx={{ textAlign: 'center', color: 'white' }}>
-            <LinearProgress sx={{ width: 200, mb: 2 }} />
-            <Typography>Setting up your profile...</Typography>
+          <Box sx={{ textAlign: 'center', color: '#fff', maxWidth: 280 }}>
+            <LinearProgress
+              sx={{
+                width: 220,
+                mb: 2.5,
+                height: 4,
+                borderRadius: 2,
+                bgcolor: 'rgba(255,255,255,0.15)',
+                '& .MuiLinearProgress-bar': { bgcolor: inkstashColors.brand },
+              }}
+            />
+            <Typography sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 800,
+              fontSize: 22,
+              textTransform: 'uppercase',
+              letterSpacing: '0.005em',
+              lineHeight: 1.1,
+              mb: 0.75,
+            }}>
+              Setting up your profile
+            </Typography>
+            <Typography sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11.5,
+              color: 'rgba(255,255,255,0.7)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}>
+              This usually takes a second
+            </Typography>
           </Box>
         </Box>
       )}

@@ -147,7 +147,7 @@ const OnboardingNotificationsStep: React.FC<OnboardingNotificationsStepProps> = 
         py: 2,
       }}
     >
-      <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
+      <Typography variant="h4" gutterBottom align="center" sx={{ fontFamily: "Big Shoulders Display, sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.005em", color: "#16110E" }}>
         Stay in the loop
       </Typography>
 
@@ -159,7 +159,7 @@ const OnboardingNotificationsStep: React.FC<OnboardingNotificationsStepProps> = 
         {/* Email Notifications */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Email sx={{ mr: 1, color: 'primary.main' }} />
+            <Email sx={{ mr: 1, color: '#A1232C' }} />
             <Typography variant="h6" fontWeight="medium">
               Email Notifications
             </Typography>
@@ -230,7 +230,7 @@ const OnboardingNotificationsStep: React.FC<OnboardingNotificationsStepProps> = 
         {/* Push Notifications */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Notifications sx={{ mr: 1, color: 'primary.main' }} />
+            <Notifications sx={{ mr: 1, color: '#A1232C' }} />
             <Typography variant="h6" fontWeight="medium">
               Push Notifications
             </Typography>
