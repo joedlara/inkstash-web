@@ -17,8 +17,12 @@ interface OnboardingData {
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
+  const ONBOARDING_USERNAME_KEY = 'onboarding_username';
+
   const [currentStep, setCurrentStep] = useState(0);
-  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
+  const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>(() => ({
+    username: localStorage.getItem('onboarding_username') || undefined,
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>('');
 
@@ -27,6 +31,7 @@ const Onboarding: React.FC = () => {
 
   // Step 1: Username
   const handleUsernameNext = (username: string) => {
+    localStorage.setItem(ONBOARDING_USERNAME_KEY, username);
     setOnboardingData((prev) => ({ ...prev, username }));
     setCurrentStep(1);
   };
@@ -75,6 +80,24 @@ const Onboarding: React.FC = () => {
 
       const { username, interests, notifications } = onboardingData;
 
+      // Only poll if the DB row might not exist yet (brand-new signup where trigger is still running).
+      if (!user.created_at) {
+        let attempts = 0;
+        while (attempts < 20) {
+          const { data: row } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (row) break;
+          await new Promise(resolve => setTimeout(resolve, 250));
+          attempts++;
+        }
+        if (attempts >= 20) {
+          throw new Error('Account setup is taking longer than expected. Please refresh and try again.');
+        }
+      }
+
       // 1. Update user profile with username
       const { error: userError } = await supabase
         .from('users')
@@ -100,7 +123,7 @@ const Onboarding: React.FC = () => {
         .from('user_preferences')
         .upsert(preferencesData, { onConflict: 'user_id' });
 
-      if (prefsError) throw prefsError;
+      if (prefsError && prefsError.code !== '23503') throw prefsError;
 
       // 3. Update notification preferences in users table
       const notificationPrefs = {
@@ -126,10 +149,10 @@ const Onboarding: React.FC = () => {
 
       if (notifError) throw notifError;
 
-      // Refresh user data in authManager
       await authManager.refreshUser();
 
-      // Navigate to home page
+      localStorage.removeItem(ONBOARDING_USERNAME_KEY);
+      setSaving(false);
       navigate('/');
     } catch (err: any) {
       console.error('Error completing onboarding:', err);

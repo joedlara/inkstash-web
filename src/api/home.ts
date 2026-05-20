@@ -1,0 +1,178 @@
+import { supabase } from './supabase/supabaseClient';
+
+export interface LiveStream {
+  id: string;
+  title: string;
+  thumbnail_url: string | null;
+  current_viewers: number;
+  is_live: boolean;
+  status: string;
+  seller_id: string;
+  seller_username: string | null;
+  seller_avatar: string | null;
+  scheduled_start_time: string | null;
+}
+
+export interface TrendingAuction {
+  id: string;
+  title: string;
+  current_bid: number;
+  starting_bid: number;
+  image_url: string | null;
+  end_time: string;
+  status: string;
+  bid_count: number;
+  category: string;
+  seller_username: string | null;
+}
+
+export interface FeaturedAuction {
+  id: string;
+  title: string;
+  description: string | null;
+  current_bid: number;
+  buy_now_price: number | null;
+  image_url: string | null;
+  end_time: string;
+  status: string;
+  bid_count: number;
+  is_featured: boolean;
+  category: string;
+  condition: string;
+  seller_username: string | null;
+  seller_avatar: string | null;
+}
+
+// ── Fallback data shown when DB has no relevant rows ─────────────────────────
+
+const FALLBACK_STREAMS: LiveStream[] = [
+  { id: 'f1', title: 'Sunday Silver Age Comics Auction', thumbnail_url: null, current_viewers: 312, is_live: true,  status: 'live',      seller_id: '', seller_username: 'silveragedan',   seller_avatar: null, scheduled_start_time: null },
+  { id: 'f2', title: 'Golden Age Keys Break — JSA & CGC Slabs', thumbnail_url: null, current_viewers: 521, is_live: true,  status: 'live',      seller_id: '', seller_username: 'comicvaultpdx', seller_avatar: null, scheduled_start_time: null },
+  { id: 'f3', title: 'MTG Reserved List Cards — Starting in 30min', thumbnail_url: null, current_viewers: 0,   is_live: false, status: 'scheduled', seller_id: '', seller_username: 'mtglegacy',      seller_avatar: null, scheduled_start_time: new Date(Date.now() + 30 * 60000).toISOString() },
+];
+
+const FALLBACK_TRENDING: TrendingAuction[] = [
+  { id: 't1', title: 'Wolverine #1 CGC 9.8 — 1982 Limited Series', current_bid: 4800,  starting_bid: 500,  image_url: null, end_time: new Date(Date.now() + 2 * 3600000).toISOString(),  status: 'active', bid_count: 11, category: 'Graded Slabs',          seller_username: 'slabking' },
+  { id: 't2', title: 'ASM #300 CGC 9.6 — 1st Venom (White Pages)', current_bid: 2100,  starting_bid: 200,  image_url: null, end_time: new Date(Date.now() + 5 * 3600000).toISOString(),  status: 'active', bid_count: 9,  category: 'Keys & First Appearances', seller_username: 'keymaster88' },
+  { id: 't3', title: 'X-Men #1 FN/VF — 1963 Silver Age (Stan Lee)', current_bid: 1350,  starting_bid: 800,  image_url: null, end_time: new Date(Date.now() + 18 * 3600000).toISOString(), status: 'active', bid_count: 6,  category: 'Golden Age / Silver Age',  seller_username: 'silveragedan' },
+  { id: 't4', title: 'Spawn #1 Raw NM — Todd McFarlane Signed',     current_bid: 340,   starting_bid: 100,  image_url: null, end_time: new Date(Date.now() + 8 * 3600000).toISOString(),  status: 'active', bid_count: 14, category: 'Limited Edition / Signed', seller_username: 'imagecollect' },
+  { id: 't5', title: 'Batman #1 Facsimile — 2019 Foil Variant',     current_bid: 89,    starting_bid: 25,   image_url: null, end_time: new Date(Date.now() + 24 * 3600000).toISOString(), status: 'active', bid_count: 7,  category: 'Variant Covers',           seller_username: 'dcvaultco' },
+];
+
+const FALLBACK_FEATURED: FeaturedAuction[] = [
+  { id: 'fa1', title: 'Wolverine #1 CGC 9.8 — 1982 Limited Series',         description: null, current_bid: 4800,  buy_now_price: 6500, image_url: null, end_time: new Date(Date.now() + 2 * 3600000).toISOString(),  status: 'active', bid_count: 11, is_featured: true,  category: 'Graded Slabs',          condition: 'CGC 9.8', seller_username: 'slabking',     seller_avatar: null },
+  { id: 'fa2', title: 'ASM #300 CGC 9.6 — 1st Venom',                       description: null, current_bid: 2100,  buy_now_price: null, image_url: null, end_time: new Date(Date.now() + 5 * 3600000).toISOString(),  status: 'active', bid_count: 9,  is_featured: true,  category: 'Keys & First Appearances', condition: 'CGC 9.6', seller_username: 'keymaster88', seller_avatar: null },
+  { id: 'fa3', title: 'X-Men #1 FN/VF — 1963 Silver Age',                   description: null, current_bid: 1350,  buy_now_price: null, image_url: null, end_time: new Date(Date.now() + 18 * 3600000).toISOString(), status: 'active', bid_count: 6,  is_featured: false, category: 'Golden Age / Silver Age',  condition: 'FN/VF',   seller_username: 'silveragedan', seller_avatar: null },
+  { id: 'fa4', title: 'Batman #1 Facsimile — 2019 Foil Variant',            description: null, current_bid: 89,    buy_now_price: 120,  image_url: null, end_time: new Date(Date.now() + 24 * 3600000).toISOString(), status: 'active', bid_count: 7,  is_featured: false, category: 'Variant Covers',           condition: 'NM',      seller_username: 'dcvaultco',   seller_avatar: null },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function fetchUsernamesBatch(userIds: string[]): Promise<Map<string, { username: string; avatar_url: string | null }>> {
+  if (userIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from('users')
+    .select('id, username, avatar_url')
+    .in('id', userIds);
+  const map = new Map<string, { username: string; avatar_url: string | null }>();
+  (data || []).forEach((u: any) => map.set(u.id, { username: u.username, avatar_url: u.avatar_url }));
+  return map;
+}
+
+// ── Queries ───────────────────────────────────────────────────────────────────
+
+export async function getLiveAndUpcomingStreams(): Promise<LiveStream[]> {
+  const { data, error } = await supabase
+    .from('livestreams')
+    .select('id, title, thumbnail_url, current_viewers, is_live, status, seller_id, scheduled_start_time')
+    .in('status', ['live', 'scheduled'])
+    .order('is_live', { ascending: false })
+    .order('current_viewers', { ascending: false })
+    .limit(6);
+
+  if (error || !data || data.length === 0) return FALLBACK_STREAMS;
+
+  const sellerIds = [...new Set(data.map((r: any) => r.seller_id).filter(Boolean))];
+  const usersMap = await fetchUsernamesBatch(sellerIds);
+
+  return data.map((row: any) => {
+    const u = usersMap.get(row.seller_id);
+    return {
+      id: row.id,
+      title: row.title,
+      thumbnail_url: row.thumbnail_url,
+      current_viewers: row.current_viewers ?? 0,
+      is_live: row.is_live ?? false,
+      status: row.status,
+      seller_id: row.seller_id,
+      seller_username: u?.username ?? null,
+      seller_avatar: u?.avatar_url ?? null,
+      scheduled_start_time: row.scheduled_start_time,
+    };
+  });
+}
+
+export async function getTrendingAuctions(): Promise<TrendingAuction[]> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('auctions')
+    .select('id, title, current_bid, starting_bid, image_url, end_time, status, bid_count, category, seller_id')
+    .in('status', ['active', 'live'])
+    .gte('created_at', since)
+    .order('bid_count', { ascending: false })
+    .limit(5);
+
+  if (error || !data || data.length === 0) return FALLBACK_TRENDING;
+
+  const sellerIds = [...new Set(data.map((r: any) => r.seller_id).filter(Boolean))];
+  const usersMap = await fetchUsernamesBatch(sellerIds);
+
+  return data.map((row: any) => ({
+    id: row.id,
+    title: row.title,
+    current_bid: Number(row.current_bid ?? row.starting_bid ?? 0),
+    starting_bid: Number(row.starting_bid ?? 0),
+    image_url: row.image_url,
+    end_time: row.end_time,
+    status: row.status,
+    bid_count: row.bid_count ?? 0,
+    category: row.category,
+    seller_username: usersMap.get(row.seller_id)?.username ?? null,
+  }));
+}
+
+export async function getFeaturedAuctions(): Promise<FeaturedAuction[]> {
+  const { data, error } = await supabase
+    .from('auctions')
+    .select('id, title, description, current_bid, buy_now_price, image_url, end_time, status, bid_count, is_featured, category, condition, seller_id')
+    .in('status', ['active', 'live', 'upcoming'])
+    .order('is_featured', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(4);
+
+  if (error || !data || data.length === 0) return FALLBACK_FEATURED;
+
+  const sellerIds = [...new Set(data.map((r: any) => r.seller_id).filter(Boolean))];
+  const usersMap = await fetchUsernamesBatch(sellerIds);
+
+  return data.map((row: any) => {
+    const u = usersMap.get(row.seller_id);
+    return {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      current_bid: Number(row.current_bid ?? row.buy_now_price ?? 0),
+      buy_now_price: row.buy_now_price ? Number(row.buy_now_price) : null,
+      image_url: row.image_url,
+      end_time: row.end_time,
+      status: row.status,
+      bid_count: row.bid_count ?? 0,
+      is_featured: row.is_featured ?? false,
+      category: row.category,
+      condition: row.condition,
+      seller_username: u?.username ?? null,
+      seller_avatar: u?.avatar_url ?? null,
+    };
+  });
+}

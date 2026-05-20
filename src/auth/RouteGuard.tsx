@@ -1,6 +1,6 @@
 // src/components/auth/RouteGuard.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../hooks/useAuth"
 import '../styles/auth/routeGuard.css';
@@ -18,8 +18,9 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const wasAuthenticated = useRef(false);
 
-  // Public routes that don't require authentication
+  // Public routes that don't require authentication (landing page only)
   const publicRoutes = [
     '/',
     '/login',
@@ -27,30 +28,37 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/forgot-password',
     '/reset-password',
     '/verify-email',
-    '/pieces',
-    '/artists',
-    '/livestreams',
-    '/auctions',
     '/about',
     '/contact',
     '/privacy',
     '/terms',
-    '/sell',
-    '/onboarding', // Onboarding is accessible to authenticated users only
+    '/onboarding',
   ];
 
   // Routes that should redirect authenticated users away
   const authRoutes = ['/login', '/signup', '/forgot-password'];
 
-  // Protected routes that require authentication
+  // All app routes require auth — anything not in publicRoutes is protected
   const protectedRoutes = [
-    '/dashboard',
-    '/profile',
+    '/packs',
+    '/pack-reveal',
+    '/live',
+    '/drops',
+    '/raffles',
+    '/marketplace',
+    '/sell',
+    '/item',
+    '/auction',
+    '/checkout',
+    '/order',
+    '/cart',
+    '/my-bids',
+    '/my-stash',
     '/settings',
-    '/collection',
-    '/messages',
-    '/notifications',
-    '/saved-items',
+    '/profile',
+    '/seller-dashboard',
+    '/seller-onboarding',
+    '/list-item',
   ];
 
   const isPublicRoute = (path: string): boolean => {
@@ -67,6 +75,26 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
   const isProtectedRoute = (path: string): boolean => {
     return protectedRoutes.some(route => path.startsWith(route));
   };
+
+  // Detect fresh OAuth login and redirect to onboarding/home
+  useEffect(() => {
+    if (!initialized || !isAuthenticated || wasAuthenticated.current) return;
+    wasAuthenticated.current = true;
+
+    // Only redirect if landing on root with OAuth hash/params in URL
+    const hasOAuthParams =
+      window.location.hash.includes('access_token') ||
+      window.location.search.includes('code=');
+
+    if (hasOAuthParams) {
+      const destination = user?.onboarding_completed ? '/' : '/onboarding';
+      navigate(destination, { replace: true });
+    }
+  }, [initialized, isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) wasAuthenticated.current = false;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // Don't do anything until auth is initialized
@@ -94,8 +122,8 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
       return;
     }
 
-    // If user is not authenticated and trying to access protected routes, redirect to home
-    if (!isAuthenticated && isProtectedRoute(currentPath)) {
+    // If user is not authenticated and on any non-public route, redirect to home
+    if (!isAuthenticated && !isPublicRoute(currentPath)) {
       navigate('/', {
         state: { from: location },
         replace: true,

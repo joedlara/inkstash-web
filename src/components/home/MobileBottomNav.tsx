@@ -46,18 +46,18 @@ export default function MobileBottomNav() {
           <span>Home</span>
         </button>
 
-        {/* Categories */}
+        {/* Packs */}
         <button
-          className={`nav-item ${isActive('/browse') ? 'active' : ''}`}
-          onClick={() => navigate('/browse')}
+          className={`nav-item ${isActive('/packs') ? 'active' : ''}`}
+          onClick={() => navigate('/packs')}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+            <rect x="3" y="3" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="2"/>
+            <rect x="13" y="3" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="2"/>
+            <rect x="3" y="13" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="2"/>
+            <rect x="13" y="13" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="2"/>
           </svg>
-          <span>Categories</span>
+          <span>Packs</span>
         </button>
 
         {/* Sell (Plus Icon) */}
