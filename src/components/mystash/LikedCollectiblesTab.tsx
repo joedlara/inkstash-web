@@ -149,7 +149,6 @@ export default function LikedCollectiblesTab() {
 
   return (
     <Box>
-      {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           Liked Collectibles
@@ -286,7 +285,6 @@ export default function LikedCollectiblesTab() {
                           />
                         </Stack>
 
-                        {/* Status */}
                         {auction.status && (
                           <Chip
                             label={auction.status.toUpperCase()}

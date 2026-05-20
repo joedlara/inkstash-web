@@ -367,7 +367,6 @@ export default function CheckoutNew() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
       <Container maxWidth="md" sx={{ py: 4, mt: 8, mb: 10 }}>
-        {/* Header */}
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton onClick={() => navigate(-1)} sx={{ color: 'text.primary' }}>
             <ArrowBack />

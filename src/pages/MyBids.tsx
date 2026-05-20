@@ -159,7 +159,6 @@ export default function MyBids() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
       <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
-        {/* Header */}
         <Box sx={{ mb: 4 }}>
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
             <Gavel sx={{ fontSize: 40, color: 'primary.main' }} />

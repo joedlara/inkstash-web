@@ -113,7 +113,6 @@ export default function Purchases() {
         }}
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          {/* Image */}
           {auction && (
             <CardMedia
               component="img"
@@ -127,7 +126,6 @@ export default function Purchases() {
             />
           )}
 
-          {/* Content */}
           <Box sx={{ flex: 1, p: 2 }}>
             <Stack spacing={1}>
               {/* Order Number and Status */}
@@ -215,7 +213,6 @@ export default function Purchases() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
       <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
-        {/* Header */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
             My Orders

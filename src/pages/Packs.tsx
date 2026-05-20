@@ -46,7 +46,6 @@ function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: strin
         },
       }}
     >
-      {/* Thumb */}
       <Box sx={{ position: 'relative', aspectRatio: '4 / 5', overflow: 'hidden', bgcolor: inkstashColors.bgSunken }}>
         {pack.cover_image ? (
           <Box
@@ -72,7 +71,6 @@ function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: strin
           </Box>
         )}
 
-        {/* Badge */}
         <Box sx={{
           position: 'absolute', top: 12, left: 12,
           bgcolor: bm.bg, color: bm.fg,
@@ -87,7 +85,6 @@ function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: strin
         </Box>
       </Box>
 
-      {/* Meta */}
       <Box sx={{ padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
         <Box sx={{
           fontFamily: inkstashFonts.mono, fontSize: 10.5,

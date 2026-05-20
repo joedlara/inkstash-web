@@ -149,7 +149,6 @@ export default function SavedCollectiblesTab() {
 
   return (
     <Box>
-      {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           Saved Collectibles
@@ -267,7 +266,6 @@ export default function SavedCollectiblesTab() {
                           />
                         </Stack>
 
-                        {/* Status */}
                         {auction.status && (
                           <Chip
                             label={auction.status.toUpperCase()}

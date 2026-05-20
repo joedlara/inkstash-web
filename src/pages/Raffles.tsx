@@ -53,7 +53,6 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
         borderColor: isLive ? `${inkstashColors.brand}66` : inkstashColors.borderStrong,
       },
     }}>
-      {/* Image */}
       <Box sx={{
         position: 'relative',
         width: { xs: '100%', sm: 200 },
@@ -86,7 +85,6 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
         </Box>
       </Box>
 
-      {/* Body */}
       <Box sx={{
         padding: { xs: '16px 18px', md: '20px 22px' },
         flex: 1,
@@ -166,7 +164,6 @@ function RaffleCard({ raffle }: { raffle: Raffle }) {
           />
         </Box>
 
-        {/* Footer */}
         <Stack
           direction="row"
           alignItems="flex-end"
@@ -376,7 +373,6 @@ export default function Raffles() {
           </Box>
         )}
 
-        {/* List */}
         <Stack gap={2}>
           {loading
             ? [1, 2, 3, 4].map(i => <RaffleSkeleton key={i} />)

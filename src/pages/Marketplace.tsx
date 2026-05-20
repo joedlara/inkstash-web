@@ -124,7 +124,6 @@ function AuctionCard({ item }: { item: AuctionRow }) {
         '&:active': { transform: 'scale(0.985)' },
       }}
     >
-      {/* Image */}
       <Box
         sx={{
           position: 'relative',
@@ -219,7 +218,6 @@ function AuctionCard({ item }: { item: AuctionRow }) {
         </Box>
       </Box>
 
-      {/* Info */}
       <Box sx={{ p: { xs: 1.5, md: 1.75 } }}>
         <Typography
           noWrap

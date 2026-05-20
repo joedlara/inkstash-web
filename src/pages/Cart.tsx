@@ -94,7 +94,6 @@ export default function Cart() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
       <Container maxWidth="lg" sx={{ mt: 12, py: 8 }}>
-        {/* Header */}
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton onClick={() => navigate(-1)} sx={{ color: 'text.primary' }}>
             <ArrowBack />

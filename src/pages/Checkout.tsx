@@ -315,7 +315,6 @@ export default function Checkout() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <DashboardHeader />
       <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
-        {/* Header */}
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <IconButton onClick={() => navigate(-1)} sx={{ color: 'text.primary' }}>
@@ -633,7 +632,6 @@ export default function Checkout() {
 
               <Divider sx={{ my: 2 }} />
 
-              {/* Item */}
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardMedia
                   component="img"

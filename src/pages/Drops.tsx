@@ -85,7 +85,6 @@ function DropCard({ drop }: { drop: Drop }) {
         borderColor: isLive ? `${inkstashColors.brand}66` : inkstashColors.borderStrong,
       },
     }}>
-      {/* Image */}
       <Box sx={{
         position: 'relative',
         aspectRatio: '16 / 10',
@@ -139,7 +138,6 @@ function DropCard({ drop }: { drop: Drop }) {
         )}
       </Box>
 
-      {/* Body */}
       <Box sx={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 1.25, flex: 1 }}>
         <Box>
           <Box sx={{
@@ -200,7 +198,6 @@ function DropCard({ drop }: { drop: Drop }) {
           />
         </Box>
 
-        {/* Footer */}
         <Stack direction="row" alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" gap={1.5} sx={{ mt: 'auto' }}>
           <Box>
             <Box sx={{

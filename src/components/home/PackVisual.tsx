@@ -50,7 +50,6 @@ export default function PackVisual({ pack, big = false }: PackVisualProps) {
         {publisher?.name}
       </Box>
 
-      {/* Title */}
       <Box sx={{
         position: 'absolute', top: '50%', left: 0, right: 0,
         transform: 'translateY(-50%)',
