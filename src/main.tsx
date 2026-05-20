@@ -1,5 +1,3 @@
-// src/main.tsx - Simplified (no AuthProvider needed with singleton)
-
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';

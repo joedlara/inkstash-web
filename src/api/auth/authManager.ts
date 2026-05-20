@@ -286,6 +286,37 @@ class AuthManager {
     await supabase.auth.signOut();
   }
 
+  async signUp(
+    email: string,
+    password: string,
+  ): Promise<
+    | { ok: true; needsEmailConfirmation: false }
+    | { ok: true; needsEmailConfirmation: true }
+    | { ok: false; error: string }
+  > {
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return { ok: false, error: error.message };
+      if (!data.user) return { ok: false, error: 'Failed to create account.' };
+      if (!data.session) return { ok: true, needsEmailConfirmation: true };
+
+      const userId = data.user.id;
+      for (let i = 0; i < 20; i++) {
+        const { data: row } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+        if (row) break;
+        await new Promise(r => setTimeout(r, 250));
+      }
+      await this.refreshUser();
+      return { ok: true, needsEmailConfirmation: false };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || 'Failed to sign up.' };
+    }
+  }
+
   async refreshUser(): Promise<UserData | null> {
     if (!this.state.session?.user) return null;
 

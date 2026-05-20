@@ -124,24 +124,14 @@ function SplashPage() {
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     try {
       setLoading(true); setError(null);
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      if (data.session) {
-        const userId = data.user!.id;
-        let attempts = 0;
-        while (attempts < 20) {
-          const { data: row } = await supabase.from('users').select('id').eq('id', userId).maybeSingle();
-          if (row) break;
-          await new Promise(r => setTimeout(r, 250));
-          attempts++;
-        }
-        await authManager.refreshUser();
-        navigate('/onboarding');
-      } else {
+      const result = await authManager.signUp(email, password);
+      if (!result.ok) {
+        setError(result.error);
+      } else if (result.needsEmailConfirmation) {
         setError('Check your email to confirm your account before signing in.');
+      } else {
+        navigate('/onboarding');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up');
     } finally { setLoading(false); }
   };
 
