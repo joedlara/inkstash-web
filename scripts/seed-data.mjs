@@ -6,16 +6,16 @@
 import 'dotenv/config';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
+if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
+  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SECRET_KEY in .env');
   process.exit(1);
 }
 
 const headers = {
-  apikey: SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+  apikey: SUPABASE_SECRET_KEY,
+  Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
   'Content-Type': 'application/json',
   Prefer: 'return=representation',
 };
