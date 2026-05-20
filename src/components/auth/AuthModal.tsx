@@ -81,43 +81,16 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signup', redi
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const result = await authManager.signUp(email, password);
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Check if email confirmation is required
-        if (data.session) {
-          // Poll until the DB trigger has created the public.users row
-          // (the on_auth_user_created trigger runs async and may lag)
-          const userId = data.user.id;
-          let attempts = 0;
-          while (attempts < 20) {
-            const { data: row } = await supabase
-              .from('users')
-              .select('id')
-              .eq('id', userId)
-              .maybeSingle();
-            if (row) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
-            attempts++;
-          }
-
-          await authManager.refreshUser();
-
-          onClose();
-          navigate(redirectTo || '/onboarding');
-        } else {
-          setError('Please check your email to confirm your account before signing in.');
-        }
+      if (!result.ok) {
+        setError(result.error);
+      } else if (result.needsEmailConfirmation) {
+        setError('Please check your email to confirm your account before signing in.');
       } else {
-        setError('Failed to create account. Please try again.');
+        onClose();
+        navigate(redirectTo || '/onboarding');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up');
     } finally {
       setLoading(false);
     }

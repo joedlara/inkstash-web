@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Badge } from '@mui/material';
 import { Menu, Search, Bell, ShoppingCart } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 import { inkstashColors, inkstashFonts, inkstashLayout, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface AppTopnavProps {
@@ -11,6 +12,7 @@ interface AppTopnavProps {
 
 export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [q, setQ] = useState('');
 
   return (
@@ -118,34 +120,40 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
         <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Cart</Box>
       </Box>
 
-      <Box
-        component="button"
-        type="button"
-        sx={{
-          display: { xs: 'none', md: 'inline-block' },
-          bgcolor: 'transparent', border: 'none', cursor: 'pointer',
-          color: inkstashColors.ink2, padding: '8px 14px',
-          fontFamily: inkstashFonts.ui, fontSize: 14, fontWeight: 500,
-          '&:hover': { color: inkstashColors.ink },
-        }}
-      >
-        Log in
-      </Box>
+      {!isAuthenticated && (
+        <>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => navigate('/')}
+            sx={{
+              display: { xs: 'none', md: 'inline-block' },
+              bgcolor: 'transparent', border: 'none', cursor: 'pointer',
+              color: inkstashColors.ink2, padding: '8px 14px',
+              fontFamily: inkstashFonts.ui, fontSize: 14, fontWeight: 500,
+              '&:hover': { color: inkstashColors.ink },
+            }}
+          >
+            Log in
+          </Box>
 
-      <Box
-        component="button"
-        type="button"
-        sx={{
-          bgcolor: inkstashColors.brand, color: '#fff', border: 'none',
-          padding: '8px 16px', borderRadius: 1,
-          fontFamily: inkstashFonts.ui, fontSize: 14, fontWeight: 600,
-          cursor: 'pointer',
-          '&:hover': { bgcolor: inkstashColors.brandDeep },
-          '&:active': { transform: 'scale(0.97)' },
-        }}
-      >
-        Sign up
-      </Box>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => navigate('/')}
+            sx={{
+              bgcolor: inkstashColors.brand, color: '#fff', border: 'none',
+              padding: '8px 16px', borderRadius: 1,
+              fontFamily: inkstashFonts.ui, fontSize: 14, fontWeight: 600,
+              cursor: 'pointer',
+              '&:hover': { bgcolor: inkstashColors.brandDeep },
+              '&:active': { transform: 'scale(0.97)' },
+            }}
+          >
+            Sign up
+          </Box>
+        </>
+      )}
     </Box>
   );
 }
