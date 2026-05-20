@@ -70,14 +70,12 @@ export default function ProfileTab() {
         .eq('id', user.id)
         .single();
 
-      console.log('Loaded social links from DB:', data);
 
       if (error) throw error;
 
       if (data) {
         setWebsiteUrl(data.website_url || '');
         setSocialLinks(data.social_links || {});
-        console.log('Set social links state to:', data.social_links);
       }
     } catch (err) {
       console.error('Error loading social links:', err);
@@ -177,7 +175,6 @@ export default function ProfileTab() {
       setError('');
       setSuccess('');
 
-      console.log('Saving profile with social links:', socialLinks);
 
       const { data, error: updateError } = await supabase
         .from('users')
@@ -191,7 +188,6 @@ export default function ProfileTab() {
         .eq('id', user.id)
         .select();
 
-      console.log('Update response:', { data, error: updateError });
 
       if (updateError) {
         // Check if it's a duplicate username error

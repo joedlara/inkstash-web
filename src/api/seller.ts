@@ -72,7 +72,6 @@ export const sellerApi = {
     }
     try {
       const url = getSupabaseFunctionUrl('create-plaid-identity-verification-token');
-      console.log('🔗 Calling Plaid Identity Verification:', url);
       return await api.post(url);
     } catch (error) {
       console.error('Failed to create Plaid identity verification token:', error);
