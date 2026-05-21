@@ -5,7 +5,6 @@ import {
   Box,
   LinearProgress,
   Alert,
-  Snackbar,
   IconButton,
   Typography
 } from '@mui/material';
@@ -116,14 +115,32 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
       const { username, interests, notifications } = onboardingData;
 
-      // The user-row poll was here previously to wait for the on_auth_user_created
-      // trigger to insert the public.users row. Now that authManager.signUp polls
-      // for that row immediately after signup (see authManager.signUp), the row
-      // already exists by the time the user reaches step 4. If it somehow doesn't,
-      // the UPDATE below will return a clear "no rows updated" result rather than
-      // hanging on a separate read.
+      // Self-heal: ensure a public.users row exists for the auth user. The
+      // handle_new_user trigger swallows errors silently (RAISE WARNING) so
+      // orphan auth users without a public.users row are possible. UPSERT
+      // here guarantees the subsequent UPDATEs target a real row.
+      console.log('[onboarding] ensuring user row exists for', user.id);
+      const { error: ensureError } = await withTimeout(
+        supabase
+          .from('users')
+          .upsert(
+            {
+              id: user.id,
+              email: user.email,
+              username: username,
+            },
+            { onConflict: 'id', ignoreDuplicates: true },
+          ),
+        10000,
+        'Ensure user row',
+      );
+      if (ensureError) {
+        console.error('[onboarding] ensure user row failed:', ensureError);
+        throw ensureError;
+      }
 
       // 1. Update user profile with username
+      console.log('[onboarding] updating username + onboarding_completed');
       const { error: userError } = await withTimeout(
         supabase
           .from('users')
@@ -139,6 +156,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       if (userError) throw userError;
 
       // 2. Create or update user preferences
+      console.log('[onboarding] upserting user_preferences');
       const preferencesData = {
         user_id: user.id,
         favorite_categories: interests || [],
@@ -155,6 +173,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       if (prefsError && prefsError.code !== '23503') throw prefsError;
 
       // 3. Update notification preferences in users table
+      console.log('[onboarding] updating notification_preferences');
       const notificationPrefs = {
         email_new_items: notifications?.email?.newItems ?? true,
         email_price_drops: notifications?.email?.priceDrops ?? true,
@@ -178,13 +197,15 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       );
       if (notifError) throw notifError;
 
+      console.log('[onboarding] refreshing user');
       await withTimeout(authManager.refreshUser(), 5000, 'Refreshing user');
 
+      console.log('[onboarding] complete, closing modal');
       localStorage.removeItem(ONBOARDING_USERNAME_KEY);
       setSaving(false);
       onClose();
     } catch (err: any) {
-      console.error('Error completing onboarding:', err);
+      console.error('[onboarding] Error completing onboarding:', err);
       setError(err.message || 'Failed to save your preferences. Please try again.');
       setSaving(false);
     }
@@ -239,6 +260,16 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
       />
 
       <Box sx={{ p: { xs: 3, sm: 4 } }}>
+        {error && (
+          <Alert
+            severity="error"
+            onClose={() => setError('')}
+            sx={{ mb: 3, fontFamily: inkstashFonts.ui }}
+          >
+            {error}
+          </Alert>
+        )}
+
         {/* Step 1: Username - MANDATORY */}
         {currentStep === 0 && (
           <OnboardingUsernameStep
@@ -278,18 +309,6 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
           />
         )}
       </Box>
-
-      {/* Error Snackbar */}
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="error" onClose={() => setError('')}>
-          {error}
-        </Alert>
-      </Snackbar>
 
       {saving && (
         <Box
