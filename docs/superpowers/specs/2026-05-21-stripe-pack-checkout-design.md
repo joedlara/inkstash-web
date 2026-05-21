@@ -45,10 +45,42 @@ Either/or, never hybrid. Buy-with-Rubies button disabled if balance insufficient
 
 | Phase | Scope | Status |
 |---|---|---|
-| **Phase 1 — Real Stripe** | Deploy `create-payment-intent` + `stripe-webhook` Edge Functions. Migration for `pack_purchases.stripe_payment_intent_id`. Flip `PackCheckoutModal mockMode={false}`. Test against Stripe test mode. | **In progress** |
-| **Phase 2 — Saved cards** | Add `setup_future_usage: 'on_session'` to PaymentIntent creation. "Use saved card" path in modal: if user has a default payment method, show one-click confirm; otherwise show full Elements form. Stripe Customer object lifecycle. | Next |
-| **Phase 3 — Rubies + Keep/Sell/Ship + Value Odds** | DB: `users.ruby_balance`, `user_inventory` table, `pack_purchases.value_band_*` cols. Post-reveal three-button UI. Ruby wallet in sidebar. Pre-purchase Value Odds modal. "Buy with Rubies" alternate checkout path. Ship button stubbed (DB flag only). | After Phase 2 |
+| **Phase 1 — Real Stripe** | Deploy `create-payment-intent` + `stripe-webhook` Edge Functions. Migration for `pack_purchases.stripe_payment_intent_id`. Flip `PackCheckoutModal mockMode={false}`. Test against Stripe test mode. | **Done** |
+| **Phase 2a — Pack Detail Page** | New route `/packs/:packId`. Hero (cover + name + price + Open Pack CTA), Value Odds card, "What's inside" variant gallery. Delete `/pack-reveal/:purchaseId` route — reveal animation runs inline on the detail page after payment. No new backend. | **In progress** |
+| **Phase 2b — Saved cards / one-tap open** | Stripe Customer per user. `setup_future_usage: 'on_session'` on the first PaymentIntent. Saved-payment-method storage. Detail page's "Open Pack" charges instantly if a card is on file (no modal); first-time users still see Stripe Elements. | After 2a |
+| **Phase 3 — Rubies + Keep/Sell/Ship + Value Odds wiring** | DB: `users.ruby_balance`, `user_inventory` table. Post-reveal Keep/Sell-back/Ship per item. Ruby wallet pill in sidebar. Value Odds bands sourced from `pack_items.estimated_value` per pack. "Open with Rubies" alternate path. Inline Ruby top-up when balance insufficient. Bundle prices: 500/$5, 1,200/$10 (20% bonus), 3,000/$25 (50% bonus). Ship button stubbed (DB flag only). | After Phase 2b |
 | **Phase 4 — Real ShipStation** | New Edge Function calling ShipStation API. Label generation, tracking webhook. Requires ShipStation account + API key. | Separate PR |
+
+### Phase 2a specifics (this section of work)
+
+**New route:** `/packs/:packId` (renders pack detail + handles inline reveal)
+
+**Page sections (top → bottom):**
+1. **Hero** — pack cover image (right), pack name + partner + price + item-count (left), single primary CTA `Open Pack` (crimson). On click, opens the existing Phase 1 PackCheckoutModal.
+2. **Value Odds** — three value bands as a card: `$0-10 → 80%`, `$10-20 → 18%`, `$20+ → 2%` plus expected value footnote. In Phase 2a these are placeholder static bands; Phase 3 computes them from `pack_items.estimated_value`.
+3. **What's inside** — responsive grid of every `pack_items` row for this pack. Tile shows cover image, comic title + issue number, rarity badge, estimated value, and ratio label (e.g., "1:50") if `quantity` is small. All variants visible to everyone (no locked silhouettes).
+
+**Reveal flow on the detail page:**
+1. User clicks `Open Pack` → existing checkout modal opens
+2. Payment succeeds → modal closes → modal-side polling resolves a `purchaseId`
+3. Hero + Value Odds + variant gallery fade/slide out (~250ms)
+4. Inline reveal takes over: same flip-card mechanic from current `PackReveal.tsx`, rendered in-place
+5. After all cards revealed: cards stay, summary fades in below
+6. Footer CTAs: `Open Another Pack` (resets the page to pre-purchase state) + `Back to Packs`
+
+**Routing changes:**
+- **Add** `/packs/:packId` → renders `PackDetail` page
+- **Update** `/packs` grid cards → navigate to `/packs/:packId` instead of opening the modal directly
+- **Remove** `/pack-reveal/:purchaseId` route entirely. Existing reveal logic moves into `PackDetail`. The `PackReveal.tsx` file is deleted; the animation code is reused in the detail page.
+- Past purchases remain queryable via the `pack_purchases` table; viewed from My Stash (no dedicated route).
+
+**Backwards-compatibility note:** the modal's `navigate(\`/pack-reveal/\${purchaseId}\`)` after polling needs to change to `navigate(-1)` or trigger a state callback on the detail page. The cleanest model is: modal closes → emits `onPurchaseComplete(purchaseId)` callback → detail page swaps into reveal state.
+
+**Out of scope for 2a:**
+- Saved cards / one-tap open (that's 2b)
+- 3D pack-opening animation (separate branch)
+- Sell-back / Ship buttons on revealed cards (Phase 3)
+- Rubies anywhere on the page (Phase 3)
 
 ## Non-goals (deferred even within Phase 3)
 
