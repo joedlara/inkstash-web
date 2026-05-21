@@ -115,30 +115,6 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
       const { username, interests, notifications } = onboardingData;
 
-      // Self-heal: ensure a public.users row exists for the auth user. The
-      // handle_new_user trigger swallows errors silently (RAISE WARNING) so
-      // orphan auth users without a public.users row are possible. UPSERT
-      // here guarantees the subsequent UPDATEs target a real row.
-      console.log('[onboarding] ensuring user row exists for', user.id);
-      const { error: ensureError } = await withTimeout(
-        supabase
-          .from('users')
-          .upsert(
-            {
-              id: user.id,
-              email: user.email,
-              username: username,
-            },
-            { onConflict: 'id', ignoreDuplicates: true },
-          ),
-        10000,
-        'Ensure user row',
-      );
-      if (ensureError) {
-        console.error('[onboarding] ensure user row failed:', ensureError);
-        throw ensureError;
-      }
-
       // 1. Update user profile with username
       console.log('[onboarding] updating username + onboarding_completed');
       const { error: userError } = await withTimeout(
