@@ -116,24 +116,12 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
       const { username, interests, notifications } = onboardingData;
 
-      // Only poll if the DB row might not exist yet (brand-new signup where trigger is still running).
-      // If authManager already loaded a full user object, the row exists — skip the poll.
-      if (!user.created_at) {
-        let attempts = 0;
-        while (attempts < 20) {
-          const { data: row } = await withTimeout(
-            supabase.from('users').select('id').eq('id', user.id).maybeSingle(),
-            5000,
-            'User row check',
-          );
-          if (row) break;
-          await new Promise(resolve => setTimeout(resolve, 250));
-          attempts++;
-        }
-        if (attempts >= 20) {
-          throw new Error('Account setup is taking longer than expected. Please refresh and try again.');
-        }
-      }
+      // The user-row poll was here previously to wait for the on_auth_user_created
+      // trigger to insert the public.users row. Now that authManager.signUp polls
+      // for that row immediately after signup (see authManager.signUp), the row
+      // already exists by the time the user reaches step 4. If it somehow doesn't,
+      // the UPDATE below will return a clear "no rows updated" result rather than
+      // hanging on a separate read.
 
       // 1. Update user profile with username
       const { error: userError } = await withTimeout(
