@@ -94,9 +94,33 @@ export default function PackReveal() {
 
   useEffect(() => {
     if (!purchaseId) { setLoadError('Invalid purchase ID'); return; }
-    packsAPI.getPurchase(purchaseId)
-      .then(data => { if (!data) { setLoadError('Purchase not found'); return; } setPurchase(data); })
-      .catch(() => setLoadError('Failed to load purchase'));
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const existing = await packsAPI.getPurchase(purchaseId);
+        if (cancelled) return;
+        if (!existing) { setLoadError('Purchase not found'); return; }
+
+        // Webhook may have created the row empty (Stripe path). If so, call
+        // open-pack to roll items now and re-fetch.
+        if (!existing.items_received || existing.items_received.length === 0) {
+          await packsAPI.openPack(existing.pack_id, existing.stripe_payment_intent_id ?? undefined);
+          if (cancelled) return;
+          const refreshed = await packsAPI.getPurchase(purchaseId);
+          if (cancelled) return;
+          if (!refreshed) { setLoadError('Could not load opened pack'); return; }
+          setPurchase(refreshed);
+          return;
+        }
+
+        setPurchase(existing);
+      } catch {
+        if (!cancelled) setLoadError('Failed to load purchase');
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [purchaseId]);
 
   const items: PackItem[] = purchase?.items_received ?? [];

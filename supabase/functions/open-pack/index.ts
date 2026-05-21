@@ -169,27 +169,76 @@ serve(async (req) => {
       }
     }
 
-    const { data: purchase, error: purchaseError } = await serviceClient
-      .from('pack_purchases')
-      .insert({
-        user_id: user.id,
-        pack_id,
-        items_received: drawn,
-        stripe_payment_intent_id: stripe_payment_intent_id || null,
-        revealed_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single()
+    // If this call corresponds to a Stripe payment, the webhook has already
+    // inserted an empty pack_purchases row keyed by stripe_payment_intent_id.
+    // Update that row with the drawn items rather than inserting a duplicate.
+    // For non-Stripe paths (legacy / Rubies in Phase 3) we still INSERT.
+    let purchaseId: string | null = null
 
-    if (purchaseError || !purchase) {
-      return new Response(JSON.stringify({ error: 'Failed to record purchase' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (stripe_payment_intent_id) {
+      const { data: existing } = await serviceClient
+        .from('pack_purchases')
+        .select('id, revealed_at')
+        .eq('stripe_payment_intent_id', stripe_payment_intent_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (existing) {
+        // Idempotency: if already revealed, return existing items rather than re-rolling.
+        if (existing.revealed_at) {
+          const { data: full } = await serviceClient
+            .from('pack_purchases')
+            .select('id, items_received')
+            .eq('id', existing.id)
+            .single()
+          return new Response(
+            JSON.stringify({ purchase_id: existing.id, items: full?.items_received ?? [] }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { error: updateError } = await serviceClient
+          .from('pack_purchases')
+          .update({
+            items_received: drawn,
+            revealed_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+
+        if (updateError) {
+          return new Response(JSON.stringify({ error: 'Failed to update purchase' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        purchaseId = existing.id
+      }
+    }
+
+    if (!purchaseId) {
+      const { data: purchase, error: purchaseError } = await serviceClient
+        .from('pack_purchases')
+        .insert({
+          user_id: user.id,
+          pack_id,
+          items_received: drawn,
+          stripe_payment_intent_id: stripe_payment_intent_id || null,
+          revealed_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+
+      if (purchaseError || !purchase) {
+        return new Response(JSON.stringify({ error: 'Failed to record purchase' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      purchaseId = purchase.id
     }
 
     return new Response(
-      JSON.stringify({ purchase_id: purchase.id, items: drawn }),
+      JSON.stringify({ purchase_id: purchaseId, items: drawn }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

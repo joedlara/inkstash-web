@@ -345,7 +345,6 @@ export default function Packs() {
         open={!!checkoutPack}
         pack={checkoutPack}
         onClose={() => setCheckoutPack(null)}
-        mockMode
       />
     </AppShell>
   );

@@ -33,7 +33,7 @@ export default function PackCheckoutModal({
   open,
   pack,
   onClose,
-  mockMode = true,
+  mockMode = false,
 }: PackCheckoutModalProps) {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('loading');
