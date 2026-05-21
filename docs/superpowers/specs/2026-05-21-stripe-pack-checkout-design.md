@@ -1,10 +1,39 @@
-# Stripe Pack Checkout — Design Spec
+# Stripe Pack Checkout & Buyback Economy — Design Spec
 
-**Date:** 2026-05-21
+**Date:** 2026-05-21 (updated 2026-05-21 to add Rubies economy + Value Odds + Keep/Sell/Ship)
 **Branch:** `stripe-checkout`
-**Status:** Approved — ready for implementation plan
+**Status:** Approved — building in phases
 
-## Goals
+## Product model
+
+Inkstash mirrors the Courtyard.io pack-opening economy with three reinforcing mechanics:
+
+1. **Pack purchase** — pay with card or with Rubies (in-app currency). User reveals comics.
+2. **Per-item disposition** — after reveal, each comic gets three choices:
+   - **Keep digital** — stays vaulted in My Stash as a digital-only comic. Inkstash retains physical custody.
+   - **Sell back (instant buyback)** — Inkstash buys it back at **90% of estimated value**, paid in Rubies. Item leaves user inventory.
+   - **Ship print** — physical comic shipped to user's address. (Stubbed in v1; real ShipStation in a follow-up PR.)
+3. **Value Odds disclosure** — pre-purchase modal shows three value-band tiers (e.g., `$0-10 → 80%`, `$10-20 → 18%`, `$20+ → 2%`) plus expected value. Backed by the buyback guarantee so the probability table is a real economic contract, not marketing.
+
+### Currency: Rubies (♦)
+
+- **Symbol/icon**: crimson ruby (matches Inkstash brand color)
+- **Conversion**: $1 USD = **100 Rubies**, fixed
+- **Earning**: only via instant-buyback (90% of estimated USD value × 100)
+- **Spending**: pack purchases only (v1). Item purchases later.
+- **Cash-out**: not allowed. Rubies are non-redeemable for USD.
+- **Storage**: `users.ruby_balance` integer column. Always non-negative.
+
+### Pack purchase paths
+
+| Path | Triggered by | Backend |
+|---|---|---|
+| **Buy with Card** | "Buy Pack" button on a pack with active Stripe support | Stripe PaymentIntent → webhook creates `pack_purchases` row |
+| **Buy with Rubies** | "Use Rubies" button (visible when `ruby_balance >= pack.price * 100`) | Edge Function: atomic `BEGIN; UPDATE users SET ruby_balance = ruby_balance - price_in_rubies WHERE id = X AND ruby_balance >= price_in_rubies; INSERT INTO pack_purchases; COMMIT;` |
+
+Either/or, never hybrid. Buy-with-Rubies button disabled if balance insufficient.
+
+## Goals (Phase 1 — this PR)
 
 1. User clicks "Buy Pack" on a pack card → Inkstash-branded modal opens with a Stripe payment form.
 2. User enters a card → clicks Pay → modal shows "Processing your pack..." → on success, routes to `/pack-reveal/:purchaseId`.
@@ -12,14 +41,26 @@
 4. Webhook is the source of truth that creates the `pack_purchases` row. Frontend only confirms payment and polls for the row.
 5. Idempotency: re-running the webhook for the same `payment_intent_id` does not create duplicate purchases. Re-opening `/pack-reveal/:purchaseId` does not re-roll cards.
 
-## Non-goals (deferred)
+## Phase plan
 
-- Auction checkout (`CheckoutNew.tsx` wiring stays untouched in this PR)
-- Saved payment methods / Apple Pay / Google Pay (Stripe Elements supports them; flip on later)
+| Phase | Scope | Status |
+|---|---|---|
+| **Phase 1 — Real Stripe** | Deploy `create-payment-intent` + `stripe-webhook` Edge Functions. Migration for `pack_purchases.stripe_payment_intent_id`. Flip `PackCheckoutModal mockMode={false}`. Test against Stripe test mode. | **In progress** |
+| **Phase 2 — Saved cards** | Add `setup_future_usage: 'on_session'` to PaymentIntent creation. "Use saved card" path in modal: if user has a default payment method, show one-click confirm; otherwise show full Elements form. Stripe Customer object lifecycle. | Next |
+| **Phase 3 — Rubies + Keep/Sell/Ship + Value Odds** | DB: `users.ruby_balance`, `user_inventory` table, `pack_purchases.value_band_*` cols. Post-reveal three-button UI. Ruby wallet in sidebar. Pre-purchase Value Odds modal. "Buy with Rubies" alternate checkout path. Ship button stubbed (DB flag only). | After Phase 2 |
+| **Phase 4 — Real ShipStation** | New Edge Function calling ShipStation API. Label generation, tracking webhook. Requires ShipStation account + API key. | Separate PR |
+
+## Non-goals (deferred even within Phase 3)
+
+- Auction checkout (`CheckoutNew.tsx` wiring stays untouched)
+- Apple Pay / Google Pay (Stripe Elements supports them; flip on later via PaymentMethod config)
 - Refunds / dispute handling (manual via Stripe Dashboard)
 - Webhook retry log table
 - Coupons, promo codes, tax handling, multi-currency
-- Edge Function unit tests (manual + Stripe Dashboard logs cover this PR)
+- Edge Function unit tests (manual + Stripe Dashboard logs cover Phase 1)
+- Ruby gifting / transfer between users
+- Ruby expiration / decay
+- Hybrid card+Ruby payment (always either/or)
 
 ## Architecture
 
@@ -199,6 +240,9 @@ supabase db diff
 ## Open questions / follow-ups
 
 - Nightly reconciliation script for missing webhook rows (separate PR)
-- Saved payment methods via `setup_intents` (separate PR)
 - Refund button in admin UI (separate PR)
 - Auction checkout wiring to use same Edge Functions (separate PR — refactor `CheckoutNew.tsx`)
+- Reference price source for Value Odds bands — computed from `pack_items.estimated_value` weighted by rarity, or set per-pack manually? (decide in Phase 3)
+- Ruby visual design — icon SVG, balance pill in sidebar, animation when balance increases after sell-back (Phase 3)
+- ShipStation account + API key procurement (Phase 4 blocker)
+- Anti-abuse: rate limit Buy-with-Rubies to prevent rapid spend loops if estimated_value is mis-set on a pack (Phase 3)
