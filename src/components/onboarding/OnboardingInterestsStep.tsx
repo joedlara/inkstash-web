@@ -12,14 +12,14 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
-  SportsEsports,
-  MenuBook,
-  Toys,
-  Stars,
-  SportsBaseball,
-  Palette,
-  LocalOffer,
-  Category,
+  AutoStories,
+  Whatshot,
+  Brush,
+  Castle,
+  Movie,
+  Bolt,
+  Inventory2,
+  Storefront,
 } from '@mui/icons-material';
 
 interface CollectionCategory {
@@ -32,60 +32,60 @@ interface CollectionCategory {
 
 const COLLECTION_CATEGORIES: CollectionCategory[] = [
   {
-    id: 'trading_cards',
-    name: 'Trading Cards',
-    icon: <LocalOffer fontSize="large" />,
-    description: 'Pokémon, Magic, Yu-Gi-Oh, Sports',
-    subcategories: ['Pokemon', 'Magic The Gathering', 'Yu-Gi-Oh', 'Sports Cards', 'Other TCG'],
+    id: 'marvel',
+    name: 'Marvel',
+    icon: <Whatshot fontSize="large" />,
+    description: 'Spider-Man, X-Men, Avengers',
+    subcategories: ['X-Men', 'Spider-Man', 'Avengers', 'Fantastic Four', 'Other'],
   },
   {
-    id: 'comics',
-    name: 'Comics',
-    icon: <MenuBook fontSize="large" />,
-    description: 'Marvel, DC, Independent',
-    subcategories: ['Marvel', 'DC Comics', 'Independent', 'Manga', 'Graphic Novels'],
+    id: 'dc',
+    name: 'DC',
+    icon: <Bolt fontSize="large" />,
+    description: 'Batman, Superman, Justice League',
+    subcategories: ['Batman', 'Superman', 'Justice League', 'Wonder Woman', 'Other'],
   },
   {
-    id: 'action_figures',
-    name: 'Action Figures',
-    icon: <Toys fontSize="large" />,
-    description: 'Vintage and Modern',
-    subcategories: ['Star Wars', 'Marvel Legends', 'NECA', 'Funko', 'Hot Toys'],
+    id: 'image',
+    name: 'Image',
+    icon: <AutoStories fontSize="large" />,
+    description: 'Walking Dead, Saga, Spawn, Invincible',
+    subcategories: ['Walking Dead', 'Saga', 'Spawn', 'Invincible', 'Other'],
   },
   {
-    id: 'vintage_toys',
-    name: 'Vintage Toys',
-    icon: <Stars fontSize="large" />,
-    description: 'Classic collectibles',
-    subcategories: ['G.I. Joe', 'Transformers', 'He-Man', 'TMNT', 'Other Vintage'],
+    id: 'dark_horse',
+    name: 'Dark Horse',
+    icon: <Castle fontSize="large" />,
+    description: 'Hellboy, Sin City, Buffy, Star Wars',
+    subcategories: ['Hellboy', 'Sin City', 'Buffy', 'Star Wars', 'Other'],
   },
   {
-    id: 'sports_memorabilia',
-    name: 'Sports Memorabilia',
-    icon: <SportsBaseball fontSize="large" />,
-    description: 'Autographs, jerseys, cards',
-    subcategories: ['Basketball', 'Football', 'Baseball', 'Soccer', 'Hockey'],
+    id: 'idw',
+    name: 'IDW',
+    icon: <Movie fontSize="large" />,
+    description: 'TMNT, Transformers, GI Joe',
+    subcategories: ['TMNT', 'Transformers', 'GI Joe', 'Locke & Key', 'Other'],
   },
   {
-    id: 'art_prints',
-    name: 'Art & Prints',
-    icon: <Palette fontSize="large" />,
-    description: 'Limited editions, posters',
-    subcategories: ['Movie Posters', 'Concert Posters', 'Fine Art', 'Photography'],
+    id: 'boom',
+    name: 'Boom! Studios',
+    icon: <Brush fontSize="large" />,
+    description: 'Lumberjanes, Power Rangers, Mouse Guard',
+    subcategories: ['Lumberjanes', 'Power Rangers', 'Mouse Guard', 'Other'],
   },
   {
-    id: 'gaming',
-    name: 'Video Games',
-    icon: <SportsEsports fontSize="large" />,
-    description: 'Retro and modern games',
-    subcategories: ['Nintendo', 'PlayStation', 'Xbox', 'Retro Games', 'PC Games'],
+    id: 'indie',
+    name: 'Indie / Small Press',
+    icon: <Storefront fontSize="large" />,
+    description: 'Pulpworks, Longshot, Kickstarter',
+    subcategories: ['Pulpworks', 'Longshot', 'Self-published', 'Kickstarter', 'Other'],
   },
   {
-    id: 'other',
-    name: 'Other Collectibles',
-    icon: <Category fontSize="large" />,
-    description: 'Coins, stamps, and more',
-    subcategories: ['Coins', 'Stamps', 'Vinyl Records', 'Sneakers', 'Watches'],
+    id: 'manga',
+    name: 'Manga',
+    icon: <Inventory2 fontSize="large" />,
+    description: 'Shonen, Shojo, Seinen, Vintage',
+    subcategories: ['Shonen Jump', 'Shojo', 'Seinen', 'Vintage', 'Other'],
   },
 ];
 
@@ -132,7 +132,7 @@ const OnboardingInterestsStep: React.FC<OnboardingInterestsStepProps> = ({
         py: 2,
       }}
     >
-      <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
+      <Typography variant="h4" gutterBottom align="center" sx={{ fontFamily: "Big Shoulders Display, sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.005em", color: "#16110E" }}>
         What do you collect?
       </Typography>
 
@@ -166,11 +166,11 @@ const OnboardingInterestsStep: React.FC<OnboardingInterestsStepProps> = ({
                   height: '100%',
                   position: 'relative',
                   border: 2,
-                  borderColor: selected ? 'primary.main' : 'transparent',
+                  borderColor: selected ? '#A1232C' : 'transparent',
                   bgcolor: selected ? alpha('#0078FF', 0.05) : 'background.paper',
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
-                    borderColor: selected ? 'primary.main' : 'divider',
+                    borderColor: selected ? '#A1232C' : 'divider',
                     transform: 'translateY(-4px)',
                     boxShadow: 3,
                   },
@@ -202,7 +202,7 @@ const OnboardingInterestsStep: React.FC<OnboardingInterestsStepProps> = ({
 
                     <Box
                       sx={{
-                        color: selected ? 'primary.main' : 'text.secondary',
+                        color: selected ? '#A1232C' : 'text.secondary',
                         mb: 1.5,
                       }}
                     >

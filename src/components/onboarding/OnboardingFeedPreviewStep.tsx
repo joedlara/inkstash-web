@@ -43,32 +43,41 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchPreviewItems = async () => {
+      setLoading(true);
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Preview fetch timed out')), 8000),
+        );
+        const queryPromise = supabase
+          .from('auctions')
+          .select('id, title, current_bid, buy_now_price, image_url, category, end_time')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(4);
+        const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as Awaited<
+          typeof queryPromise
+        >;
+        if (cancelled) return;
+        if (error) throw error;
+        setPreviewItems(data || []);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Error fetching preview items:', error);
+        setPreviewItems([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     fetchPreviewItems();
-  }, [selectedInterests]);
-
-  const fetchPreviewItems = async () => {
-    setLoading(true);
-    try {
-      // Fetch featured or recent items from the auctions table
-      // In production, you'd filter by selectedInterests categories
-      const { data, error } = await supabase
-        .from('auctions')
-        .select('id, title, current_bid, buy_now_price, image_url, category, end_time')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(4);
-
-      if (error) throw error;
-
-      setPreviewItems(data || []);
-    } catch (error) {
-      console.error('Error fetching preview items:', error);
-      // Show placeholder items on error
-      setPreviewItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => { cancelled = true; };
+    // Fetch once on mount. selectedInterests is referentially unstable
+    // across parent renders and would otherwise cause an infinite loading loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -126,7 +135,7 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
         </Box>
       </Box>
 
-      <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
+      <Typography variant="h4" gutterBottom align="center" sx={{ fontFamily: "Big Shoulders Display, sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.005em", color: "#16110E" }}>
         Your personalized feed is ready, {username}!
       </Typography>
 
