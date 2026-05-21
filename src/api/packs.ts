@@ -76,6 +76,17 @@ export const packsAPI = {
     return data as Pack;
   },
 
+  async listItems(packId: string): Promise<PackItem[]> {
+    const { data, error } = await supabase
+      .from('pack_items')
+      .select('*')
+      .eq('pack_id', packId)
+      .order('rarity', { ascending: true });
+
+    if (error || !data) return [];
+    return data as PackItem[];
+  },
+
   async getPurchase(purchaseId: string): Promise<PackPurchase | null> {
     const { data, error } = await supabase
       .from('pack_purchases')

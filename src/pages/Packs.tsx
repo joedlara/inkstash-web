@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Container, Stack, Skeleton } from '@mui/material';
 import { X, Package, BookOpen, AlertCircle } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
-import PackCheckoutModal from '../components/packs/PackCheckoutModal';
 import { packsAPI, FALLBACK_PACKS } from '../api/packs';
 import type { Pack } from '../api/packs';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
@@ -28,6 +28,7 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
 
   return (
     <Box
+      onClick={() => { if (!soldOut) onOpen(pack); }}
       sx={{
         bgcolor: inkstashColors.bgElev,
         border: `1px solid ${inkstashColors.border}`,
@@ -162,7 +163,7 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
               '&:disabled': { opacity: 0.55, cursor: 'not-allowed' },
             }}
           >
-            {soldOut ? 'Sold Out' : 'Buy Pack'}
+            {soldOut ? 'Sold Out' : 'View Pack'}
           </Box>
         </Stack>
       </Box>
@@ -189,12 +190,12 @@ function ApiPackSkeleton() {
 }
 
 export default function Packs() {
+  const navigate = useNavigate();
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
   const [packs, setPacks] = useState<Pack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [checkoutPack, setCheckoutPack] = useState<Pack | null>(null);
 
   useEffect(() => {
     packsAPI.list()
@@ -204,7 +205,7 @@ export default function Packs() {
   }, []);
 
   function handleOpenPack(pack: Pack) {
-    setCheckoutPack(pack);
+    navigate(`/packs/${pack.id}`);
   }
 
   return (
@@ -341,11 +342,6 @@ export default function Packs() {
         </Box>
       </Container>
 
-      <PackCheckoutModal
-        open={!!checkoutPack}
-        pack={checkoutPack}
-        onClose={() => setCheckoutPack(null)}
-      />
     </AppShell>
   );
 }

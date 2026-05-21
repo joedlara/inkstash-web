@@ -9,7 +9,7 @@ import Home from './pages/Home';
 import Seller from './pages/Seller';
 import ItemDetail from './pages/ItemDetail';
 import Packs from './pages/Packs';
-import PackReveal from './pages/PackReveal';
+import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
 import Drops from './pages/Drops';
 import Raffles from './pages/Raffles';
@@ -48,7 +48,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/item/:id" element={<ItemDetail />} />
                 <Route path="/auction/:id" element={<ItemDetail />} />
                 <Route path="/packs" element={<Packs />} />
-                <Route path="/pack-reveal/:purchaseId" element={<PackReveal />} />
+                <Route path="/packs/:packId" element={<PackDetail />} />
+                <Route path="/pack-reveal/:purchaseId" element={<Navigate to="/packs" replace />} />
                 <Route path="/live" element={<Live />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/raffles" element={<Raffles />} />

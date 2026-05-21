@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   Box,
@@ -13,7 +12,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { getStripe } from '../../config/stripe';
 import { packCheckoutAPI } from '../../api/packCheckout';
 import { packsAPI } from '../../api/packs';
-import type { Pack } from '../../api/packs';
+import type { Pack, PackPurchase } from '../../api/packs';
 import {
   inkstashColors,
   inkstashFonts,
@@ -26,6 +25,7 @@ interface PackCheckoutModalProps {
   open: boolean;
   pack: Pack | null;
   onClose: () => void;
+  onPurchaseComplete: (purchase: PackPurchase) => void;
   mockMode?: boolean;
 }
 
@@ -33,9 +33,9 @@ export default function PackCheckoutModal({
   open,
   pack,
   onClose,
+  onPurchaseComplete,
   mockMode = false,
 }: PackCheckoutModalProps) {
-  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('loading');
   const [error, setError] = useState<string>('');
   const [clientSecret, setClientSecret] = useState<string>('');
@@ -74,11 +74,12 @@ export default function PackCheckoutModal({
     setPhase('polling');
     try {
       const result = await packsAPI.openPack(pack.id);
+      const full = await packsAPI.getPurchase(result.purchase_id);
+      if (!full) throw new Error('Could not load purchase after open');
       setPhase('success');
       setTimeout(() => {
-        onClose();
-        navigate(`/pack-reveal/${result.purchase_id}`);
-      }, 700);
+        onPurchaseComplete(full);
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open pack');
       setPhase('error');
@@ -96,11 +97,19 @@ export default function PackCheckoutModal({
     while (Date.now() - start < TIMEOUT_MS) {
       const purchaseId = await packCheckoutAPI.pollPurchaseByIntent(paymentIntentId);
       if (purchaseId) {
-        setPhase('success');
-        setTimeout(() => {
-          onClose();
-          navigate(`/pack-reveal/${purchaseId}`);
-        }, 700);
+        // The webhook created an empty pack_purchases row. Roll the items now.
+        try {
+          await packsAPI.openPack(pack.id, paymentIntentId);
+          const full = await packsAPI.getPurchase(purchaseId);
+          if (!full) throw new Error('Purchase vanished after roll');
+          setPhase('success');
+          setTimeout(() => {
+            onPurchaseComplete(full);
+          }, 500);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to open pack');
+          setPhase('error');
+        }
         return;
       }
       await new Promise((r) => setTimeout(r, POLL_MS));
