@@ -238,47 +238,65 @@ export default function PackCheckoutModal({
           <MockPayForm pack={pack} onPay={handleMockPay} />
         )}
 
-        {phase === 'pay' && clientSecret && (
-          <Elements
-            stripe={getStripe()}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: 'flat',
-                variables: {
-                  colorPrimary: inkstashColors.brand,
-                  colorBackground: inkstashColors.bgElev,
-                  colorText: inkstashColors.ink,
-                  colorTextSecondary: inkstashColors.muted,
-                  colorDanger: '#ef4444',
-                  fontFamily: 'Geist, system-ui, sans-serif',
-                  borderRadius: '8px',
+        {/* Stripe Elements stays mounted across pay/confirming/polling/success
+            because stripe.confirmPayment() reads the mounted PaymentElement.
+            Unmounting it mid-await would throw an IntegrationError. */}
+        {clientSecret && (
+          <Box sx={{ position: 'relative' }}>
+            <Elements
+              stripe={getStripe()}
+              options={{
+                clientSecret,
+                appearance: {
+                  theme: 'flat',
+                  variables: {
+                    colorPrimary: inkstashColors.brand,
+                    colorBackground: inkstashColors.bgElev,
+                    colorText: inkstashColors.ink,
+                    colorTextSecondary: inkstashColors.muted,
+                    colorDanger: '#ef4444',
+                    fontFamily: 'Geist, system-ui, sans-serif',
+                    borderRadius: '8px',
+                  },
                 },
-              },
-            }}
-          >
-            <StripePayForm
-              onConfirmed={handleConfirmed}
-              onError={(msg) => {
-                setError(msg);
-                setPhase('error');
               }}
-              onConfirming={() => setPhase('confirming')}
-              backToPay={() => setPhase('pay')}
-            />
-          </Elements>
-        )}
+            >
+              <StripePayForm
+                onConfirmed={handleConfirmed}
+                onError={(msg) => {
+                  setError(msg);
+                  setPhase('pay');
+                }}
+                onConfirming={() => setPhase('confirming')}
+                disabled={phase !== 'pay'}
+              />
+            </Elements>
 
-        {phase === 'confirming' && (
-          <ProcessingPanel label="Confirming payment..." />
-        )}
-
-        {phase === 'polling' && (
-          <ProcessingPanel label="Preparing your pack..." />
-        )}
-
-        {phase === 'success' && (
-          <ProcessingPanel label="Done. Opening pack..." />
+            {(phase === 'confirming' || phase === 'polling' || phase === 'success') && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'rgba(252,250,246,0.96)',
+                  borderRadius: inkstashRadii.md,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <ProcessingPanel
+                  label={
+                    phase === 'confirming'
+                      ? 'Confirming payment...'
+                      : phase === 'polling'
+                      ? 'Preparing your pack...'
+                      : 'Done. Opening pack...'
+                  }
+                />
+              </Box>
+            )}
+          </Box>
         )}
 
         {phase === 'error' && (
@@ -467,38 +485,33 @@ function StripePayForm({
   onConfirmed,
   onError,
   onConfirming,
-  backToPay,
+  disabled,
 }: {
   onConfirmed: () => void;
   onError: (msg: string) => void;
   onConfirming: () => void;
-  backToPay: () => void;
+  disabled: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
-    setSubmitting(true);
+    if (!stripe || !elements || disabled) return;
     onConfirming();
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: window.location.origin + '/packs' },
       redirect: 'if_required',
     });
-    setSubmitting(false);
     if (error) {
       onError(error.message ?? 'Payment failed');
-      backToPay();
       return;
     }
     if (paymentIntent?.status === 'succeeded') {
       onConfirmed();
     } else {
       onError('Payment not completed');
-      backToPay();
     }
   };
 
@@ -508,7 +521,7 @@ function StripePayForm({
       <Box
         component="button"
         type="submit"
-        disabled={!stripe || submitting}
+        disabled={!stripe || disabled}
         sx={{
           width: '100%',
           mt: 2.5,
@@ -520,7 +533,7 @@ function StripePayForm({
           fontFamily: inkstashFonts.ui,
           fontWeight: 700,
           fontSize: 14,
-          cursor: submitting ? 'wait' : 'pointer',
+          cursor: disabled ? 'wait' : 'pointer',
           letterSpacing: '0.02em',
           transition: 'background 140ms ease, transform 100ms ease',
           '&:hover': { bgcolor: inkstashColors.brandDeep },
@@ -528,7 +541,7 @@ function StripePayForm({
           '&:disabled': { opacity: 0.6, cursor: 'not-allowed' },
         }}
       >
-        {submitting ? 'Processing...' : 'Pay now'}
+        Pay now
       </Box>
     </form>
   );
