@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Container, Stack, Skeleton } from '@mui/material';
 import { X, Package, BookOpen, AlertCircle } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
+import RubyIcon from '../components/ui/RubyIcon';
 import { packsAPI, FALLBACK_PACKS } from '../api/packs';
 import type { Pack } from '../api/packs';
+import { packPriceToRubies } from '../config/rubyBundles';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
 
 const FILTERS = ['All', 'Comics', 'Keys', 'Graded', 'Limited'] as const;
@@ -136,13 +138,16 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
 
         {/* Footer row: price + CTA */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 0.5 }}>
-          <Box sx={{
-            fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
-            color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
-            lineHeight: 1,
-          }}>
-            {soldOut ? '—' : `$${pack.price.toFixed(2)}`}
-          </Box>
+          <Stack direction="row" alignItems="center" gap={0.6}>
+            {!soldOut && <RubyIcon size={16} />}
+            <Box sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
+              color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
+              lineHeight: 1,
+            }}>
+              {soldOut ? '—' : packPriceToRubies(pack.price).toLocaleString('en-US')}
+            </Box>
+          </Stack>
           <Box
             component="button"
             type="button"

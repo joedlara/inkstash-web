@@ -2,7 +2,9 @@
 import { Box } from '@mui/material';
 import PackVisual from './PackVisual';
 import RarityDots from './RarityDots';
+import RubyIcon from '../ui/RubyIcon';
 import { PUBLISHERS, type Pack } from '../../data/handoffSeed';
+import { packPriceToRubies } from '../../config/rubyBundles';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface PackCardProps {
@@ -63,16 +65,14 @@ export default function PackCard({ pack, onClick }: PackCardProps) {
           textTransform: 'uppercase', letterSpacing: '0.005em',
           color: inkstashColors.ink,
         }}>{pack.title}</Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 0.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 0.5 }}>
           <Box sx={{
-            fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
+            display: 'inline-flex', alignItems: 'center', gap: 0.6,
+            fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 20,
             lineHeight: 1, color: inkstashColors.ink,
           }}>
-            <Box component="span" sx={{
-              fontFamily: inkstashFonts.ui, fontWeight: 500, fontSize: 10.5,
-              color: inkstashColors.muted, textTransform: 'uppercase', marginRight: 0.5,
-            }}>FROM</Box>
-            ${pack.price}
+            <RubyIcon size={16} />
+            {packPriceToRubies(pack.price).toLocaleString('en-US')}
           </Box>
           <Box component="span" sx={{
             fontFamily: inkstashFonts.mono, fontSize: 11,

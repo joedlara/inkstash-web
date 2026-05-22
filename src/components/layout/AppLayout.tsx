@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import MobileBottomNav from '../home/MobileBottomNav';
 import { MobileNavProvider, useMobileNav } from './MobileNavContext';
+import { RubyBalanceProvider } from '../../contexts/RubyBalanceContext';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -26,8 +27,10 @@ function AppLayoutInner({ children, showMobileNav = true }: AppLayoutProps) {
 
 export default function AppLayout(props: AppLayoutProps) {
   return (
-    <MobileNavProvider>
-      <AppLayoutInner {...props} />
-    </MobileNavProvider>
+    <RubyBalanceProvider>
+      <MobileNavProvider>
+        <AppLayoutInner {...props} />
+      </MobileNavProvider>
+    </RubyBalanceProvider>
   );
 }

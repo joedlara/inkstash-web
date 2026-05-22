@@ -69,30 +69,44 @@ serve(async (req) => {
 
   const intent = event.data.object as Stripe.PaymentIntent
   const userId = intent.metadata?.user_id
-  const packId = intent.metadata?.pack_id
+  const bundleId = intent.metadata?.bundle_id
+  const rubyTotalRaw = intent.metadata?.ruby_total
 
-  if (!userId || !packId) {
-    console.error('[stripe-webhook] missing metadata on intent', intent.id)
-    return new Response('Missing user_id or pack_id in metadata', { status: 400 })
+  if (!userId || !bundleId || !rubyTotalRaw) {
+    console.error('[stripe-webhook] missing metadata on intent', intent.id, intent.metadata)
+    return new Response('Missing user_id / bundle_id / ruby_total in metadata', { status: 400 })
+  }
+
+  const rubyTotal = parseInt(rubyTotalRaw, 10)
+  if (!Number.isFinite(rubyTotal) || rubyTotal <= 0) {
+    console.error('[stripe-webhook] invalid ruby_total', rubyTotalRaw)
+    return new Response('Invalid ruby_total', { status: 400 })
   }
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey)
 
-  const { error } = await serviceClient
-    .from('pack_purchases')
-    .upsert(
-      {
-        user_id: userId,
-        pack_id: packId,
-        stripe_payment_intent_id: intent.id,
-        items_received: [],
-      },
-      { onConflict: 'stripe_payment_intent_id', ignoreDuplicates: true },
-    )
+  // Credit Rubies via the SECURITY DEFINER function. Idempotent: if this
+  // payment_intent already produced a ruby_transactions row (webhook retry),
+  // the function returns false and balance is untouched.
+  const { data: credited, error: rpcError } = await serviceClient.rpc(
+    'credit_rubies_from_bundle',
+    {
+      p_user_id: userId,
+      p_ruby_total: rubyTotal,
+      p_bundle_id: bundleId,
+      p_payment_intent_id: intent.id,
+    },
+  )
 
-  if (error) {
-    console.error('[stripe-webhook] upsert failed:', error)
+  if (rpcError) {
+    console.error('[stripe-webhook] credit_rubies_from_bundle failed:', rpcError)
     return new Response('DB error', { status: 500 })
+  }
+
+  if (credited === false) {
+    console.log('[stripe-webhook] retry: bundle already credited for intent', intent.id)
+  } else {
+    console.log('[stripe-webhook] credited', rubyTotal, 'rubies to user', userId)
   }
 
   // Save the payment method if Stripe attached one to the user's Customer.
@@ -141,6 +155,5 @@ serve(async (req) => {
     }
   }
 
-  console.log('[stripe-webhook] pack_purchase recorded for intent', intent.id)
   return new Response('ok', { status: 200 })
 })

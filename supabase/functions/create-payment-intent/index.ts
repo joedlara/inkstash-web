@@ -1,11 +1,12 @@
 // Edge Function: create-payment-intent
-// Creates a Stripe PaymentIntent for a pack purchase. Authenticated user.
+// Creates a Stripe PaymentIntent for a Ruby bundle purchase. Authenticated user.
 // Returns { clientSecret, paymentIntentId, amount } for the frontend
 // to confirm via Stripe Elements.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno&deno-std=0.168.0'
+import { findBundle } from '../_shared/rubyBundles.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ const corsHeaders = {
 }
 
 interface RequestBody {
-  pack_id?: string
+  bundle_id?: string
 }
 
 serve(async (req) => {
@@ -52,28 +53,16 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json()
-    if (!body.pack_id) {
-      return json({ error: 'pack_id is required' }, 400)
+    if (!body.bundle_id) {
+      return json({ error: 'bundle_id is required' }, 400)
     }
 
-    const { data: pack, error: packError } = await serviceClient
-      .from('packs')
-      .select('id, name, price, status')
-      .eq('id', body.pack_id)
-      .single()
-
-    if (packError || !pack) {
-      return json({ error: 'Pack not found' }, 404)
+    const bundle = findBundle(body.bundle_id)
+    if (!bundle) {
+      return json({ error: 'Unknown bundle' }, 404)
     }
 
-    if (pack.status !== 'active') {
-      return json({ error: `This pack is no longer available (${pack.status})` }, 400)
-    }
-
-    const amountCents = Math.round(Number(pack.price) * 100)
-    if (!Number.isFinite(amountCents) || amountCents <= 0) {
-      return json({ error: 'Invalid pack price' }, 500)
-    }
+    const amountCents = bundle.usdCents
 
     const stripe = new Stripe(stripeSecret, {
       apiVersion: '2024-06-20',
@@ -110,8 +99,8 @@ serve(async (req) => {
       setup_future_usage: 'on_session',
       automatic_payment_methods: { enabled: true },
       metadata: {
-        pack_id: pack.id,
-        pack_name: pack.name,
+        bundle_id: bundle.id,
+        ruby_total: String(bundle.totalRubies),
         user_id: user.id,
       },
     })

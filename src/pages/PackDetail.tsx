@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Container, Stack, Skeleton, Typography, Alert } from '@mui/material';
-import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw, CreditCard } from 'lucide-react';
+import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
-import PackCheckoutModal from '../components/packs/PackCheckoutModal';
 import HoldToOpenButton from '../components/packs/HoldToOpenButton';
+import RubyBundleModal from '../components/packs/RubyBundleModal';
+import RubyIcon from '../components/ui/RubyIcon';
 import { packsAPI } from '../api/packs';
-import { paymentMethodsAPI } from '../api/paymentMethods';
-import type { UserPaymentMethod } from '../api/paymentMethods';
-import type { Pack, PackItem, PackPurchase } from '../api/packs';
+import { rubiesAPI } from '../api/rubies';
+import { useRubyBalance } from '../hooks/useRubyBalance';
+import { packPriceToRubies } from '../config/rubyBundles';
+import type { Pack, PackItem } from '../api/packs';
 import {
   inkstashColors,
   inkstashFonts,
@@ -53,29 +55,25 @@ export default function PackDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [bundleModalOpen, setBundleModalOpen] = useState(false);
   const [phase, setPhase] = useState<DetailPhase>('browse');
   const [revealedItems, setRevealedItems] = useState<PackItem[]>([]);
   const [flippedCount, setFlippedCount] = useState(0);
-  const [defaultCard, setDefaultCard] = useState<UserPaymentMethod | null>(null);
   const [chargingError, setChargingError] = useState<string | null>(null);
+
+  const { balance: rubyBalance, refresh: refreshRubies } = useRubyBalance();
 
   useEffect(() => {
     if (!packId) return;
     setLoading(true);
-    Promise.all([
-      packsAPI.getById(packId),
-      packsAPI.listItems(packId),
-      paymentMethodsAPI.getDefault(),
-    ])
-      .then(([packData, itemList, card]) => {
+    Promise.all([packsAPI.getById(packId), packsAPI.listItems(packId)])
+      .then(([packData, itemList]) => {
         if (!packData) {
           setError('Pack not found');
           return;
         }
         setPack(packData);
         setItems(itemList);
-        setDefaultCard(card);
       })
       .catch(() => setError('Failed to load pack'))
       .finally(() => setLoading(false));
@@ -100,17 +98,8 @@ export default function PackDetail() {
     }
   }, [phase, flippedCount, revealedItems.length]);
 
-  const handleOpenPack = () => setCheckoutOpen(true);
-
-  const handlePurchaseComplete = async (purchase: PackPurchase) => {
-    setCheckoutOpen(false);
-    setPhase('opening');
-    setRevealedItems(purchase.items_received ?? []);
-    setFlippedCount(0);
-    // The default card may have just been saved by the webhook; refresh.
-    paymentMethodsAPI.getDefault().then(setDefaultCard).catch(() => {});
-    setTimeout(() => setPhase('revealing'), 250);
-  };
+  const rubyCost = pack ? packPriceToRubies(pack.price) : 0;
+  const hasEnoughRubies = rubyBalance >= rubyCost;
 
   const handleOpenAnother = () => {
     setPhase('browse');
@@ -118,24 +107,47 @@ export default function PackDetail() {
     setFlippedCount(0);
   };
 
-  const handleHoldComplete = async () => {
+  const performOpen = async () => {
     if (!pack || phase !== 'browse') return;
     setChargingError(null);
-    // Optimistic open: transition into the reveal stage immediately so the
-    // user sees pack opening visuals while the server charges + rolls items.
-    // The reveal stage shows pack-back placeholders until items_received
-    // arrives, then flips them in sequence.
     setRevealedItems([]);
     setFlippedCount(0);
     setPhase('opening');
     try {
-      const result = await paymentMethodsAPI.chargeSavedCard(pack.id);
+      const result = await rubiesAPI.openPackWithRubies(pack.id);
       setRevealedItems(result.items);
       setPhase('revealing');
+      // Explicit refresh so the pill ticks down even if Realtime is delayed.
+      refreshRubies();
     } catch (err) {
-      setChargingError(err instanceof Error ? err.message : 'Could not charge card');
+      const msg = err instanceof Error ? err.message : 'Could not open pack';
+      if (msg.includes('insufficient_rubies')) {
+        // Balance drifted under us (rare). Fall through to bundle modal.
+        setPhase('browse');
+        setBundleModalOpen(true);
+        return;
+      }
+      setChargingError(msg);
       setPhase('browse');
     }
+  };
+
+  const handleOpenAttempt = () => {
+    if (!pack || phase !== 'browse') return;
+    if (!hasEnoughRubies) {
+      setBundleModalOpen(true);
+      return;
+    }
+    performOpen();
+  };
+
+  const handleBundleCredited = async () => {
+    // Modal triggers onCredited after webhook lands. Refresh the pill so the
+    // user sees the bumped balance, then immediately attempt the pack open.
+    refreshRubies();
+    setBundleModalOpen(false);
+    // brief delay so the modal close animation can run before the page swaps
+    setTimeout(() => performOpen(), 250);
   };
 
   if (loading) {
@@ -296,17 +308,18 @@ export default function PackDetail() {
                 </Stack>
               </Stack>
 
-              <Stack direction="row" alignItems="baseline" gap={2} mb={3}>
+              <Stack direction="row" alignItems="center" gap={1.5} mb={3}>
+                <RubyIcon size={28} glow />
                 <Box
                   sx={{
                     fontFamily: inkstashFonts.display,
                     fontWeight: 800,
                     fontSize: 40,
-                    color: inkstashColors.brand,
+                    color: inkstashColors.ink,
                     lineHeight: 1,
                   }}
                 >
-                  ${pack.price.toFixed(2)}
+                  {rubyCost.toLocaleString('en-US')}
                 </Box>
                 <Box
                   sx={{
@@ -322,75 +335,69 @@ export default function PackDetail() {
               </Stack>
 
               {pack.status === 'active' ? (
-                defaultCard ? (
-                  <Stack gap={1.5} alignItems="flex-start">
+                hasEnoughRubies ? (
+                  <Stack gap={1.25} alignItems="flex-start">
                     <HoldToOpenButton
                       label="Hold to Open"
-                      onComplete={handleHoldComplete}
+                      onComplete={handleOpenAttempt}
                       busy={phase !== 'browse'}
                     />
-                    <Stack direction="row" alignItems="center" gap={1.25}>
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                      <RubyIcon size={11} />
                       <Box
                         sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 0.75,
-                          padding: '6px 12px',
-                          bgcolor: inkstashColors.bgSunken,
-                          border: `1px solid ${inkstashColors.border}`,
-                          borderRadius: 999,
-                          fontFamily: inkstashFonts.mono,
-                          fontSize: 11,
-                          color: inkstashColors.ink2,
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        <CreditCard size={12} color={inkstashColors.muted} />
-                        {defaultCard.card_brand.toUpperCase()} ⋯{defaultCard.card_last4}
-                      </Box>
-                      <Box
-                        component="button"
-                        type="button"
-                        onClick={handleOpenPack}
-                        sx={{
-                          bgcolor: 'transparent',
-                          border: 'none',
-                          padding: 0,
-                          cursor: 'pointer',
                           fontFamily: inkstashFonts.mono,
                           fontSize: 11,
                           color: inkstashColors.muted,
                           letterSpacing: '0.04em',
-                          '&:hover': { color: inkstashColors.ink },
                         }}
                       >
-                        use a different card
+                        Balance: {rubyBalance.toLocaleString('en-US')}
                       </Box>
                     </Stack>
                   </Stack>
                 ) : (
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={handleOpenPack}
-                    sx={{
-                      bgcolor: inkstashColors.brand,
-                      color: '#fff',
-                      border: 'none',
-                      padding: '16px 32px',
-                      borderRadius: 999,
-                      fontFamily: inkstashFonts.ui,
-                      fontWeight: 700,
-                      fontSize: 15,
-                      letterSpacing: '0.02em',
-                      cursor: 'pointer',
-                      transition: 'background 140ms ease, transform 100ms ease',
-                      '&:hover': { bgcolor: inkstashColors.brandDeep },
-                      '&:active': { transform: 'scale(0.98)' },
-                    }}
-                  >
-                    Open Pack
-                  </Box>
+                  <Stack gap={1.25} alignItems="flex-start">
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={handleOpenAttempt}
+                      sx={{
+                        bgcolor: inkstashColors.brand,
+                        color: '#fff',
+                        border: 'none',
+                        padding: '14px 26px',
+                        borderRadius: 999,
+                        fontFamily: inkstashFonts.ui,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        letterSpacing: '0.02em',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        transition: 'background 140ms ease, transform 100ms ease',
+                        '&:hover': { bgcolor: inkstashColors.brandDeep },
+                        '&:active': { transform: 'scale(0.98)' },
+                      }}
+                    >
+                      <RubyIcon size={16} color="#fff" />
+                      Buy Rubies to Open
+                    </Box>
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                      <RubyIcon size={11} />
+                      <Box
+                        sx={{
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 11,
+                          color: inkstashColors.muted,
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        Balance: {rubyBalance.toLocaleString('en-US')} · need {(rubyCost - rubyBalance).toLocaleString('en-US')} more
+                      </Box>
+                    </Stack>
+                  </Stack>
                 )
               ) : (
                 <Box
@@ -607,11 +614,12 @@ export default function PackDetail() {
         )}
       </Container>
 
-      <PackCheckoutModal
-        open={checkoutOpen}
-        pack={pack}
-        onClose={() => setCheckoutOpen(false)}
-        onPurchaseComplete={handlePurchaseComplete}
+      <RubyBundleModal
+        open={bundleModalOpen}
+        onClose={() => setBundleModalOpen(false)}
+        requiredRubies={rubyCost}
+        currentBalance={rubyBalance}
+        onCredited={handleBundleCredited}
       />
     </AppShell>
   );

@@ -1,25 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Elements } from '@stripe/react-stripe-js';
 import {
   Box,
   Typography,
   Paper,
-  Button,
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { getStripe } from '../../config/stripe';
 import { type PaymentMethod, paymentMethodsAPI } from '../../api/payments';
 import PaymentMethodsList from '../payments/PaymentMethodsList';
-import AddPaymentMethodForm from '../payments/AddPaymentMethodForm';
 
 export default function PaymentsTab() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddPayment, setShowAddPayment] = useState(false);
-
-  const stripePromise = getStripe();
 
   useEffect(() => {
     loadData();
@@ -37,11 +30,6 @@ export default function PaymentsTab() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handlePaymentMethodAdded = async () => {
-    setShowAddPayment(false);
-    await loadData();
   };
 
   const handleSetDefaultPayment = async (id: string) => {
@@ -70,7 +58,7 @@ export default function PaymentsTab() {
         Payment Methods
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Manage your payment methods for purchases
+        Cards saved during Ruby purchases. We never store your full card number — only the brand, last 4 digits, and expiry.
       </Typography>
 
       {error && (
@@ -83,30 +71,18 @@ export default function PaymentsTab() {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
         </Box>
-      ) : showAddPayment ? (
-        <Elements stripe={stripePromise}>
-          <AddPaymentMethodForm
-            onSuccess={handlePaymentMethodAdded}
-            onCancel={() => setShowAddPayment(false)}
-          />
-        </Elements>
-      ) : (
-        <Box>
-          <PaymentMethodsList
-            paymentMethods={paymentMethods}
-            onSetDefault={handleSetDefaultPayment}
-            onDelete={handleDeletePayment}
-          />
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              onClick={() => setShowAddPayment(true)}
-              sx={{ minWidth: 200 }}
-            >
-              Add Payment Method
-            </Button>
-          </Box>
+      ) : paymentMethods.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 5 }}>
+          <Typography variant="body2" color="text.secondary">
+            No saved cards yet. Buy Rubies once and your card will be saved here for one-tap top-ups.
+          </Typography>
         </Box>
+      ) : (
+        <PaymentMethodsList
+          paymentMethods={paymentMethods}
+          onSetDefault={handleSetDefaultPayment}
+          onDelete={handleDeletePayment}
+        />
       )}
     </Paper>
   );
