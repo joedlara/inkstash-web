@@ -80,9 +80,34 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
+    // Find-or-create the Stripe Customer for this user so the saved card
+    // gets attached to a persistent customer across sessions.
+    let stripeCustomerId: string | null = null
+    const { data: userRow } = await serviceClient
+      .from('users')
+      .select('stripe_customer_id, email')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    stripeCustomerId = userRow?.stripe_customer_id ?? null
+
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: userRow?.email ?? user.email,
+        metadata: { user_id: user.id },
+      })
+      stripeCustomerId = customer.id
+      await serviceClient
+        .from('users')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', user.id)
+    }
+
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
+      customer: stripeCustomerId,
+      setup_future_usage: 'on_session',
       automatic_payment_methods: { enabled: true },
       metadata: {
         pack_id: pack.id,

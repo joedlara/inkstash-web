@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Box, Container, Stack, Skeleton, Typography } from '@mui/material';
-import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'lucide-react';
+import { Box, Container, Stack, Skeleton, Typography, Alert } from '@mui/material';
+import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw, CreditCard } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import PackCheckoutModal from '../components/packs/PackCheckoutModal';
+import HoldToOpenButton from '../components/packs/HoldToOpenButton';
 import { packsAPI } from '../api/packs';
+import { paymentMethodsAPI } from '../api/paymentMethods';
+import type { UserPaymentMethod } from '../api/paymentMethods';
 import type { Pack, PackItem, PackPurchase } from '../api/packs';
 import {
   inkstashColors,
@@ -54,18 +57,25 @@ export default function PackDetail() {
   const [phase, setPhase] = useState<DetailPhase>('browse');
   const [revealedItems, setRevealedItems] = useState<PackItem[]>([]);
   const [flippedCount, setFlippedCount] = useState(0);
+  const [defaultCard, setDefaultCard] = useState<UserPaymentMethod | null>(null);
+  const [chargingError, setChargingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!packId) return;
     setLoading(true);
-    Promise.all([packsAPI.getById(packId), packsAPI.listItems(packId)])
-      .then(([packData, itemList]) => {
+    Promise.all([
+      packsAPI.getById(packId),
+      packsAPI.listItems(packId),
+      paymentMethodsAPI.getDefault(),
+    ])
+      .then(([packData, itemList, card]) => {
         if (!packData) {
           setError('Pack not found');
           return;
         }
         setPack(packData);
         setItems(itemList);
+        setDefaultCard(card);
       })
       .catch(() => setError('Failed to load pack'))
       .finally(() => setLoading(false));
@@ -97,7 +107,8 @@ export default function PackDetail() {
     setPhase('opening');
     setRevealedItems(purchase.items_received ?? []);
     setFlippedCount(0);
-    // brief transition delay so the fade-out has space to breathe
+    // The default card may have just been saved by the webhook; refresh.
+    paymentMethodsAPI.getDefault().then(setDefaultCard).catch(() => {});
     setTimeout(() => setPhase('revealing'), 250);
   };
 
@@ -105,6 +116,26 @@ export default function PackDetail() {
     setPhase('browse');
     setRevealedItems([]);
     setFlippedCount(0);
+  };
+
+  const handleHoldComplete = async () => {
+    if (!pack || phase !== 'browse') return;
+    setChargingError(null);
+    // Optimistic open: transition into the reveal stage immediately so the
+    // user sees pack opening visuals while the server charges + rolls items.
+    // The reveal stage shows pack-back placeholders until items_received
+    // arrives, then flips them in sequence.
+    setRevealedItems([]);
+    setFlippedCount(0);
+    setPhase('opening');
+    try {
+      const result = await paymentMethodsAPI.chargeSavedCard(pack.id);
+      setRevealedItems(result.items);
+      setPhase('revealing');
+    } catch (err) {
+      setChargingError(err instanceof Error ? err.message : 'Could not charge card');
+      setPhase('browse');
+    }
   };
 
   if (loading) {
@@ -203,7 +234,7 @@ export default function PackDetail() {
             transform: browseVisible ? 'translateY(0)' : 'translateY(-12px)',
             transition: 'opacity 280ms ease, transform 280ms ease',
             pointerEvents: browseVisible ? 'auto' : 'none',
-            position: browseVisible ? 'static' : 'absolute',
+            display: browseVisible ? 'block' : 'none',
             width: '100%',
           }}
         >
@@ -290,29 +321,103 @@ export default function PackDetail() {
                 </Box>
               </Stack>
 
-              <Box
-                component="button"
-                type="button"
-                disabled={pack.status !== 'active'}
-                onClick={handleOpenPack}
-                sx={{
-                  bgcolor: pack.status === 'active' ? inkstashColors.brand : inkstashColors.bgSunken,
-                  color: pack.status === 'active' ? '#fff' : inkstashColors.muted,
-                  border: 'none',
-                  padding: '16px 32px',
-                  borderRadius: 999,
-                  fontFamily: inkstashFonts.ui,
-                  fontWeight: 700,
-                  fontSize: 15,
-                  letterSpacing: '0.02em',
-                  cursor: pack.status === 'active' ? 'pointer' : 'not-allowed',
-                  transition: 'background 140ms ease, transform 100ms ease',
-                  '&:hover': pack.status === 'active' ? { bgcolor: inkstashColors.brandDeep } : {},
-                  '&:active': pack.status === 'active' ? { transform: 'scale(0.98)' } : {},
-                }}
-              >
-                {pack.status === 'active' ? 'Open Pack' : pack.status === 'sold_out' ? 'Sold Out' : 'Coming Soon'}
-              </Box>
+              {pack.status === 'active' ? (
+                defaultCard ? (
+                  <Stack gap={1.5} alignItems="flex-start">
+                    <HoldToOpenButton
+                      label="Hold to Open"
+                      onComplete={handleHoldComplete}
+                      busy={phase !== 'browse'}
+                    />
+                    <Stack direction="row" alignItems="center" gap={1.25}>
+                      <Box
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          padding: '6px 12px',
+                          bgcolor: inkstashColors.bgSunken,
+                          border: `1px solid ${inkstashColors.border}`,
+                          borderRadius: 999,
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 11,
+                          color: inkstashColors.ink2,
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        <CreditCard size={12} color={inkstashColors.muted} />
+                        {defaultCard.card_brand.toUpperCase()} ⋯{defaultCard.card_last4}
+                      </Box>
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={handleOpenPack}
+                        sx={{
+                          bgcolor: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 11,
+                          color: inkstashColors.muted,
+                          letterSpacing: '0.04em',
+                          '&:hover': { color: inkstashColors.ink },
+                        }}
+                      >
+                        use a different card
+                      </Box>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={handleOpenPack}
+                    sx={{
+                      bgcolor: inkstashColors.brand,
+                      color: '#fff',
+                      border: 'none',
+                      padding: '16px 32px',
+                      borderRadius: 999,
+                      fontFamily: inkstashFonts.ui,
+                      fontWeight: 700,
+                      fontSize: 15,
+                      letterSpacing: '0.02em',
+                      cursor: 'pointer',
+                      transition: 'background 140ms ease, transform 100ms ease',
+                      '&:hover': { bgcolor: inkstashColors.brandDeep },
+                      '&:active': { transform: 'scale(0.98)' },
+                    }}
+                  >
+                    Open Pack
+                  </Box>
+                )
+              ) : (
+                <Box
+                  sx={{
+                    bgcolor: inkstashColors.bgSunken,
+                    color: inkstashColors.muted,
+                    padding: '16px 32px',
+                    borderRadius: 999,
+                    fontFamily: inkstashFonts.ui,
+                    fontWeight: 700,
+                    fontSize: 15,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {pack.status === 'sold_out' ? 'Sold Out' : 'Coming Soon'}
+                </Box>
+              )}
+
+              {chargingError && (
+                <Alert
+                  severity="error"
+                  onClose={() => setChargingError(null)}
+                  sx={{ mt: 2, fontFamily: inkstashFonts.ui }}
+                >
+                  {chargingError}
+                </Alert>
+              )}
             </Box>
 
             <Box
@@ -486,13 +591,16 @@ export default function PackDetail() {
           </Box>
         </Box>
 
-        {/* REVEAL STATE — overlays browse content position */}
+        {/* REVEAL STATE — overlays browse content position. Renders pack-back
+            placeholders during 'opening' while charge-saved-card runs. */}
         {revealVisible && (
           <RevealStage
             pack={pack}
             items={revealedItems}
             flippedCount={flippedCount}
             showSummary={phase === 'summary'}
+            isOpening={phase === 'opening'}
+            placeholderCount={pack.item_count}
             onOpenAnother={handleOpenAnother}
             onBack={() => navigate('/packs')}
           />
@@ -628,6 +736,8 @@ function RevealStage({
   items,
   flippedCount,
   showSummary,
+  isOpening,
+  placeholderCount,
   onOpenAnother,
   onBack,
 }: {
@@ -635,6 +745,8 @@ function RevealStage({
   items: PackItem[];
   flippedCount: number;
   showSummary: boolean;
+  isOpening: boolean;
+  placeholderCount: number;
   onOpenAnother: () => void;
   onBack: () => void;
 }) {
@@ -642,6 +754,7 @@ function RevealStage({
     (a, b) => (RARITY_ORDER[a.rarity] ?? 99) - (RARITY_ORDER[b.rarity] ?? 99),
   );
   const hasLegendary = items.some((i) => i.rarity === 'legendary');
+  const cardCount = items.length > 0 ? items.length : placeholderCount;
 
   return (
     <Box
@@ -702,13 +815,17 @@ function RevealStage({
           justifyContent="center"
           sx={{ position: 'relative', zIndex: 1 }}
         >
-          {items.map((item, idx) => (
-            <FlipCard key={item.id + ':' + idx} item={item} flipped={idx < flippedCount} />
-          ))}
+          {isOpening
+            ? Array.from({ length: cardCount }).map((_, idx) => (
+                <PlaceholderCard key={'ph-' + idx} index={idx} />
+              ))
+            : items.map((item, idx) => (
+                <FlipCard key={item.id + ':' + idx} item={item} flipped={idx < flippedCount} />
+              ))}
         </Stack>
       )}
 
-      {!showSummary && flippedCount < items.length && (
+      {!showSummary && (
         <Box
           sx={{
             textAlign: 'center',
@@ -717,9 +834,14 @@ function RevealStage({
             fontSize: 11,
             color: inkstashColors.muted,
             letterSpacing: '0.06em',
+            textTransform: 'uppercase',
           }}
         >
-          {flippedCount} / {items.length} revealed
+          {isOpening
+            ? 'Opening pack...'
+            : flippedCount < items.length
+              ? `${flippedCount} / ${items.length} revealed`
+              : ' '}
         </Box>
       )}
 
@@ -821,6 +943,58 @@ function RevealStage({
           </Stack>
         </Box>
       )}
+    </Box>
+  );
+}
+
+function PlaceholderCard({ index }: { index: number }) {
+  return (
+    <Box
+      sx={{
+        width: { xs: 140, sm: 170 },
+        aspectRatio: '0.66',
+        borderRadius: inkstashRadii.md,
+        background: `linear-gradient(135deg, ${inkstashColors.brandDeep}, ${inkstashColors.ink})`,
+        border: `1px solid ${inkstashColors.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        animation: `inkstashPackFloat 2.4s ease-in-out ${index * 0.12}s infinite`,
+        '@keyframes inkstashPackFloat': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-6px)' },
+        },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          background: `linear-gradient(120deg, transparent 30%, ${inkstashColors.brand}26 50%, transparent 70%)`,
+          animation: `inkstashShimmer 1.6s ease-in-out ${index * 0.08}s infinite`,
+          '@keyframes inkstashShimmer': {
+            '0%, 100%': { transform: 'translateX(-100%)', opacity: 0 },
+            '50%': { transform: 'translateX(100%)', opacity: 1 },
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.85,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        <Sparkles size={26} color="#fff" />
+      </Box>
     </Box>
   );
 }

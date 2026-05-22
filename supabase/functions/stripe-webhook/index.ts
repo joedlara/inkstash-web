@@ -95,6 +95,52 @@ serve(async (req) => {
     return new Response('DB error', { status: 500 })
   }
 
+  // Save the payment method if Stripe attached one to the user's Customer.
+  // This only fires the first time the user pays — subsequent intents
+  // confirmed off-session (via charge-saved-card) reuse the same pm_id.
+  // (Reuse the `stripe` instance declared above for signature verification.)
+  const paymentMethodId =
+    typeof intent.payment_method === 'string' ? intent.payment_method : intent.payment_method?.id
+
+  if (paymentMethodId) {
+    try {
+      const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
+      const card = pm.card
+      if (card) {
+        // Check if this is the user's first saved card. If so, mark it default.
+        const { count } = await serviceClient
+          .from('user_payment_methods')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+
+        const isFirstCard = (count ?? 0) === 0
+
+        const { error: pmError } = await serviceClient
+          .from('user_payment_methods')
+          .upsert(
+            {
+              user_id: userId,
+              stripe_payment_method_id: paymentMethodId,
+              card_brand: card.brand,
+              card_last4: card.last4,
+              exp_month: card.exp_month,
+              exp_year: card.exp_year,
+              is_default: isFirstCard,
+            },
+            { onConflict: 'stripe_payment_method_id', ignoreDuplicates: true },
+          )
+
+        if (pmError) {
+          console.error('[stripe-webhook] failed to save payment method:', pmError)
+        } else {
+          console.log('[stripe-webhook] payment method saved for user', userId)
+        }
+      }
+    } catch (err) {
+      console.error('[stripe-webhook] retrieve payment method failed:', err)
+    }
+  }
+
   console.log('[stripe-webhook] pack_purchase recorded for intent', intent.id)
   return new Response('ok', { status: 200 })
 })
