@@ -48,7 +48,8 @@ Either/or, never hybrid. Buy-with-Rubies button disabled if balance insufficient
 | **Phase 1 — Real Stripe** | Deploy `create-payment-intent` + `stripe-webhook` Edge Functions. Migration for `pack_purchases.stripe_payment_intent_id`. Flip `PackCheckoutModal mockMode={false}`. Test against Stripe test mode. | **Done** |
 | **Phase 2a — Pack Detail Page** | New route `/packs/:packId`. Hero (cover + name + price + Open Pack CTA), Value Odds card, "What's inside" variant gallery. Delete `/pack-reveal/:purchaseId` route — reveal animation runs inline on the detail page after payment. No new backend. | **In progress** |
 | **Phase 2b — Saved cards / one-tap open** | Stripe Customer per user. `setup_future_usage: 'on_session'` on the first PaymentIntent. Saved-payment-method storage. Detail page's "Open Pack" charges instantly if a card is on file (no modal); first-time users still see Stripe Elements. | After 2a |
-| **Phase 3 — Rubies + Keep/Sell/Ship + Value Odds wiring** | DB: `users.ruby_balance`, `user_inventory` table. Post-reveal Keep/Sell-back/Ship per item. Ruby wallet pill in sidebar. Value Odds bands sourced from `pack_items.estimated_value` per pack. "Open with Rubies" alternate path. Inline Ruby top-up when balance insufficient. Bundle prices: 500/$5, 1,200/$10 (20% bonus), 3,000/$25 (50% bonus). Ship button stubbed (DB flag only). | After Phase 2b |
+| **Phase 3 — Rubies-only pack economy** | **Major pivot**: pack opens are now Rubies-only, no card at point of pack-open. Card is used only to buy Ruby bundles. Eliminates payment-failure UX from the pack-open loop. See "Phase 3 specifics" below. | After Phase 2b |
+| **Phase 3.5 — Keep/Sell/Ship + Value Odds wiring** | Post-reveal Keep/Sell-back/Ship per item. Sell-back grants Rubies at 90% of estimated value. Value Odds bands sourced from `pack_items.estimated_value` per pack. Ship button stubbed. | After Phase 3 |
 | **Phase 4 — Real ShipStation** | New Edge Function calling ShipStation API. Label generation, tracking webhook. Requires ShipStation account + API key. | Separate PR |
 
 ### Phase 2a specifics (this section of work)
@@ -79,8 +80,60 @@ Either/or, never hybrid. Buy-with-Rubies button disabled if balance insufficient
 **Out of scope for 2a:**
 - Saved cards / one-tap open (that's 2b)
 - 3D pack-opening animation (separate branch)
-- Sell-back / Ship buttons on revealed cards (Phase 3)
+- Sell-back / Ship buttons on revealed cards (Phase 3.5)
 - Rubies anywhere on the page (Phase 3)
+
+### Phase 3 specifics — Rubies-only pack economy
+
+**Why pivot:** Phase 1-2b shipped a working card-to-pack flow, but every pack open had a 1-3s Stripe round-trip + occasional failures (declines, 3DS, webhook delays). The Rubies-only model decouples *money* from *opens*: card → Rubies happens occasionally (Stripe involved), Rubies → packs happens constantly (local DB, instant).
+
+**The new flow:**
+- Cards are only charged to buy **Ruby bundles**
+- Pack opens debit Rubies; no Stripe involvement at point of open
+- If a user clicks Open Pack with insufficient balance, a Ruby bundle modal appears auto-selecting the smallest sufficient bundle
+
+**Currency display:**
+- Pack cards + detail page show pure Rubies, no USD
+- Ruby balance pill always visible in the sidebar header
+- Pack price computed at `Math.round(pack.price * 100)` (e.g. $14.99 → ♦1,499) for now; per-pack manual Ruby pricing comes later
+
+**Ruby bundles (Stripe-side):**
+| Tile | USD | Base Rubies | Bonus | Total |
+|---|---|---|---|---|
+| Starter | $4.99 | 499 | — | 499 |
+| Popular | $9.99 | 999 | +201 (+20%) | 1,200 |
+| Best Value | $24.99 | 2,499 | +1,001 (+40%) | 3,500 |
+| Mega | $99.99 | 9,999 | +5,001 (+50%) | 15,000 |
+
+**DB changes:**
+```sql
+ALTER TABLE users ADD COLUMN ruby_balance integer NOT NULL DEFAULT 0
+  CHECK (ruby_balance >= 0);
+
+CREATE TABLE ruby_transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  delta integer NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('bundle_purchase', 'pack_open', 'sellback', 'admin_adjustment')),
+  stripe_payment_intent_id text,
+  pack_purchase_id uuid REFERENCES pack_purchases(id),
+  bundle_id text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+**Edge Function changes:**
+- `create-payment-intent` rebranded conceptually: now takes `bundle_id`, looks up the bundle (hardcoded server-side constants for now), creates intent for the bundle USD price with `metadata.bundle_id` + `metadata.ruby_total`
+- `stripe-webhook` rebranded: on `payment_intent.succeeded`, increments `users.ruby_balance` and inserts a `ruby_transactions` row (kind='bundle_purchase'). No longer touches `pack_purchases`.
+- `charge-saved-card` rebranded: one-tap top-up. Same flow, charges for bundles instead of packs.
+- **New `open-pack-rubies`** Edge Function: server-side atomic transaction debits Rubies, rolls items, inserts `pack_purchases` row, inserts `ruby_transactions` row (kind='pack_open'). Returns the rolled items.
+
+**Frontend changes:**
+- New `RubyBundleModal` component — four-tile bundle picker, reuses existing Stripe Elements/HoldToOpen flow under the hood
+- New `paymentMethodsAPI` already supports the one-tap path; reuse for bundle purchases
+- Pack cards show `♦N,NNN` instead of `$X.XX`
+- PackDetail.tsx Open Pack: branches on balance — sufficient → `open-pack-rubies` direct; insufficient → open `RubyBundleModal` with the cheapest sufficient bundle pre-selected. After bundle purchase succeeds, modal closes and pack opens immediately.
+- Sidebar header gets a Ruby balance chip (refreshes on every Ruby transaction)
 
 ## Non-goals (deferred even within Phase 3)
 
