@@ -1,5 +1,11 @@
 import { supabase } from './supabase/supabaseClient';
 
+/**
+ * Saved Stripe payment methods. Reads from public.user_payment_methods
+ * (populated by the stripe-webhook Edge Function on payment_intent.succeeded).
+ * Card data is never stored in plaintext — only brand, last4, exp, and the
+ * Stripe payment_method id are kept.
+ */
 export interface PaymentMethod {
   id: string;
   user_id: string;
@@ -10,7 +16,32 @@ export interface PaymentMethod {
   card_exp_year: number;
   is_default: boolean;
   created_at: string;
-  updated_at: string;
+}
+
+interface DbRow {
+  id: string;
+  user_id: string;
+  stripe_payment_method_id: string;
+  card_brand: string;
+  card_last4: string;
+  exp_month: number;
+  exp_year: number;
+  is_default: boolean;
+  created_at: string;
+}
+
+function fromDb(row: DbRow): PaymentMethod {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    stripe_payment_method_id: row.stripe_payment_method_id,
+    card_brand: row.card_brand,
+    card_last4: row.card_last4,
+    card_exp_month: row.exp_month,
+    card_exp_year: row.exp_year,
+    is_default: row.is_default,
+    created_at: row.created_at,
+  };
 }
 
 export interface ShippingAddress {
@@ -29,70 +60,37 @@ export interface ShippingAddress {
   updated_at: string;
 }
 
-// Payment Methods API
+// Payment Methods API. Backed by public.user_payment_methods. Cards are
+// added implicitly during the Ruby bundle Stripe flow (the webhook saves
+// them); this module only supports read / set-default / delete.
 export const paymentMethodsAPI = {
-  // Get all payment methods for the current user
   async getAll(): Promise<PaymentMethod[]> {
     const { data, error } = await supabase
-      .from('payment_methods')
-      .select('*')
+      .from('user_payment_methods')
+      .select('id, user_id, stripe_payment_method_id, card_brand, card_last4, exp_month, exp_year, is_default, created_at')
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data ?? []).map((r) => fromDb(r as DbRow));
   },
 
-  // Add a new payment method
-  async add(paymentMethodId: string, cardDetails: {
-    brand: string;
-    last4: string;
-    exp_month: number;
-    exp_year: number;
-  }): Promise<PaymentMethod> {
+  async setDefault(id: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Check if this is the first payment method
-    const { data: existingMethods } = await supabase
-      .from('payment_methods')
-      .select('id')
-      .eq('user_id', user.id);
-
-    const isFirst = !existingMethods || existingMethods.length === 0;
-
-    const { data, error } = await supabase
-      .from('payment_methods')
-      .insert({
-        user_id: user.id,
-        stripe_payment_method_id: paymentMethodId,
-        card_brand: cardDetails.brand,
-        card_last4: cardDetails.last4,
-        card_exp_month: cardDetails.exp_month,
-        card_exp_year: cardDetails.exp_year,
-        is_default: isFirst, // First payment method is default
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Set a payment method as default
-  async setDefault(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('payment_methods')
-      .update({ is_default: true })
-      .eq('id', id);
+    // RPC enforces single-default constraint atomically.
+    const { error } = await supabase.rpc('set_default_payment_method', {
+      p_user_id: user.id,
+      p_payment_method_id: id,
+    });
 
     if (error) throw error;
   },
 
-  // Delete a payment method
   async delete(id: string): Promise<void> {
     const { error } = await supabase
-      .from('payment_methods')
+      .from('user_payment_methods')
       .delete()
       .eq('id', id);
 

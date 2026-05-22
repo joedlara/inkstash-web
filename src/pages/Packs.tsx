@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Container, Stack, Skeleton } from '@mui/material';
 import { X, Package, BookOpen, AlertCircle } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
+import RubyIcon from '../components/ui/RubyIcon';
 import { packsAPI, FALLBACK_PACKS } from '../api/packs';
 import type { Pack } from '../api/packs';
+import { packPriceToRubies } from '../config/rubyBundles';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
 
 const FILTERS = ['All', 'Comics', 'Keys', 'Graded', 'Limited'] as const;
@@ -21,13 +23,14 @@ function rarityPct(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: string) => void; opening: boolean }) {
+function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => void }) {
   const badge = pack.badge ?? (pack.status === 'sold_out' ? 'SOLD OUT' : 'NEW');
   const bm = BADGE_STYLES[badge] ?? { bg: inkstashColors.ink, fg: '#fff' };
   const soldOut = pack.status === 'sold_out';
 
   return (
     <Box
+      onClick={() => { if (!soldOut) onOpen(pack); }}
       sx={{
         bgcolor: inkstashColors.bgElev,
         border: `1px solid ${inkstashColors.border}`,
@@ -135,18 +138,21 @@ function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: strin
 
         {/* Footer row: price + CTA */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 0.5 }}>
-          <Box sx={{
-            fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
-            color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
-            lineHeight: 1,
-          }}>
-            {soldOut ? '—' : `$${pack.price.toFixed(2)}`}
-          </Box>
+          <Stack direction="row" alignItems="center" gap={0.6}>
+            {!soldOut && <RubyIcon size={16} />}
+            <Box sx={{
+              fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
+              color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
+              lineHeight: 1,
+            }}>
+              {soldOut ? '—' : packPriceToRubies(pack.price).toLocaleString('en-US')}
+            </Box>
+          </Stack>
           <Box
             component="button"
             type="button"
-            disabled={soldOut || opening}
-            onClick={(e) => { e.stopPropagation(); onOpen(pack.id); }}
+            disabled={soldOut}
+            onClick={(e) => { e.stopPropagation(); onOpen(pack); }}
             sx={{
               bgcolor: soldOut ? inkstashColors.bgSunken : inkstashColors.brand,
               color: soldOut ? inkstashColors.muted : '#fff',
@@ -155,14 +161,14 @@ function ApiPackCard({ pack, onOpen, opening }: { pack: Pack; onOpen: (id: strin
               borderRadius: 1.25,
               fontFamily: inkstashFonts.ui,
               fontWeight: 600, fontSize: 13,
-              cursor: soldOut || opening ? 'not-allowed' : 'pointer',
+              cursor: soldOut ? 'not-allowed' : 'pointer',
               transition: 'background 140ms ease, transform 100ms ease',
               '&:hover': soldOut ? {} : { bgcolor: inkstashColors.brandDeep },
               '&:active': soldOut ? {} : { transform: 'scale(0.97)' },
               '&:disabled': { opacity: 0.55, cursor: 'not-allowed' },
             }}
           >
-            {opening ? 'Opening…' : soldOut ? 'Sold Out' : 'Open Pack'}
+            {soldOut ? 'Sold Out' : 'View Pack'}
           </Box>
         </Stack>
       </Box>
@@ -195,7 +201,6 @@ export default function Packs() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openingPackId, setOpeningPackId] = useState<string | null>(null);
 
   useEffect(() => {
     packsAPI.list()
@@ -204,15 +209,8 @@ export default function Packs() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleOpenPack(packId: string) {
-    setOpeningPackId(packId);
-    try {
-      const result = await packsAPI.openPack(packId);
-      navigate(`/pack-reveal/${result.purchase_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to open pack');
-      setOpeningPackId(null);
-    }
+  function handleOpenPack(pack: Pack) {
+    navigate(`/packs/${pack.id}`);
   }
 
   return (
@@ -343,12 +341,12 @@ export default function Packs() {
                   key={pack.id}
                   pack={pack}
                   onOpen={handleOpenPack}
-                  opening={openingPackId === pack.id}
                 />
               ))
           }
         </Box>
       </Container>
+
     </AppShell>
   );
 }

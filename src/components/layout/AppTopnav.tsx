@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Badge } from '@mui/material';
 import { Menu, Search, Bell, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useRubyBalance } from '../../hooks/useRubyBalance';
+import RubyBalancePill from '../ui/RubyBalancePill';
+import RubyBundleModal from '../packs/RubyBundleModal';
 import { inkstashColors, inkstashFonts, inkstashLayout, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface AppTopnavProps {
@@ -13,7 +16,9 @@ interface AppTopnavProps {
 export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { balance, refresh: refreshRubies } = useRubyBalance();
   const [q, setQ] = useState('');
+  const [bundleModalOpen, setBundleModalOpen] = useState(false);
 
   return (
     <Box
@@ -83,6 +88,10 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
       </Box>
 
       <Box sx={{ flex: 1 }} />
+
+      {isAuthenticated && (
+        <RubyBalancePill onClickTopUp={() => setBundleModalOpen(true)} />
+      )}
 
       <Box
         component="button"
@@ -154,6 +163,13 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
           </Box>
         </>
       )}
+
+      <RubyBundleModal
+        open={bundleModalOpen}
+        onClose={() => setBundleModalOpen(false)}
+        currentBalance={balance}
+        onCredited={() => refreshRubies()}
+      />
     </Box>
   );
 }
