@@ -26,6 +26,9 @@ export interface PackItem {
   image_url: string | null;
   quantity: number;
   remaining: number;
+  /** Inventory row id, set by open-pack-rubies. Null when reading from
+   *  pack_purchases.items_received historical snapshots. */
+  inventory_id?: string | null;
 }
 
 export interface PackPurchase {

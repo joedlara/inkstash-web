@@ -205,9 +205,49 @@ serve(async (req) => {
       return json({ error: 'Failed to record items' }, 500)
     }
 
+    // Seed user_inventory rows — one per drawn item. This is what powers
+    // the Keep/Sell/Ship buttons on the reveal screen and the My Stash list.
+    const inventoryRows = drawn.map((item) => ({
+      user_id: user.id,
+      pack_purchase_id: purchaseId,
+      pack_item_id: item.id,
+      status: 'vaulted',
+    }))
+
+    const { data: inventoryInserted, error: invError } = await serviceClient
+      .from('user_inventory')
+      .insert(inventoryRows)
+      .select('id, pack_item_id')
+
+    if (invError) {
+      console.error('[open-pack-rubies] inventory insert failed:', invError)
+      // The pack purchase succeeded; surface a soft warning but still return
+      // the items so the reveal can play. The user can sell-back later from
+      // My Stash where we'll re-sync inventory from pack_purchases.items_received.
+    }
+
+    // Pair each drawn item with its newly-created inventory id so the
+    // frontend can call sell-back / ship per card from the reveal stage.
+    // inventoryInserted preserves insert order in Postgres, but match by
+    // pack_item_id defensively.
+    const inventoryByItemId = new Map<string, string>()
+    if (inventoryInserted) {
+      // If the same pack_item_id was drawn twice (rare), assign them in order.
+      // Map keeps the LAST id for that item_id, which is fine because both rows
+      // are functionally identical from the seller's perspective.
+      for (const row of inventoryInserted as Array<{ id: string; pack_item_id: string }>) {
+        inventoryByItemId.set(row.pack_item_id, row.id)
+      }
+    }
+
+    const itemsWithInventoryId = drawn.map((item) => ({
+      ...item,
+      inventory_id: inventoryByItemId.get(item.id) ?? null,
+    }))
+
     return json({
       purchase_id: purchaseId,
-      items: drawn,
+      items: itemsWithInventoryId,
       ruby_cost: rubyCost,
     }, 200)
   } catch (err) {

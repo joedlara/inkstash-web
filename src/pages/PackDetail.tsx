@@ -5,9 +5,12 @@ import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'l
 import AppShell from '../components/layout/AppShell';
 import HoldToOpenButton from '../components/packs/HoldToOpenButton';
 import RubyBundleModal from '../components/packs/RubyBundleModal';
+import CardDispositionRow from '../components/packs/CardDispositionRow';
+import type { Disposition } from '../components/packs/CardDispositionRow';
 import RubyIcon from '../components/ui/RubyIcon';
 import { packsAPI } from '../api/packs';
 import { rubiesAPI } from '../api/rubies';
+import { inventoryAPI } from '../api/inventory';
 import { useRubyBalance } from '../hooks/useRubyBalance';
 import { packPriceToRubies } from '../config/rubyBundles';
 import type { Pack, PackItem } from '../api/packs';
@@ -60,6 +63,12 @@ export default function PackDetail() {
   const [revealedItems, setRevealedItems] = useState<PackItem[]>([]);
   const [flippedCount, setFlippedCount] = useState(0);
   const [chargingError, setChargingError] = useState<string | null>(null);
+  /** Disposition per inventory_id (keep / sell / ship). 'pending' until user acts. */
+  const [dispositions, setDispositions] = useState<Record<string, Disposition>>({});
+  /** Rubies actually paid out per sold inventory_id, for the chip display. */
+  const [payouts, setPayouts] = useState<Record<string, number>>({});
+  /** True while any bulk mutation is in flight. Locks every row's buttons. */
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const { balance: rubyBalance, refresh: refreshRubies } = useRubyBalance();
 
@@ -105,6 +114,9 @@ export default function PackDetail() {
     setPhase('browse');
     setRevealedItems([]);
     setFlippedCount(0);
+    setDispositions({});
+    setPayouts({});
+    setBulkBusy(false);
   };
 
   const performOpen = async () => {
@@ -112,6 +124,8 @@ export default function PackDetail() {
     setChargingError(null);
     setRevealedItems([]);
     setFlippedCount(0);
+    setDispositions({});
+    setPayouts({});
     setPhase('opening');
     try {
       const result = await rubiesAPI.openPackWithRubies(pack.id);
@@ -148,6 +162,52 @@ export default function PackDetail() {
     setBundleModalOpen(false);
     // brief delay so the modal close animation can run before the page swaps
     setTimeout(() => performOpen(), 250);
+  };
+
+  const handleDispositionChange = (inventoryId: string, next: Disposition, payoutRubies?: number) => {
+    setDispositions((prev) => ({ ...prev, [inventoryId]: next }));
+    if (next === 'sold' && typeof payoutRubies === 'number') {
+      setPayouts((prev) => ({ ...prev, [inventoryId]: payoutRubies }));
+    }
+  };
+
+  const sellAllCommons = async () => {
+    if (bulkBusy) return;
+    const pending = revealedItems.filter(
+      (it) =>
+        it.rarity === 'common' &&
+        it.inventory_id &&
+        !dispositions[it.inventory_id],
+    );
+    if (pending.length === 0) return;
+
+    setBulkBusy(true);
+    try {
+      for (const item of pending) {
+        if (!item.inventory_id) continue;
+        try {
+          const result = await inventoryAPI.sellBack(item.inventory_id);
+          setDispositions((prev) => ({ ...prev, [item.inventory_id!]: 'sold' }));
+          setPayouts((prev) => ({ ...prev, [item.inventory_id!]: result.payout_rubies }));
+        } catch {
+          // Soft-fail per item; keep going. Other rows still process.
+        }
+      }
+      refreshRubies();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const keepAllRemaining = () => {
+    if (bulkBusy) return;
+    const next: Record<string, Disposition> = { ...dispositions };
+    for (const item of revealedItems) {
+      if (item.inventory_id && !next[item.inventory_id]) {
+        next[item.inventory_id] = 'kept';
+      }
+    }
+    setDispositions(next);
   };
 
   if (loading) {
@@ -608,6 +668,12 @@ export default function PackDetail() {
             showSummary={phase === 'summary'}
             isOpening={phase === 'opening'}
             placeholderCount={pack.item_count}
+            dispositions={dispositions}
+            payouts={payouts}
+            bulkBusy={bulkBusy}
+            onDispositionChange={handleDispositionChange}
+            onSellAllCommons={sellAllCommons}
+            onKeepAllRemaining={keepAllRemaining}
             onOpenAnother={handleOpenAnother}
             onBack={() => navigate('/packs')}
           />
@@ -628,12 +694,13 @@ export default function PackDetail() {
 function VariantTile({ item }: { item: PackItem }) {
   const rarityColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
   const ratioLabel = item.quantity > 0 && item.quantity <= 50 ? `1:${item.quantity * 50}` : null;
+  const isLegendary = item.rarity === 'legendary';
 
   return (
     <Box
       sx={{
         bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${item.rarity === 'legendary' ? inkstashColors.gold + '60' : inkstashColors.border}`,
+        border: `1px solid ${isLegendary ? inkstashColors.gold + '60' : inkstashColors.border}`,
         borderRadius: inkstashRadii.md,
         overflow: 'hidden',
         display: 'flex',
@@ -658,7 +725,7 @@ function VariantTile({ item }: { item: PackItem }) {
             <Package size={28} color={inkstashColors.muted2} />
           </Box>
         )}
-        {item.rarity === 'legendary' && (
+        {isLegendary && (
           <Box
             sx={{
               position: 'absolute',
@@ -746,6 +813,12 @@ function RevealStage({
   showSummary,
   isOpening,
   placeholderCount,
+  dispositions,
+  payouts,
+  bulkBusy,
+  onDispositionChange,
+  onSellAllCommons,
+  onKeepAllRemaining,
   onOpenAnother,
   onBack,
 }: {
@@ -755,6 +828,12 @@ function RevealStage({
   showSummary: boolean;
   isOpening: boolean;
   placeholderCount: number;
+  dispositions: Record<string, Disposition>;
+  payouts: Record<string, number>;
+  bulkBusy: boolean;
+  onDispositionChange: (inventoryId: string, next: Disposition, payoutRubies?: number) => void;
+  onSellAllCommons: () => void;
+  onKeepAllRemaining: () => void;
   onOpenAnother: () => void;
   onBack: () => void;
 }) {
@@ -764,10 +843,17 @@ function RevealStage({
   const hasLegendary = items.some((i) => i.rarity === 'legendary');
   const cardCount = items.length > 0 ? items.length : placeholderCount;
 
+  const pendingCommonsRubies = items
+    .filter((it) => it.rarity === 'common' && it.inventory_id && dispositions[it.inventory_id] !== 'sold' && dispositions[it.inventory_id] !== 'kept' && dispositions[it.inventory_id] !== 'shipped')
+    .reduce((sum, it) => sum + Math.floor((it.estimated_value ?? 0) * 90), 0);
+
+  const hasPendingDecisions = items.some(
+    (it) => it.inventory_id && !dispositions[it.inventory_id],
+  );
+
   return (
     <Box
       sx={{
-        py: { xs: 3, md: 6 },
         position: 'relative',
         animation: 'inkstashFadeIn 300ms ease both',
         '@keyframes inkstashFadeIn': {
@@ -776,46 +862,58 @@ function RevealStage({
         },
       }}
     >
-      {hasLegendary && showSummary && (
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            pointerEvents: 'none',
-            background: `radial-gradient(ellipse at center, ${inkstashColors.gold}26 0%, transparent 70%)`,
-            zIndex: 0,
-          }}
-        />
-      )}
+      {/* Reveal lives directly on the cream page surface, matching app theme. */}
+      <Box
+        sx={{
+          position: 'relative',
+          padding: { xs: '24px 8px 16px', md: '40px 16px 24px' },
+          mb: showSummary ? 3 : 0,
+          minHeight: { xs: 320, md: 440 },
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        {hasLegendary && showSummary && (
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background: `radial-gradient(ellipse at center, ${inkstashColors.gold}1a 0%, transparent 65%)`,
+            }}
+          />
+        )}
 
-      <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 5 }, position: 'relative', zIndex: 1 }}>
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontSize: 11,
-            color: inkstashColors.muted,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            mb: 1,
-          }}
-        >
-          {pack.partner}
+        <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 4 }, position: 'relative', zIndex: 1 }}>
+          <Box
+            sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              color: inkstashColors.muted,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              mb: 1,
+            }}
+          >
+            {pack.partner}
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 800,
+              fontSize: { xs: 24, md: 32 },
+              textTransform: 'uppercase',
+              letterSpacing: '0.005em',
+              color: inkstashColors.ink,
+            }}
+          >
+            {pack.name}
+          </Typography>
         </Box>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.display,
-            fontWeight: 800,
-            fontSize: { xs: 24, md: 32 },
-            textTransform: 'uppercase',
-            letterSpacing: '0.005em',
-            color: inkstashColors.ink,
-          }}
-        >
-          {pack.name}
-        </Typography>
-      </Box>
 
-      {!showSummary && (
         <Stack
           direction="row"
           gap={{ xs: 1.5, md: 2.5 }}
@@ -831,44 +929,94 @@ function RevealStage({
                 <FlipCard key={item.id + ':' + idx} item={item} flipped={idx < flippedCount} />
               ))}
         </Stack>
-      )}
 
-      {!showSummary && (
-        <Box
-          sx={{
-            textAlign: 'center',
-            mt: 3,
-            fontFamily: inkstashFonts.mono,
-            fontSize: 11,
-            color: inkstashColors.muted,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {isOpening
-            ? 'Opening pack...'
-            : flippedCount < items.length
-              ? `${flippedCount} / ${items.length} revealed`
-              : ' '}
-        </Box>
-      )}
+        {!showSummary && (
+          <Box
+            sx={{
+              textAlign: 'center',
+              mt: 3,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              color: inkstashColors.muted,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            {isOpening
+              ? 'Opening pack...'
+              : flippedCount < items.length
+                ? `${flippedCount} / ${items.length} revealed`
+                : ' '}
+          </Box>
+        )}
+
+        {showSummary && hasLegendary && (
+          <Box sx={{ textAlign: 'center', mt: 3, position: 'relative', zIndex: 1 }}>
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.display,
+                fontWeight: 900,
+                fontSize: { xs: 20, md: 24 },
+                color: inkstashColors.gold,
+                textTransform: 'uppercase',
+                letterSpacing: '0.01em',
+              }}
+            >
+              Legendary Pull
+            </Typography>
+            <Box
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                color: inkstashColors.muted,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                mt: 0.5,
+              }}
+            >
+              Top tier drop — exceptional find
+            </Box>
+          </Box>
+        )}
+      </Box>
 
       {showSummary && (
-        <Box sx={{ maxWidth: 640, mx: 'auto', position: 'relative', zIndex: 1 }}>
-          {hasLegendary && (
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <Typography
-                sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontWeight: 900,
-                  fontSize: 22,
-                  color: inkstashColors.gold,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Legendary Pull
-              </Typography>
+        <Box sx={{ maxWidth: 720, mx: 'auto', position: 'relative', zIndex: 1 }}>
+          <Stack gap={1} mb={pendingCommonsRubies > 0 || hasPendingDecisions ? 2 : 4}>
+            {sortedItems.map((item, idx) => (
+              <CardDispositionRow
+                key={item.id + ':' + idx}
+                item={item}
+                inventoryId={item.inventory_id ?? null}
+                disposition={
+                  item.inventory_id ? dispositions[item.inventory_id] ?? 'pending' : 'pending'
+                }
+                payoutRubies={item.inventory_id ? payouts[item.inventory_id] : null}
+                globalBusy={bulkBusy}
+                onChange={(next, payoutRubies) =>
+                  item.inventory_id && onDispositionChange(item.inventory_id, next, payoutRubies)
+                }
+              />
+            ))}
+          </Stack>
+
+          {hasPendingDecisions && (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              gap={1.25}
+              justifyContent="center"
+              sx={{
+                mb: 3,
+                padding: '12px 16px',
+                bgcolor: inkstashColors.bgSunken,
+                border: `1px solid ${inkstashColors.border}`,
+                borderRadius: inkstashRadii.md,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
               <Box
                 sx={{
                   fontFamily: inkstashFonts.mono,
@@ -876,19 +1024,90 @@ function RevealStage({
                   color: inkstashColors.muted,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  mt: 0.5,
+                  flex: 1,
+                  textAlign: { xs: 'center', sm: 'left' },
                 }}
               >
-                Top tier drop — exceptional find
+                Quick actions
               </Box>
-            </Box>
+              {pendingCommonsRubies > 0 && (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={onSellAllCommons}
+                  disabled={bulkBusy}
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    bgcolor: inkstashColors.brand,
+                    color: '#fff',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: 999,
+                    fontFamily: inkstashFonts.ui,
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: bulkBusy ? 'wait' : 'pointer',
+                    opacity: bulkBusy ? 0.6 : 1,
+                    transition: 'background 140ms ease, transform 100ms ease, opacity 140ms ease',
+                    '&:hover': bulkBusy ? {} : { bgcolor: inkstashColors.brandDeep },
+                    '&:active': bulkBusy ? {} : { transform: 'scale(0.97)' },
+                  }}
+                >
+                  {bulkBusy ? (
+                    <>
+                      <Box
+                        sx={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTopColor: '#fff',
+                          animation: 'inkstashBulkSpin 0.7s linear infinite',
+                          '@keyframes inkstashBulkSpin': { to: { transform: 'rotate(360deg)' } },
+                        }}
+                      />
+                      Selling commons...
+                    </>
+                  ) : (
+                    <>
+                      Sell all commons{' '}
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
+                        <RubyIcon size={11} color="#fff" />
+                        {pendingCommonsRubies.toLocaleString('en-US')}
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              )}
+              <Box
+                component="button"
+                type="button"
+                onClick={onKeepAllRemaining}
+                disabled={bulkBusy}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  bgcolor: 'transparent',
+                  color: inkstashColors.ink2,
+                  border: `1px solid ${inkstashColors.border}`,
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  fontFamily: inkstashFonts.ui,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  cursor: bulkBusy ? 'not-allowed' : 'pointer',
+                  opacity: bulkBusy ? 0.5 : 1,
+                  transition: 'background 140ms ease, opacity 140ms ease',
+                  '&:hover': bulkBusy ? {} : { bgcolor: inkstashColors.bgElev, color: inkstashColors.ink },
+                }}
+              >
+                Keep everything else
+              </Box>
+            </Stack>
           )}
-
-          <Stack gap={1} mb={4}>
-            {sortedItems.map((item, idx) => (
-              <SummaryRow key={item.id + ':' + idx} item={item} />
-            ))}
-          </Stack>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -959,7 +1178,7 @@ function PlaceholderCard({ index }: { index: number }) {
   return (
     <Box
       sx={{
-        width: { xs: 140, sm: 170 },
+        width: { xs: 150, sm: 180, md: 210 },
         aspectRatio: '0.66',
         borderRadius: inkstashRadii.md,
         background: `linear-gradient(135deg, ${inkstashColors.brandDeep}, ${inkstashColors.ink})`,
@@ -1010,10 +1229,11 @@ function PlaceholderCard({ index }: { index: number }) {
 function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
   const borderColor = RARITY_BORDER[item.rarity] ?? RARITY_BORDER.common;
   const glow = RARITY_GLOW[item.rarity] ?? RARITY_GLOW.common;
-  const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
+  const isLegendary = item.rarity === 'legendary';
+  const isRare = item.rarity === 'rare';
 
   return (
-    <Box sx={{ perspective: '1000px', width: { xs: 140, sm: 170 }, aspectRatio: '0.66' }}>
+    <Box sx={{ perspective: '1000px', width: { xs: 160, sm: 200, md: 240 }, aspectRatio: '0.66' }}>
       <Box
         sx={{
           width: '100%',
@@ -1041,8 +1261,8 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
         >
           <Box
             sx={{
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               borderRadius: '50%',
               background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
               display: 'flex',
@@ -1051,11 +1271,11 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
               opacity: 0.85,
             }}
           >
-            <Sparkles size={26} color="#fff" />
+            <Sparkles size={30} color="#fff" />
           </Box>
         </Box>
 
-        {/* Front */}
+        {/* Front — full art only, no info strip */}
         <Box
           sx={{
             position: 'absolute',
@@ -1064,176 +1284,90 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
             WebkitBackfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             borderRadius: inkstashRadii.md,
-            bgcolor: inkstashColors.bgElev,
-            border: `1px solid ${borderColor}`,
+            bgcolor: inkstashColors.bgSunken,
+            border: `1.5px solid ${borderColor}`,
             boxShadow: flipped ? glow : 'none',
-            display: 'flex',
-            flexDirection: 'column',
             overflow: 'hidden',
-            transition: 'box-shadow 300ms ease',
+            transition: 'box-shadow 300ms ease, transform 200ms ease',
+            '&:hover': flipped ? { transform: 'rotateY(180deg) scale(1.02)' } : {},
           }}
         >
-          <Box
-            sx={{
-              flex: 1,
-              background: item.image_url
-                ? `url(${item.image_url}) center/cover no-repeat`
-                : `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {!item.image_url && (
-              <Box
-                sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontSize: 32,
-                  color: inkstashColors.ink,
-                  opacity: 0.4,
-                }}
-              >
-                {item.rarity === 'legendary' ? '★' : item.rarity === 'rare' ? '◆' : '●'}
-              </Box>
-            )}
-          </Box>
-          <Box sx={{ p: 1.25, bgcolor: inkstashColors.bgElev }}>
+          {item.image_url ? (
+            <Box
+              component="img"
+              src={item.image_url}
+              alt={item.comic_title}
+              sx={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : (
             <Box
               sx={{
-                fontFamily: inkstashFonts.ui,
-                fontWeight: 700,
-                fontSize: 11,
+                width: '100%',
+                height: '100%',
+                background: `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: inkstashFonts.display,
+                fontSize: 48,
                 color: inkstashColors.ink,
-                lineHeight: 1.2,
-                mb: 0.4,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                opacity: 0.35,
               }}
             >
-              {item.comic_title}
+              {isLegendary ? '★' : isRare ? '◆' : '●'}
             </Box>
-            {item.issue_number && (
-              <Box
-                sx={{
-                  fontFamily: inkstashFonts.mono,
-                  fontSize: 9.5,
-                  color: inkstashColors.muted,
-                  mb: 0.4,
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {item.issue_number}
-              </Box>
-            )}
+          )}
+
+          {/* Rarity badge overlay */}
+          {isLegendary && (
             <Box
               sx={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                bgcolor: inkstashColors.gold,
+                color: '#fff',
+                padding: '4px 9px',
+                borderRadius: 999,
                 fontFamily: inkstashFonts.mono,
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: 700,
-                color: labelColor,
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                boxShadow: `0 2px 12px ${inkstashColors.gold}aa`,
               }}
             >
-              {RARITY_LABEL[item.rarity] ?? item.rarity}
-              {item.grade && ` · ${item.grade}`}
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-function SummaryRow({ item }: { item: PackItem }) {
-  const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
-  const borderColor = item.rarity === 'common' ? inkstashColors.border : RARITY_BORDER[item.rarity];
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        padding: '12px 16px',
-        bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${borderColor}`,
-        borderRadius: inkstashRadii.md,
-      }}
-    >
-      <Box
-        sx={{
-          width: 44,
-          height: 58,
-          borderRadius: inkstashRadii.sm,
-          bgcolor: inkstashColors.bgSunken,
-          flexShrink: 0,
-          backgroundImage: item.image_url ? `url(${item.image_url})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          border: `1px solid ${inkstashColors.border}`,
-        }}
-      />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.ui,
-            fontWeight: 700,
-            fontSize: 14,
-            color: inkstashColors.ink,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {item.comic_title}
-          {item.issue_number && (
-            <Box component="span" sx={{ color: inkstashColors.muted, fontWeight: 400 }}>
-              {' '}
-              {item.issue_number}
+              Legendary
             </Box>
           )}
-        </Box>
-        <Stack direction="row" gap={1} alignItems="center" mt={0.3}>
-          <Box
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: 10.5,
-              fontWeight: 700,
-              color: labelColor,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            {RARITY_LABEL[item.rarity] ?? item.rarity}
-          </Box>
-          {item.grade && (
+          {isRare && (
             <Box
               sx={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                bgcolor: inkstashColors.brand,
+                color: '#fff',
+                padding: '4px 9px',
+                borderRadius: 999,
                 fontFamily: inkstashFonts.mono,
-                fontSize: 10.5,
-                color: inkstashColors.muted,
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                boxShadow: `0 2px 12px ${inkstashColors.brand}aa`,
               }}
             >
-              {item.grade}
+              Rare
             </Box>
           )}
-        </Stack>
-      </Box>
-      {item.estimated_value != null && (
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontWeight: 700,
-            fontSize: 13,
-            color: inkstashColors.ink,
-            flexShrink: 0,
-          }}
-        >
-          ~${item.estimated_value.toFixed(2)}
         </Box>
-      )}
+      </Box>
     </Box>
   );
 }
