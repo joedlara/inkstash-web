@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Container, Stack } from '@mui/material';
-import { LayoutGrid, Bookmark, Heart, Gavel, History, Settings } from 'lucide-react';
+import { LayoutGrid, Bookmark, Heart, Gavel, History, Settings, Vault } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import { useAuth } from '../hooks/useAuth';
 import SavedCollectiblesTab from '../components/mystash/SavedCollectiblesTab';
@@ -10,10 +10,13 @@ import CurrentBidsTab from '../components/mystash/CurrentBidsTab';
 import PurchaseHistoryTab from '../components/mystash/PurchaseHistoryTab';
 import PreferencesTab from '../components/mystash/PreferencesTab';
 import DashboardTab from '../components/mystash/DashboardTab';
+import InventoryTab from '../components/mystash/InventoryTab';
+import RubiesTab from '../components/mystash/RubiesTab';
+import RubyIcon from '../components/ui/RubyIcon';
 import { inkstashColors, inkstashFonts, inkstashShadows } from '../theme/inkstashTokens';
 import type { LucideIcon } from 'lucide-react';
 
-type TabType = 'dashboard' | 'saved' | 'liked' | 'bids' | 'history' | 'preferences';
+type TabType = 'dashboard' | 'inventory' | 'rubies' | 'saved' | 'liked' | 'bids' | 'history' | 'preferences';
 
 interface TabItem {
   id: TabType;
@@ -23,10 +26,12 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { id: 'dashboard',   label: 'Summary',             icon: LayoutGrid },
-  { id: 'saved',       label: 'Saved Collectibles',  icon: Bookmark },
-  { id: 'liked',       label: 'Liked Collectibles',  icon: Heart },
-  { id: 'bids',        label: 'Current Bids',        icon: Gavel },
-  { id: 'history',     label: 'My Stash',            icon: History },
+  { id: 'inventory',   label: 'Inventory',           icon: Vault },
+  { id: 'rubies',      label: 'Rubies',              icon: LayoutGrid }, // overridden below
+  { id: 'saved',       label: 'Saved',               icon: Bookmark },
+  { id: 'liked',       label: 'Liked',               icon: Heart },
+  { id: 'bids',        label: 'Bids',                icon: Gavel },
+  { id: 'history',     label: 'Purchases',           icon: History },
   { id: 'preferences', label: 'Preferences',         icon: Settings },
 ];
 
@@ -59,6 +64,8 @@ export default function MyStash() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':   return <DashboardTab />;
+      case 'inventory':   return <InventoryTab />;
+      case 'rubies':      return <RubiesTab />;
       case 'saved':       return <SavedCollectiblesTab />;
       case 'liked':       return <LikedCollectiblesTab />;
       case 'bids':        return <CurrentBidsTab />;
@@ -119,7 +126,7 @@ export default function MyStash() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <Icon size={14} />
+                  {t.id === 'rubies' ? <RubyIcon size={14} /> : <Icon size={14} />}
                   {t.label}
                 </Box>
               );

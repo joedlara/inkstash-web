@@ -265,7 +265,7 @@ export default function PackDetail() {
   );
 
   const expectedValue = computeExpectedValue(pack, sortedItems);
-  const valueBands = computeValueBands(sortedItems);
+  const { bands: valueBands, hasChase: packHasChase } = computeValueBands(pack, sortedItems);
 
   const browseVisible = phase === 'browse';
   const revealVisible = phase === 'opening' || phase === 'revealing' || phase === 'summary';
@@ -604,6 +604,33 @@ export default function PackDetail() {
             >
               Expected value is the average value of comics pulled across many pack opens. Individual results vary.
             </Box>
+
+            {packHasChase && (
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={1}
+                sx={{
+                  mt: 1.5,
+                  padding: '8px 12px',
+                  bgcolor: `${inkstashColors.gold}14`,
+                  border: `1px solid ${inkstashColors.gold}40`,
+                  borderRadius: inkstashRadii.sm,
+                }}
+              >
+                <Sparkles size={13} color={inkstashColors.gold} />
+                <Box
+                  sx={{
+                    fontFamily: inkstashFonts.mono,
+                    fontSize: 10.5,
+                    color: inkstashColors.ink2,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  This pack includes <Box component="strong" sx={{ color: inkstashColors.gold, fontWeight: 700 }}>chase variants</Box> — rare pulls valued far above the pack price.
+                </Box>
+              </Stack>
+            )}
           </Box>
 
           {/* Variant gallery */}
@@ -695,17 +722,19 @@ function VariantTile({ item }: { item: PackItem }) {
   const rarityColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
   const ratioLabel = item.quantity > 0 && item.quantity <= 50 ? `1:${item.quantity * 50}` : null;
   const isLegendary = item.rarity === 'legendary';
+  const isChase = item.is_chase === true;
 
   return (
     <Box
       sx={{
         bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${isLegendary ? inkstashColors.gold + '60' : inkstashColors.border}`,
+        border: `1px solid ${isChase || isLegendary ? inkstashColors.gold + '60' : inkstashColors.border}`,
         borderRadius: inkstashRadii.md,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 140ms ease, border-color 140ms ease',
+        transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+        boxShadow: isChase ? `0 0 16px ${inkstashColors.gold}33` : 'none',
         '&:hover': {
           transform: 'translateY(-2px)',
           borderColor: rarityColor,
@@ -725,7 +754,27 @@ function VariantTile({ item }: { item: PackItem }) {
             <Package size={28} color={inkstashColors.muted2} />
           </Box>
         )}
-        {isLegendary && (
+        {isChase ? (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              bgcolor: inkstashColors.gold,
+              color: '#fff',
+              padding: '3px 8px',
+              borderRadius: 999,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              boxShadow: `0 2px 10px ${inkstashColors.gold}aa`,
+            }}
+          >
+            Chase
+          </Box>
+        ) : isLegendary && (
           <Box
             sx={{
               position: 'absolute',
@@ -1393,27 +1442,94 @@ function computeExpectedValue(pack: Pack, items: PackItem[]): number {
   return perDraw * pack.item_count;
 }
 
-function computeValueBands(items: PackItem[]) {
-  const values = items
-    .map((i) => i.estimated_value ?? 0)
-    .filter((v) => v > 0);
+function computeValueBands(pack: Pack, items: PackItem[]) {
+  // Each tier in the pack has a probability weight (e.g. common 0.80, rare 0.18,
+  // legendary 0.02). Each item has an estimated_value. To compute the
+  // probability of pulling a comic in a given value range, we need:
+  //   P(value in band) = Σ_tier  P(tier) × (count of items in tier with value
+  //                                          in band) / (total items in tier)
+  // This is the per-draw probability — the user can read the bands as
+  // "for any single comic I pull, what are the odds it's worth $X?"
 
-  if (values.length === 0) {
-    return [
-      { label: '$0-10', pct: 80, color: inkstashColors.muted2 },
-      { label: '$10-20', pct: 18, color: inkstashColors.brand },
-      { label: '$20+', pct: 2, color: inkstashColors.gold },
-    ];
+  const tiers = pack.rarity_tiers;
+  const valuesByRarity: Record<string, number[]> = { common: [], rare: [], legendary: [] };
+  for (const item of items) {
+    const v = item.estimated_value ?? 0;
+    if (v > 0 && valuesByRarity[item.rarity]) valuesByRarity[item.rarity].push(v);
   }
 
-  const total = values.length;
-  const lo = values.filter((v) => v < 10).length;
-  const mid = values.filter((v) => v >= 10 && v < 20).length;
-  const hi = values.filter((v) => v >= 20).length;
+  const allValues = items.map((i) => i.estimated_value ?? 0).filter((v) => v > 0);
+  if (allValues.length === 0) {
+    return {
+      bands: [
+        { label: '$0-10', pct: 80, color: inkstashColors.muted2 },
+        { label: '$10-20', pct: 18, color: inkstashColors.brand },
+        { label: '$20+', pct: 2, color: inkstashColors.gold },
+      ],
+      hasChase: false,
+    };
+  }
 
-  return [
-    { label: '$0-10', pct: Math.round((lo / total) * 100), color: inkstashColors.muted2 },
-    { label: '$10-20', pct: Math.round((mid / total) * 100), color: inkstashColors.brand },
-    { label: '$20+', pct: Math.round((hi / total) * 100), color: inkstashColors.gold },
-  ];
+  // Pick bucket cutoffs so each rarity tier lands in its own bucket whenever
+  // possible. Use the *max common value* as the lo cutoff (so commons fall in
+  // band 1, anything above is rare+) and the *max rare value* as the hi
+  // cutoff (so rares fall in band 2, chase/legendary land in band 3).
+  // Falls back to spread thirds when a tier is missing.
+  const commonVals = valuesByRarity.common.filter((v) => v > 0);
+  const rareVals = valuesByRarity.rare.filter((v) => v > 0);
+
+  const sortedValues = [...allValues].sort((a, b) => a - b);
+  const min = sortedValues[0];
+  const max = sortedValues[sortedValues.length - 1];
+
+  let loCut: number;
+  let hiCut: number;
+
+  if (commonVals.length > 0 && rareVals.length > 0) {
+    const maxCommon = Math.max(...commonVals);
+    const maxRare = Math.max(...rareVals);
+    // Bump cuts up by $1 so the upper-edge values fall in the *next* band
+    loCut = Math.ceil(maxCommon + 0.01);
+    hiCut = Math.max(loCut + 1, Math.ceil(maxRare + 0.01));
+  } else {
+    // Missing tiers — fall back to thirds across the actual range
+    const span = Math.max(1, max - min);
+    loCut = Math.round(min + span / 3);
+    hiCut = Math.round(min + (2 * span) / 3);
+    if (hiCut <= loCut) hiCut = loCut + 1;
+  }
+
+  // Probability-weighted distribution
+  let pLo = 0, pMid = 0, pHi = 0;
+  for (const rarity of ['common', 'rare', 'legendary'] as const) {
+    const pool = valuesByRarity[rarity];
+    const weight = tiers[rarity] ?? 0;
+    if (!pool || pool.length === 0 || weight === 0) continue;
+    const lo = pool.filter((v) => v < loCut).length;
+    const mid = pool.filter((v) => v >= loCut && v < hiCut).length;
+    const hi = pool.filter((v) => v >= hiCut).length;
+    pLo += weight * (lo / pool.length);
+    pMid += weight * (mid / pool.length);
+    pHi += weight * (hi / pool.length);
+  }
+
+  // Renormalize (rarity tiers may not sum to exactly 1 due to floating point)
+  const sum = pLo + pMid + pHi;
+  if (sum > 0) {
+    pLo /= sum;
+    pMid /= sum;
+    pHi /= sum;
+  }
+
+  const fmt = (n: number) => `$${n}`;
+  const hasChase = items.some((i) => i.is_chase === true);
+
+  return {
+    bands: [
+      { label: `${fmt(0)}-${fmt(loCut)}`, pct: Math.round(pLo * 100), color: inkstashColors.muted2 },
+      { label: `${fmt(loCut)}-${fmt(hiCut)}`, pct: Math.round(pMid * 100), color: inkstashColors.brand },
+      { label: `${fmt(hiCut)}+`, pct: Math.round(pHi * 100), color: inkstashColors.gold },
+    ],
+    hasChase,
+  };
 }

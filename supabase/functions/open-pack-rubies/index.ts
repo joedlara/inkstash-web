@@ -226,24 +226,24 @@ serve(async (req) => {
       // My Stash where we'll re-sync inventory from pack_purchases.items_received.
     }
 
-    // Pair each drawn item with its newly-created inventory id so the
-    // frontend can call sell-back / ship per card from the reveal stage.
-    // inventoryInserted preserves insert order in Postgres, but match by
-    // pack_item_id defensively.
-    const inventoryByItemId = new Map<string, string>()
+    // Pair each drawn item with its newly-created inventory id. Duplicates
+    // of the same pack_item_id (rare but possible) MUST each get their own
+    // distinct inventory_id so the user can sell back / keep / ship each
+    // copy independently. We pop ids off a per-item queue in insert order.
+    const inventoryQueueByItemId = new Map<string, string[]>()
     if (inventoryInserted) {
-      // If the same pack_item_id was drawn twice (rare), assign them in order.
-      // Map keeps the LAST id for that item_id, which is fine because both rows
-      // are functionally identical from the seller's perspective.
       for (const row of inventoryInserted as Array<{ id: string; pack_item_id: string }>) {
-        inventoryByItemId.set(row.pack_item_id, row.id)
+        const queue = inventoryQueueByItemId.get(row.pack_item_id) ?? []
+        queue.push(row.id)
+        inventoryQueueByItemId.set(row.pack_item_id, queue)
       }
     }
 
-    const itemsWithInventoryId = drawn.map((item) => ({
-      ...item,
-      inventory_id: inventoryByItemId.get(item.id) ?? null,
-    }))
+    const itemsWithInventoryId = drawn.map((item) => {
+      const queue = inventoryQueueByItemId.get(item.id)
+      const inventoryId = queue && queue.length > 0 ? queue.shift()! : null
+      return { ...item, inventory_id: inventoryId }
+    })
 
     return json({
       purchase_id: purchaseId,

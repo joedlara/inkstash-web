@@ -26,6 +26,10 @@ export interface PackItem {
   image_url: string | null;
   quantity: number;
   remaining: number;
+  /** Chase variant flag — high-value ratio covers / signed comics whose
+   *  estimated_value is allowed to exceed the per-pack fair-share budget.
+   *  These are the upside that makes pack opening exciting. */
+  is_chase?: boolean;
   /** Inventory row id, set by open-pack-rubies. Null when reading from
    *  pack_purchases.items_received historical snapshots. */
   inventory_id?: string | null;

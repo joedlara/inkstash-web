@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Box, Stack } from '@mui/material';
 import { Vault, Truck, Check } from 'lucide-react';
 import RubyIcon from '../ui/RubyIcon';
+import ShipAddressModal from '../inventory/ShipAddressModal';
 import { inventoryAPI } from '../../api/inventory';
 import type { PackItem } from '../../api/packs';
 import { useRubyBalance } from '../../hooks/useRubyBalance';
@@ -55,6 +56,7 @@ export default function CardDispositionRow({
   const { refresh: refreshRubies } = useRubyBalance();
   const [busy, setBusy] = useState<'sell' | 'ship' | null>(null);
   const [error, setError] = useState<string>('');
+  const [shipModalOpen, setShipModalOpen] = useState(false);
 
   const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
   const borderColor = item.rarity === 'common' ? inkstashColors.border : RARITY_BORDER[item.rarity];
@@ -85,15 +87,21 @@ export default function CardDispositionRow({
     }
   };
 
-  const handleShip = async () => {
+  const handleShipClick = () => {
     if (!inventoryId || isBusy || settled) return;
-    setBusy('ship');
     setError('');
+    setShipModalOpen(true);
+  };
+
+  const handleShipConfirm = async (addressId: string) => {
+    if (!inventoryId) return;
+    setBusy('ship');
     try {
-      await inventoryAPI.requestShip(inventoryId);
+      await inventoryAPI.requestShip(inventoryId, addressId);
       onChange?.('shipped');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not request shipping');
+      throw err;
     } finally {
       setBusy(null);
     }
@@ -286,13 +294,20 @@ export default function CardDispositionRow({
           <DispositionButton
             label="Ship"
             icon={<Truck size={13} />}
-            onClick={handleShip}
+            onClick={handleShipClick}
             tone="neutral"
             disabled={!shippable || isBusy}
             busy={busy === 'ship'}
           />
         </Stack>
       )}
+
+      <ShipAddressModal
+        open={shipModalOpen}
+        onClose={() => setShipModalOpen(false)}
+        onConfirm={handleShipConfirm}
+        itemLabel={`${item.comic_title}${item.issue_number ? ` ${item.issue_number}` : ''}`}
+      />
     </Box>
   );
 }

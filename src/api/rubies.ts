@@ -1,6 +1,19 @@
 import { supabase } from './supabase/supabaseClient';
 import type { PackItem } from './packs';
 
+export type RubyTxnKind = 'bundle_purchase' | 'pack_open' | 'sellback' | 'admin_adjustment';
+
+export interface RubyTransaction {
+  id: string;
+  user_id: string;
+  delta: number;
+  kind: RubyTxnKind;
+  stripe_payment_intent_id: string | null;
+  pack_purchase_id: string | null;
+  bundle_id: string | null;
+  created_at: string;
+}
+
 export interface OpenPackRubiesResult {
   purchase_id: string;
   items: PackItem[];
@@ -68,6 +81,17 @@ export const rubiesAPI = {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     return data as ChargeBundleResult;
+  },
+
+  async listTransactions(limit = 50): Promise<RubyTransaction[]> {
+    const { data, error } = await supabase
+      .from('ruby_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+    return data as RubyTransaction[];
   },
 
   /**
