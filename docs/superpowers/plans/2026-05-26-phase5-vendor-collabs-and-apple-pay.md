@@ -88,13 +88,15 @@ When a step says "Run it to make sure it fails" for a UI change, that means: loa
 
 ---
 
-# SECTION A — APPLE PAY EVERYWHERE
+# SECTION A — APPLE PAY, GOOGLE PAY, AND PAYPAL EVERYWHERE
 
-Goal: Ship Apple Pay + Google Pay to the existing Ruby bundle purchase, via a reusable `StripePaymentElement` wrapper that vendor pack checkout will reuse in Section C. Hold-to-Pay (the press-and-hold gesture on the Ruby bundle modal) is removed. Hold-to-Open on house pack PackDetail is untouched.
+Goal: Ship Apple Pay + Google Pay + PayPal to the existing Ruby bundle purchase, via a reusable `StripePaymentElement` wrapper that vendor pack checkout will reuse in Section C. Hold-to-Pay (the press-and-hold gesture on the Ruby bundle modal) is removed. Hold-to-Open on house pack PackDetail is untouched.
+
+PayPal is a Stripe Payment Element payment method — it must be enabled in the Stripe Dashboard (Settings → Payment methods → PayPal → "Turn on"). Once enabled at the account level, the `automatic_payment_methods: { enabled: true }` config on the PaymentIntent surfaces PayPal automatically; no per-intent flag needed. PayPal does NOT work with Stripe Connect destination charges in all modes, so vendor pack checkout falls back to card + Apple Pay + Google Pay only (Stripe handles this filtering automatically based on the intent's `transfer_data`). Document this in A1.
 
 ---
 
-## Task A1: Document Apple Pay domain verification setup
+## Task A1: Document Apple Pay domain verification + PayPal enablement
 
 This is an operational task with no code — but it's a hard blocker for Apple Pay rendering in production, so it gets a task to ensure it isn't forgotten.
 
@@ -132,6 +134,27 @@ stripe apple_pay domains create --domain-name inkstash.app
 ```
 
 Hosting the verification file is still required — the CLI command just creates the Stripe record.
+
+---
+
+# PayPal enablement (Stripe Payment Element)
+
+PayPal is a Stripe Payment Element payment method, no separate SDK needed. Enable it once in the Stripe Dashboard:
+
+1. Stripe Dashboard → Settings → Payment methods → PayPal → "Turn on".
+2. Accept Stripe's PayPal terms.
+3. Done. The `automatic_payment_methods: { enabled: true }` setting on every PaymentIntent now surfaces PayPal as an option alongside card/Apple Pay/Google Pay.
+
+## PayPal limitations
+
+- PayPal does NOT support Stripe Connect destination charges with `application_fee_amount` in all modes. Vendor pack PaymentIntents (which use destination charges) will automatically filter PayPal out and surface card + Apple Pay + Google Pay only. This is Stripe's behavior, not a bug — there's nothing to code for.
+- PayPal does support direct charges (Ruby bundle purchases) without restriction.
+
+# Resend email confirmations
+
+USD transactions in Phase 5 (Ruby bundles + vendor packs) trigger a confirmation email via Resend. Existing functions in `supabase/functions/send-*` follow the same pattern; the new ones (Task A6, Task C11) follow that same shape.
+
+The Resend API key is already configured: `VITE_RESEND_API_KEY` secret on the Supabase Functions environment. No new secret to provision.
 ```
 
 - [ ] **Step 2: Commit**
@@ -668,6 +691,188 @@ Expected: balance increased by the bundle's `totalRubies`. Most recent `ruby_tra
 - [ ] **Step 4: No commit needed (verification only)**
 
 If anything fails here, the bug is in the metadata mapping in `create-payment-intent` — go back and check that `metadata.bundle_id`, `metadata.ruby_total`, and `metadata.user_id` are all set as strings.
+
+---
+
+## Task A6: Ruby bundle purchase confirmation email
+
+When a Ruby bundle payment succeeds, the webhook should send a confirmation email via Resend. Mirrors the existing `send-order-confirmation` shape but for the Ruby bundle context.
+
+**Files:**
+- Create: `supabase/functions/send-ruby-bundle-confirmation/index.ts`
+- Modify: `supabase/functions/stripe-webhook/index.ts`
+
+- [ ] **Step 1: Create the send function**
+
+```typescript
+// supabase/functions/send-ruby-bundle-confirmation/index.ts
+// Deploy with: supabase functions deploy send-ruby-bundle-confirmation
+// Uses VITE_RESEND_API_KEY (already configured per other send-* functions).
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+// @ts-expect-error Deno env
+const RESEND_API_KEY = Deno.env.get('VITE_RESEND_API_KEY') || ''
+
+interface Payload {
+  buyerEmail: string
+  buyerName: string
+  bundleName: string
+  rubyTotal: number
+  amountUsdCents: number
+  paymentIntentId: string
+  purchasedAt: string // ISO
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  try {
+    const payload: Payload = await req.json()
+
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'InkStash <onboarding@resend.dev>',
+        to: [payload.buyerEmail],
+        subject: `Your Ruby bundle is ready — ${payload.rubyTotal.toLocaleString()} Rubies`,
+        html: renderHtml(payload),
+      }),
+    })
+
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text()
+      throw new Error(`Resend error: ${errorText}`)
+    }
+
+    const data = await emailResponse.json()
+    return new Response(JSON.stringify({ success: true, emailId: data.id }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+})
+
+function renderHtml(p: Payload): string {
+  const usd = (p.amountUsdCents / 100).toFixed(2)
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Ruby bundle confirmed</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #b91c1c; padding: 28px; text-align: center; border-radius: 10px 10px 0 0;">
+    <h1 style="color: #fff; margin: 0; font-size: 26px;">Rubies credited</h1>
+    <p style="color: #fde2e2; margin: 8px 0 0; font-size: 14px;">${p.rubyTotal.toLocaleString()} 💎 added to your balance</p>
+  </div>
+  <div style="background: #faf7f2; padding: 28px; border-radius: 0 0 10px 10px;">
+    <div style="background: #fff; padding: 22px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #eadfd2;">
+      <h2 style="color: #b91c1c; margin-top: 0; font-size: 18px;">Purchase details</h2>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Bundle</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${p.bundleName}</td></tr>
+        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Rubies</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${p.rubyTotal.toLocaleString()} 💎</td></tr>
+        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Amount charged</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">$${usd} USD</td></tr>
+        <tr><td style="padding: 8px 0;">Payment reference</td><td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 12px;">${p.paymentIntentId}</td></tr>
+      </table>
+    </div>
+    <div style="background: #fff8ec; padding: 18px; border-radius: 8px; text-align: center; border: 1px solid #fde7c0;">
+      <p style="margin: 0 0 12px; color: #5b4a2e;">Open your next pack with your new Rubies.</p>
+      <a href="https://inkstash.com/packs" style="display: inline-block; background: #b91c1c; color: white; padding: 11px 26px; text-decoration: none; border-radius: 6px; font-weight: 600;">Browse packs</a>
+    </div>
+    <div style="margin-top: 24px; text-align: center; color: #777; font-size: 12px;">
+      <p>Questions? <a href="mailto:support@inkstash.com" style="color: #b91c1c;">support@inkstash.com</a></p>
+      <p>&copy; ${new Date().getFullYear()} InkStash</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+```
+
+- [ ] **Step 2: Deploy the function**
+
+Run: `npx supabase functions deploy send-ruby-bundle-confirmation`
+
+Expected: deploys successfully.
+
+- [ ] **Step 3: Hook into the webhook**
+
+In `supabase/functions/stripe-webhook/index.ts`, inside `creditRubyBundle` (the function added in B4), after the successful Ruby credit but before the payment method save, add:
+
+```typescript
+  // Fire-and-forget confirmation email. Don't fail the webhook if email errors.
+  try {
+    const { data: userRow } = await serviceClient
+      .from('users')
+      .select('email, username')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const { findBundle } = await import('../_shared/rubyBundles.ts')
+    const bundle = findBundle(bundleId)
+
+    if (userRow?.email && bundle) {
+      // @ts-expect-error Deno env
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+      // @ts-expect-error Deno env
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+      await fetch(`${supabaseUrl}/functions/v1/send-ruby-bundle-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          buyerEmail: userRow.email,
+          buyerName: userRow.username ?? userRow.email,
+          bundleName: bundle.label ?? bundle.id,
+          rubyTotal,
+          amountUsdCents: bundle.usdCents,
+          paymentIntentId: intent.id,
+          purchasedAt: new Date().toISOString(),
+        }),
+      }).catch((err) => console.error('[stripe-webhook] confirmation email failed:', err))
+    }
+  } catch (err) {
+    console.error('[stripe-webhook] confirmation email setup failed:', err)
+  }
+```
+
+(Place this block right before the `// Save payment method` comment in `creditRubyBundle`.)
+
+- [ ] **Step 4: Redeploy the webhook**
+
+Run: `npx supabase functions deploy stripe-webhook --no-verify-jwt`
+
+- [ ] **Step 5: Smoke test**
+
+Buy a Ruby bundle with Stripe test card. Confirm:
+- Ruby balance updates (already verified in A5).
+- An email arrives at the test user's email address with the bundle name, Ruby total, and amount.
+- Webhook logs show `[stripe-webhook] credited ... rubies` followed by no error from the confirmation email call.
+
+If the email doesn't arrive: check Resend dashboard for delivery status. If Resend rejects the `to:` address (test accounts can only send to verified addresses), use your own email as the test user — Resend's free tier requires verifying recipients.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add supabase/functions/send-ruby-bundle-confirmation/index.ts supabase/functions/stripe-webhook/index.ts
+git commit -m "feat(email): Ruby bundle confirmation email via Resend"
+```
 
 ---
 
@@ -3246,6 +3451,224 @@ git commit -m "feat(shipping): vendor_ship_from_addresses + per-vendor origin on
 
 ---
 
+## Task C11: Vendor pack purchase confirmation email
+
+When a vendor pack purchase succeeds and `open-pack-usd` opens the pack, send the buyer a confirmation email itemizing the pulled books and the total paid.
+
+**Files:**
+- Create: `supabase/functions/send-vendor-pack-confirmation/index.ts`
+- Modify: `supabase/functions/open-pack-usd/index.ts`
+
+- [ ] **Step 1: Create the send function**
+
+```typescript
+// supabase/functions/send-vendor-pack-confirmation/index.ts
+// Deploy with: supabase functions deploy send-vendor-pack-confirmation
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+
+// @ts-expect-error Deno env
+const RESEND_API_KEY = Deno.env.get('VITE_RESEND_API_KEY') || ''
+
+interface PulledItem {
+  comic_title: string
+  cover_treatment: string | null
+  declared_value: number | null
+  image_url: string | null
+  is_chase: boolean
+}
+
+interface Payload {
+  buyerEmail: string
+  buyerName: string
+  packName: string
+  vendorDisplayName: string
+  vendorHandle: string
+  amountUsdCents: number
+  items: PulledItem[]
+  purchaseId: string
+  paymentIntentId: string
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  try {
+    const payload: Payload = await req.json()
+
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: 'InkStash <onboarding@resend.dev>',
+        to: [payload.buyerEmail],
+        subject: `Your pull from ${payload.vendorDisplayName} — ${payload.packName}`,
+        html: renderHtml(payload),
+      }),
+    })
+
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text()
+      throw new Error(`Resend error: ${errorText}`)
+    }
+
+    const data = await emailResponse.json()
+    return new Response(JSON.stringify({ success: true, emailId: data.id }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+})
+
+function renderHtml(p: Payload): string {
+  const usd = (p.amountUsdCents / 100).toFixed(2)
+  const itemRows = p.items
+    .map((it) => {
+      const treatment = it.cover_treatment
+        ? `<span style="display:inline-block; padding:2px 8px; border:1px solid #b91c1c; color:#b91c1c; border-radius:10px; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; margin-left:6px;">${it.cover_treatment}</span>`
+        : ''
+      const chaseBadge = it.is_chase
+        ? `<span style="display:inline-block; padding:2px 8px; background:#fbbf24; color:#5b3a00; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; margin-left:6px;">CHASE</span>`
+        : ''
+      const value = it.declared_value != null ? `$${it.declared_value.toFixed(2)}` : '—'
+      return `
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #eee;">
+            ${it.comic_title}${treatment}${chaseBadge}
+          </td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #eee; text-align: right; font-family: monospace;">${value}</td>
+        </tr>`
+    })
+    .join('')
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Pack opened</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #b91c1c; padding: 28px; text-align: center; border-radius: 10px 10px 0 0;">
+    <h1 style="color: #fff; margin: 0; font-size: 26px;">Pack opened</h1>
+    <p style="color: #fde2e2; margin: 8px 0 0; font-size: 14px;">From ${p.vendorDisplayName} (@${p.vendorHandle})</p>
+  </div>
+  <div style="background: #faf7f2; padding: 28px; border-radius: 0 0 10px 10px;">
+    <div style="background: #fff; padding: 22px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #eadfd2;">
+      <h2 style="color: #b91c1c; margin-top: 0; font-size: 18px;">${p.packName}</h2>
+      <p style="margin: 0 0 14px; color: #555; font-size: 13px;">Amount paid: $${usd} USD</p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr><th style="text-align:left; padding-bottom:6px; color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">You pulled</th><th style="text-align:right; padding-bottom:6px; color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">Value</th></tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>
+    <div style="background: #fff8ec; padding: 18px; border-radius: 8px; text-align: center; border: 1px solid #fde7c0;">
+      <p style="margin: 0 0 12px; color: #5b4a2e;">Your books are vaulted. Keep them, or request shipping anytime.</p>
+      <a href="https://inkstash.com/my-stash" style="display: inline-block; background: #b91c1c; color: white; padding: 11px 26px; text-decoration: none; border-radius: 6px; font-weight: 600;">View in My Stash</a>
+    </div>
+    <div style="margin-top: 24px; text-align: center; color: #777; font-size: 12px;">
+      <p>Payment reference: <span style="font-family: monospace;">${p.paymentIntentId}</span></p>
+      <p>Questions? <a href="mailto:support@inkstash.com" style="color: #b91c1c;">support@inkstash.com</a></p>
+      <p>&copy; ${new Date().getFullYear()} InkStash</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+```
+
+- [ ] **Step 2: Deploy the function**
+
+Run: `npx supabase functions deploy send-vendor-pack-confirmation`
+
+- [ ] **Step 3: Hook into open-pack-usd**
+
+In `supabase/functions/open-pack-usd/index.ts`, immediately before the final `return json({ ok: true, purchase_id: purchase.id, items: drawn }, 200)`, add:
+
+```typescript
+    // Fire-and-forget confirmation email. Never fail the pack open if email errors.
+    try {
+      const { data: buyer } = await serviceClient
+        .from('users')
+        .select('email, username')
+        .eq('id', body.user_id)
+        .maybeSingle()
+
+      const { data: vendor } = await serviceClient
+        .from('vendors')
+        .select('display_name, handle')
+        .eq('id', body.vendor_id)
+        .maybeSingle()
+
+      const { data: packRow } = await serviceClient
+        .from('packs')
+        .select('name')
+        .eq('id', body.pack_id)
+        .maybeSingle()
+
+      if (buyer?.email && vendor && packRow) {
+        await fetch(`${supabaseUrl}/functions/v1/send-vendor-pack-confirmation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            buyerEmail: buyer.email,
+            buyerName: buyer.username ?? buyer.email,
+            packName: packRow.name,
+            vendorDisplayName: vendor.display_name,
+            vendorHandle: vendor.handle,
+            amountUsdCents: body.gross_amount_cents,
+            items: drawn.map((it) => ({
+              comic_title: it.comic_title,
+              cover_treatment: it.cover_treatment,
+              declared_value: it.declared_value,
+              image_url: it.image_url,
+              is_chase: Boolean(it.is_chase),
+            })),
+            purchaseId: purchase.id,
+            paymentIntentId: body.payment_intent_id,
+          }),
+        }).catch((err) => console.error('[open-pack-usd] confirmation email failed:', err))
+      }
+    } catch (err) {
+      console.error('[open-pack-usd] confirmation email setup failed:', err)
+    }
+```
+
+- [ ] **Step 4: Redeploy open-pack-usd**
+
+Run: `npx supabase functions deploy open-pack-usd --no-verify-jwt`
+
+- [ ] **Step 5: Smoke test**
+
+Buy a vendor pack as in C9. Confirm:
+- The pack opens (already verified in C9).
+- An email arrives itemizing the three pulled books with cover treatments and values, plus the chase badge on any chase pull.
+- Email subject includes the vendor's display name.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add supabase/functions/send-vendor-pack-confirmation/index.ts supabase/functions/open-pack-usd/index.ts
+git commit -m "feat(email): vendor pack confirmation email via Resend"
+```
+
+---
+
 # Phase 5 Acceptance Verification
 
 After all tasks above are complete, run through the spec's Section 6 acceptance criteria one by one:
@@ -3257,5 +3680,8 @@ After all tasks above are complete, run through the spec's Section 6 acceptance 
 - [ ] Acceptance #5: Ruby bundle purchase no longer has Hold-to-Pay; uses Payment Element (verified in A4 Step 4).
 - [ ] Acceptance #6: Hold-to-Open on house pack still works (manual regression test — open a house pack you have Rubies for, confirm the hold gesture still opens it).
 - [ ] Acceptance #7: Apple Pay button renders on production for both checkout surfaces (manual test after domain verification per A1).
+- [ ] Acceptance #8: PayPal renders as a payment option on the Ruby bundle modal in production (manual test after PayPal is enabled in Stripe Dashboard per A1).
+- [ ] Acceptance #9: Ruby bundle purchase triggers a confirmation email via Resend (verified in A6 Step 5).
+- [ ] Acceptance #10: Vendor pack purchase triggers an itemized confirmation email via Resend (verified in C11 Step 5).
 
-Phase 5 is done when all seven check.
+Phase 5 is done when all ten check.
