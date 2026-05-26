@@ -14,7 +14,6 @@
 // Stripe handles the redirect; the webhook does the post-payment work.
 
 import { useEffect, useState } from 'react';
-import { loadStripe, type Stripe as StripeJS } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
@@ -23,10 +22,8 @@ import {
 } from '@stripe/react-stripe-js';
 import { Box, Button, CircularProgress, Alert } from '@mui/material';
 import { supabase } from '../../api/supabase/supabaseClient';
-
-const stripePromise: Promise<StripeJS | null> = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
-);
+import { getStripe } from '../../config/stripe';
+import { inkstashColors } from '../../theme/inkstashTokens';
 
 export type PaymentType = 'ruby_bundle' | 'vendor_pack';
 
@@ -76,7 +73,7 @@ export default function StripePaymentElement(props: StripePaymentElementProps) {
       }
     })();
     return () => { cancelled = true; };
-  }, [props.paymentType, props.targetId]);
+  }, [props.paymentType, props.targetId, props.onError]);
 
   if (initError) {
     return <Alert severity="error" sx={{ mt: 2 }}>{initError}</Alert>;
@@ -92,10 +89,21 @@ export default function StripePaymentElement(props: StripePaymentElementProps) {
 
   return (
     <Elements
-      stripe={stripePromise}
+      stripe={getStripe()}
       options={{
         clientSecret,
-        appearance: { theme: 'stripe' },
+        appearance: {
+          theme: 'flat',
+          variables: {
+            colorPrimary: inkstashColors.brand,
+            colorBackground: inkstashColors.bgElev,
+            colorText: inkstashColors.ink,
+            colorTextSecondary: inkstashColors.muted,
+            colorDanger: '#ef4444',
+            fontFamily: 'Geist, system-ui, sans-serif',
+            borderRadius: '8px',
+          },
+        },
       }}
     >
       <PaymentForm buttonLabel={props.buttonLabel} returnUrl={props.returnUrl} />
