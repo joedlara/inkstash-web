@@ -54,9 +54,9 @@ serve(async (req) => {
 
     const body: RequestBody = await req.json()
 
-    // Backward-compat: { bundle_id } → ruby_bundle
+    // Backward-compat: a body with just { bundle_id } is implicitly a ruby_bundle request.
     const paymentType: 'ruby_bundle' | 'vendor_pack' =
-      body.payment_type ?? (body.bundle_id ? 'ruby_bundle' : 'ruby_bundle')
+      body.payment_type ?? 'ruby_bundle'
     const targetId = body.target_id ?? body.bundle_id
 
     if (!targetId) return json({ error: 'target_id is required' }, 400)
@@ -121,6 +121,7 @@ async function createRubyBundleIntent({
     amount: bundle.usdCents,
     currency: 'usd',
     customer: stripeCustomerId,
+    // Save the card for future Ruby bundle purchases (vendor packs are one-offs, no save).
     setup_future_usage: 'on_session',
     automatic_payment_methods: { enabled: true },
     automatic_tax: { enabled: true },
@@ -173,12 +174,20 @@ async function createVendorPackIntent({
   const amountCents = Math.round(Number(pack.price) * 100)
   const applicationFeeCents = Math.round(amountCents * Number(vendor.commission_rate))
 
+  if (applicationFeeCents < 0 || applicationFeeCents >= amountCents) {
+    return json({ error: 'Invalid commission_rate on vendor' }, 500)
+  }
+
+  // Note: automatic_tax is intentionally NOT enabled on vendor_pack intents.
+  // Tax obligation for Connect destination charges requires explicit
+  // marketplace-vs-platform tax model registration with Stripe, which is
+  // deferred until Phase 6. Vendors handle their own tax via their existing
+  // bookkeeping for now.
   const intent = await stripe.paymentIntents.create({
     amount: amountCents,
     currency: 'usd',
     customer: stripeCustomerId,
     automatic_payment_methods: { enabled: true },
-    automatic_tax: { enabled: true },
     transfer_data: { destination: vendor.stripe_connect_account_id },
     application_fee_amount: applicationFeeCents,
     metadata: {
