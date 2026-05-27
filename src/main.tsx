@@ -27,6 +27,7 @@ import SellerOnboarding from './pages/SellerOnboarding';
 import SellerDashboard from './pages/SellerDashboard';
 import ListItem from './pages/ListItem';
 import UserProfile from './pages/UserProfile';
+import VendorProfile from './pages/VendorProfile';
 import { CartProvider } from './contexts/CartContext';
 import AppLayout from './components/layout/AppLayout';
 import './styles/index.css';
@@ -69,6 +70,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/my-bids" element={<MyBids />} />
                 <Route path="/my-stash" element={<MyStash />} />
                 <Route path="/settings" element={<AccountSettings />} />
+                <Route path="/v/:handle" element={<VendorProfile />} />
                 <Route path="/profile/:userId" element={<UserProfile />} />
                 <Route path="/*" element={<UserProfile />} />
               </Routes>
