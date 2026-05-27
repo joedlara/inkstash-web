@@ -8,16 +8,10 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { getStripe } from '../../config/stripe';
-import { rubiesAPI } from '../../api/rubies';
-import { paymentMethodsAPI } from '../../api/paymentMethods';
-import type { UserPaymentMethod } from '../../api/paymentMethods';
 import { RUBY_BUNDLES, smallestBundleFor } from '../../config/rubyBundles';
 import type { RubyBundle } from '../../config/rubyBundles';
-import { useAuth } from '../../hooks/useAuth';
 import RubyIcon from '../ui/RubyIcon';
-import HoldToOpenButton from './HoldToOpenButton';
+import StripePaymentElement from '../checkout/StripePaymentElement';
 import {
   inkstashColors,
   inkstashFonts,
@@ -25,7 +19,7 @@ import {
   inkstashShadows,
 } from '../../theme/inkstashTokens';
 
-type Phase = 'select' | 'pay' | 'confirming' | 'crediting' | 'success' | 'error';
+type Phase = 'select' | 'pay' | 'crediting' | 'success' | 'error';
 
 interface RubyBundleModalProps {
   open: boolean;
@@ -51,81 +45,26 @@ export default function RubyBundleModal({
   onClose,
   requiredRubies,
   currentBalance,
-  onCredited,
+  onCredited: _onCredited,
 }: RubyBundleModalProps) {
-  const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('select');
   const [selected, setSelected] = useState<RubyBundle>(RUBY_BUNDLES[1]);
-  const [defaultCard, setDefaultCard] = useState<UserPaymentMethod | null>(null);
-  const [clientSecret, setClientSecret] = useState<string>('');
-  const [paymentIntentId, setPaymentIntentId] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
     if (!open) return;
     setPhase('select');
     setError('');
-    setClientSecret('');
-    setPaymentIntentId('');
 
     if (requiredRubies != null) {
       setSelected(smallestBundleFor(requiredRubies, currentBalance ?? 0));
     } else {
       setSelected(RUBY_BUNDLES[1]); // Popular
     }
-
-    paymentMethodsAPI.getDefault().then(setDefaultCard).catch(() => setDefaultCard(null));
   }, [open, requiredRubies, currentBalance]);
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = () => {
     setError('');
-    setPhase('confirming');
-
-    try {
-      if (defaultCard) {
-        // One-tap path — server-side off_session confirm
-        const result = await rubiesAPI.chargeBundleSavedCard(selected.id);
-        setPhase('crediting');
-        await waitForCredit(result.rubyTotal);
-      } else {
-        // First-time path — need Elements clientSecret
-        const intent = await rubiesAPI.createBundleIntent(selected.id);
-        setClientSecret(intent.clientSecret);
-        setPaymentIntentId(intent.paymentIntentId);
-        setPhase('pay');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not complete purchase');
-      setPhase('error');
-    }
-  };
-
-  const waitForCredit = async (rubyTotal: number) => {
-    if (!user?.id) {
-      setError('Not authenticated');
-      setPhase('error');
-      return;
-    }
-    const startBalance = currentBalance ?? 0;
-    const expected = startBalance + rubyTotal;
-    const finalBalance = await rubiesAPI.waitForBalanceAtLeast(user.id, expected, 20_000);
-    if (finalBalance == null) {
-      setError('Payment confirmed. Your Rubies will land in a moment.');
-      setPhase('error');
-      return;
-    }
-    setPhase('success');
-    onCredited?.(finalBalance);
-    setTimeout(() => onClose(), 900);
-  };
-
-  const handleStripeConfirmed = async () => {
-    setPhase('crediting');
-    await waitForCredit(selected.totalRubies);
-  };
-
-  const handleStripeError = (msg: string) => {
-    setError(msg);
     setPhase('pay');
   };
 
@@ -147,7 +86,7 @@ export default function RubyBundleModal({
         },
       }}
     >
-      {(phase === 'confirming' || phase === 'crediting') && (
+      {phase === 'crediting' && (
         <LinearProgress
           sx={{
             height: 3,
@@ -213,7 +152,7 @@ export default function RubyBundleModal({
           </Alert>
         )}
 
-        {(phase === 'select' || phase === 'confirming' || phase === 'error') && (
+        {(phase === 'select' || phase === 'error') && (
           <>
             {/* Bundle tiles */}
             <Box
@@ -280,38 +219,30 @@ export default function RubyBundleModal({
                 </Box>
               </Box>
 
-              {defaultCard ? (
-                <HoldToOpenButton
-                  label={`Hold to pay ${formatUsd(selected.usdCents)}`}
-                  onComplete={handleConfirmPurchase}
-                  busy={phase !== 'select'}
-                />
-              ) : (
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={handleConfirmPurchase}
-                  disabled={phase !== 'select'}
-                  sx={{
-                    bgcolor: inkstashColors.brand,
-                    color: '#fff',
-                    border: 'none',
-                    padding: '12px 28px',
-                    borderRadius: 999,
-                    fontFamily: inkstashFonts.ui,
-                    fontWeight: 700,
-                    fontSize: 14,
-                    cursor: phase === 'select' ? 'pointer' : 'not-allowed',
-                    opacity: phase === 'select' ? 1 : 0.6,
-                    letterSpacing: '0.02em',
-                    transition: 'background 140ms ease, transform 100ms ease',
-                    '&:hover': { bgcolor: inkstashColors.brandDeep },
-                    '&:active': { transform: 'scale(0.98)' },
-                  }}
-                >
-                  Buy {formatUsd(selected.usdCents)}
-                </Box>
-              )}
+              <Box
+                component="button"
+                type="button"
+                onClick={handleConfirmPurchase}
+                disabled={phase !== 'select'}
+                sx={{
+                  bgcolor: inkstashColors.brand,
+                  color: '#fff',
+                  border: 'none',
+                  padding: '12px 28px',
+                  borderRadius: 999,
+                  fontFamily: inkstashFonts.ui,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: phase === 'select' ? 'pointer' : 'not-allowed',
+                  opacity: phase === 'select' ? 1 : 0.6,
+                  letterSpacing: '0.02em',
+                  transition: 'background 140ms ease, transform 100ms ease',
+                  '&:hover': { bgcolor: inkstashColors.brandDeep },
+                  '&:active': { transform: 'scale(0.98)' },
+                }}
+              >
+                Continue to payment — {formatUsd(selected.usdCents)}
+              </Box>
             </Box>
 
             <Box
@@ -329,42 +260,19 @@ export default function RubyBundleModal({
           </>
         )}
 
-        {phase === 'pay' && clientSecret && (
+        {phase === 'pay' && (
           <Box>
-            <Elements
-              stripe={getStripe()}
-              options={{
-                clientSecret,
-                appearance: {
-                  theme: 'flat',
-                  variables: {
-                    colorPrimary: inkstashColors.brand,
-                    colorBackground: inkstashColors.bgElev,
-                    colorText: inkstashColors.ink,
-                    colorTextSecondary: inkstashColors.muted,
-                    colorDanger: '#ef4444',
-                    fontFamily: 'Geist, system-ui, sans-serif',
-                    borderRadius: '8px',
-                  },
-                },
+            <StripePaymentElement
+              paymentType="ruby_bundle"
+              targetId={selected.id}
+              buttonLabel={`Pay ${formatUsd(selected.usdCents)}`}
+              returnUrl={`${window.location.href}${window.location.search ? '&' : '?'}ruby_purchase=success`}
+              onError={(err) => {
+                setError(err.message);
+                setPhase('select');
               }}
-            >
-              <BundleStripeForm
-                amountLabel={formatUsd(selected.usdCents)}
-                onConfirmed={handleStripeConfirmed}
-                onError={handleStripeError}
-                paymentIntentId={paymentIntentId}
-              />
-            </Elements>
+            />
           </Box>
-        )}
-
-        {(phase === 'crediting' || phase === 'success') && (
-          <ProcessingPanel
-            label={phase === 'success' ? 'Stashed. Ready to rip.' : 'Stashing your Rubies...'}
-            rubies={selected.totalRubies}
-            isSuccess={phase === 'success'}
-          />
         )}
       </Box>
     </Dialog>
@@ -500,158 +408,6 @@ function BundleTile({
         }}
       >
         {formatUsd(bundle.usdCents)}
-      </Box>
-    </Box>
-  );
-}
-
-function BundleStripeForm({
-  amountLabel,
-  onConfirmed,
-  onError,
-}: {
-  amountLabel: string;
-  onConfirmed: () => void;
-  onError: (msg: string) => void;
-  paymentIntentId: string;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setSubmitting(true);
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: window.location.href },
-      redirect: 'if_required',
-    });
-    setSubmitting(false);
-    if (error) {
-      onError(error.message ?? 'Payment failed');
-      return;
-    }
-    if (paymentIntent?.status === 'succeeded') {
-      onConfirmed();
-    } else {
-      onError('Payment not completed');
-    }
-  };
-
-  return (
-    <form onSubmit={submit}>
-      <PaymentElement />
-      <Box
-        component="button"
-        type="submit"
-        disabled={!stripe || submitting}
-        sx={{
-          width: '100%',
-          mt: 2.5,
-          bgcolor: inkstashColors.brand,
-          color: '#fff',
-          border: 'none',
-          padding: '14px',
-          borderRadius: 999,
-          fontFamily: inkstashFonts.ui,
-          fontWeight: 700,
-          fontSize: 14,
-          cursor: submitting ? 'wait' : 'pointer',
-          letterSpacing: '0.02em',
-          transition: 'background 140ms ease, transform 100ms ease',
-          '&:hover': { bgcolor: inkstashColors.brandDeep },
-          '&:active': { transform: 'scale(0.98)' },
-          '&:disabled': { opacity: 0.6, cursor: 'not-allowed' },
-        }}
-      >
-        {submitting ? 'Processing...' : `Pay ${amountLabel}`}
-      </Box>
-    </form>
-  );
-}
-
-function ProcessingPanel({ label, rubies, isSuccess }: { label: string; rubies: number; isSuccess?: boolean }) {
-  return (
-    <Box sx={{ py: 5, textAlign: 'center' }}>
-      {isSuccess ? (
-        <Box
-          sx={{
-            width: 72,
-            height: 72,
-            mx: 'auto',
-            mb: 2.5,
-            display: 'grid',
-            placeItems: 'center',
-            animation: 'inkstashStashPop 480ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-            '@keyframes inkstashStashPop': {
-              '0%': { transform: 'scale(0.3)', opacity: 0 },
-              '60%': { transform: 'scale(1.15)', opacity: 1 },
-              '100%': { transform: 'scale(1)', opacity: 1 },
-            },
-          }}
-        >
-          <Box
-            sx={{
-              position: 'absolute',
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              bgcolor: inkstashColors.brand,
-              opacity: 0.15,
-              animation: 'inkstashStashRipple 1.4s ease-out infinite',
-              '@keyframes inkstashStashRipple': {
-                '0%': { transform: 'scale(1)', opacity: 0.3 },
-                '100%': { transform: 'scale(1.8)', opacity: 0 },
-              },
-            }}
-          />
-          <RubyIcon size={56} glow />
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            border: `3px solid ${inkstashColors.bgSunken}`,
-            borderTopColor: inkstashColors.brand,
-            mx: 'auto',
-            mb: 2.5,
-            animation: 'inkstashRubySpin 0.8s linear infinite',
-            '@keyframes inkstashRubySpin': { to: { transform: 'rotate(360deg)' } },
-          }}
-        />
-      )}
-      <Typography
-        sx={{
-          fontFamily: inkstashFonts.display,
-          fontWeight: 800,
-          fontSize: 22,
-          color: isSuccess ? inkstashColors.brandDeep : inkstashColors.ink,
-          textTransform: 'uppercase',
-          letterSpacing: '0.005em',
-        }}
-      >
-        {label}
-      </Typography>
-      <Box
-        sx={{
-          mt: 1,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.75,
-          fontFamily: inkstashFonts.mono,
-          fontSize: 13,
-          fontWeight: 700,
-          color: isSuccess ? inkstashColors.brand : inkstashColors.muted,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}
-      >
-        <RubyIcon size={13} />
-        +{formatRubies(rubies)}
       </Box>
     </Box>
   );
