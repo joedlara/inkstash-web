@@ -15,6 +15,7 @@ import Drops from './pages/Drops';
 import Raffles from './pages/Raffles';
 import Marketplace from './pages/Marketplace';
 import Checkout from './pages/CheckoutNew';
+import CheckoutVendorPack from './pages/CheckoutVendorPack';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderManagement from './pages/OrderManagement';
 import Cart from './pages/Cart';
@@ -61,6 +62,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/browse" element={<Navigate to="/packs" replace />} />
                 <Route path="/featured" element={<Navigate to="/packs" replace />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route path="/checkout/vendor-pack/:packId" element={<CheckoutVendorPack />} />
                 <Route path="/order-success" element={<OrderSuccess />} />
                 <Route path="/order/:orderId" element={<OrderManagement />} />
                 <Route path="/cart" element={<Cart />} />
