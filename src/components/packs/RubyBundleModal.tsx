@@ -5,7 +5,6 @@ import {
   Typography,
   Alert,
   IconButton,
-  LinearProgress,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { RUBY_BUNDLES, smallestBundleFor } from '../../config/rubyBundles';
@@ -19,7 +18,7 @@ import {
   inkstashShadows,
 } from '../../theme/inkstashTokens';
 
-type Phase = 'select' | 'pay' | 'crediting' | 'success' | 'error';
+type Phase = 'select' | 'pay' | 'error';
 
 interface RubyBundleModalProps {
   open: boolean;
@@ -28,8 +27,6 @@ interface RubyBundleModalProps {
    *  to the user's current balance, covers this Ruby cost. */
   requiredRubies?: number;
   currentBalance?: number;
-  /** Fires once Rubies have actually been credited to the user (after webhook). */
-  onCredited?: (newBalance: number) => void;
 }
 
 function formatRubies(n: number): string {
@@ -45,7 +42,6 @@ export default function RubyBundleModal({
   onClose,
   requiredRubies,
   currentBalance,
-  onCredited: _onCredited,
 }: RubyBundleModalProps) {
   const [phase, setPhase] = useState<Phase>('select');
   const [selected, setSelected] = useState<RubyBundle>(RUBY_BUNDLES[1]);
@@ -86,16 +82,6 @@ export default function RubyBundleModal({
         },
       }}
     >
-      {phase === 'crediting' && (
-        <LinearProgress
-          sx={{
-            height: 3,
-            bgcolor: inkstashColors.bgSunken,
-            '& .MuiLinearProgress-bar': { bgcolor: inkstashColors.brand },
-          }}
-        />
-      )}
-
       {closable && (
         <IconButton
           onClick={onClose}
@@ -266,7 +252,12 @@ export default function RubyBundleModal({
               paymentType="ruby_bundle"
               targetId={selected.id}
               buttonLabel={`Pay ${formatUsd(selected.usdCents)}`}
-              returnUrl={`${window.location.href}${window.location.search ? '&' : '?'}ruby_purchase=success`}
+              returnUrl={(() => {
+                const base = window.location.origin + window.location.pathname;
+                const params = new URLSearchParams(window.location.search);
+                params.set('ruby_purchase', 'success');
+                return `${base}?${params.toString()}`;
+              })()}
               onError={(err) => {
                 setError(err.message);
                 setPhase('select');

@@ -155,6 +155,7 @@ export default function PackDetail() {
     performOpen();
   };
 
+  // TODO(Phase 5+): re-wire after vendor pack reveal flow lands
   const handleBundleCredited = async () => {
     // Modal triggers onCredited after webhook lands. Refresh the pill so the
     // user sees the bumped balance, then immediately attempt the pack open.
@@ -712,7 +713,6 @@ export default function PackDetail() {
         onClose={() => setBundleModalOpen(false)}
         requiredRubies={rubyCost}
         currentBalance={rubyBalance}
-        onCredited={handleBundleCredited}
       />
     </AppShell>
   );

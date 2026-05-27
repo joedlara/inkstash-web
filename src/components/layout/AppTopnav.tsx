@@ -168,7 +168,6 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
         open={bundleModalOpen}
         onClose={() => setBundleModalOpen(false)}
         currentBalance={balance}
-        onCredited={() => refreshRubies()}
       />
     </Box>
   );
