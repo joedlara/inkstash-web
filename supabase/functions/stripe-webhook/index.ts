@@ -109,6 +109,42 @@ serve(async (req) => {
     console.log('[stripe-webhook] credited', rubyTotal, 'rubies to user', userId)
   }
 
+  // Fire-and-forget confirmation email. Never fail the webhook if email errors —
+  // the Ruby credit is the contract; the email is a nice-to-have.
+  try {
+    const { data: userRow } = await serviceClient
+      .from('users')
+      .select('email, username')
+      .eq('id', userId)
+      .maybeSingle()
+
+    // Re-import findBundle dynamically because the surrounding scope
+    // doesn't already have it.
+    const { findBundle } = await import('../_shared/rubyBundles.ts')
+    const bundle = findBundle(bundleId)
+
+    if (userRow?.email && bundle) {
+      await fetch(`${supabaseUrl}/functions/v1/send-ruby-bundle-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          buyerEmail: userRow.email,
+          buyerName: userRow.username ?? userRow.email,
+          bundleName: bundle.label,
+          rubyTotal,
+          amountUsdCents: intent.amount,
+          paymentIntentId: intent.id,
+          purchasedAt: new Date().toISOString(),
+        }),
+      }).catch((err) => console.error('[stripe-webhook] confirmation email failed:', err))
+    }
+  } catch (err) {
+    console.error('[stripe-webhook] confirmation email setup failed:', err)
+  }
+
   // Save the payment method if Stripe attached one to the user's Customer.
   // This only fires the first time the user pays — subsequent intents
   // confirmed off-session (via charge-saved-card) reuse the same pm_id.
