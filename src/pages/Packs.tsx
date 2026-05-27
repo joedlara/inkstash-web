@@ -153,13 +153,17 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
         {/* Footer row: price + CTA */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 0.5 }}>
           <Stack direction="row" alignItems="center" gap={0.6}>
-            {!soldOut && <RubyIcon size={16} />}
+            {!soldOut && pack.origin !== 'vendor' && <RubyIcon size={16} />}
             <Box sx={{
               fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
               color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
               lineHeight: 1,
             }}>
-              {soldOut ? '—' : packPriceToRubies(pack.price).toLocaleString('en-US')}
+              {soldOut
+                ? '—'
+                : pack.origin === 'vendor'
+                  ? `$${pack.price.toFixed(2)}`
+                  : packPriceToRubies(pack.price).toLocaleString('en-US')}
             </Box>
           </Stack>
           <Box

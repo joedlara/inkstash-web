@@ -375,7 +375,7 @@ export default function PackDetail() {
               </Stack>
 
               <Stack direction="row" alignItems="center" gap={1.5} mb={3}>
-                <RubyIcon size={28} glow />
+                {pack.origin !== 'vendor' && <RubyIcon size={28} glow />}
                 <Box
                   sx={{
                     fontFamily: inkstashFonts.display,
@@ -385,7 +385,9 @@ export default function PackDetail() {
                     lineHeight: 1,
                   }}
                 >
-                  {rubyCost.toLocaleString('en-US')}
+                  {pack.origin === 'vendor'
+                    ? `$${pack.price.toFixed(2)}`
+                    : rubyCost.toLocaleString('en-US')}
                 </Box>
                 <Box
                   sx={{
@@ -396,7 +398,7 @@ export default function PackDetail() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  per pack
+                  {pack.origin === 'vendor' ? 'USD per pack' : 'per pack'}
                 </Box>
               </Stack>
 
