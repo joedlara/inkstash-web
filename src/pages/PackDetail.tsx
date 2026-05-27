@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
+import VendorPackHeader from '../components/packs/VendorPackHeader';
+import CuratorNote from '../components/packs/CuratorNote';
+import PackContentsGrid from '../components/packs/PackContentsGrid';
+import VendorPackGuaranteeRow from '../components/packs/VendorPackGuaranteeRow';
+import type { Vendor } from '../api/vendors';
 import { Box, Container, Stack, Skeleton, Typography, Alert } from '@mui/material';
 import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
@@ -53,7 +58,7 @@ export default function PackDetail() {
   const navigate = useNavigate();
   const { packId } = useParams<{ packId: string }>();
 
-  const [pack, setPack] = useState<Pack | null>(null);
+  const [pack, setPack] = useState<(Pack & { vendor: Vendor | null }) | null>(null);
   const [items, setItems] = useState<PackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +80,7 @@ export default function PackDetail() {
   useEffect(() => {
     if (!packId) return;
     setLoading(true);
-    Promise.all([packsAPI.getById(packId), packsAPI.listItems(packId)])
+    Promise.all([packsAPI.getByIdWithVendor(packId), packsAPI.listItems(packId)])
       .then(([packData, itemList]) => {
         if (!packData) {
           setError('Pack not found');
@@ -396,7 +401,31 @@ export default function PackDetail() {
               </Stack>
 
               {pack.status === 'active' ? (
-                hasEnoughRubies ? (
+                pack.origin === 'vendor' ? (
+                  <Stack gap={1.25} alignItems="flex-start">
+                    <Box
+                      component={RouterLink}
+                      to={`/checkout/vendor-pack/${pack.id}`}
+                      sx={{
+                        display: 'inline-block',
+                        bgcolor: inkstashColors.brand,
+                        color: '#fff',
+                        textDecoration: 'none',
+                        padding: '14px 28px',
+                        borderRadius: 999,
+                        fontFamily: inkstashFonts.ui,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        letterSpacing: '0.02em',
+                        transition: 'background 140ms ease, transform 100ms ease',
+                        '&:hover': { bgcolor: inkstashColors.brandDeep },
+                        '&:active': { transform: 'scale(0.98)' },
+                      }}
+                    >
+                      Buy with USD — ${pack.price.toFixed(2)}
+                    </Box>
+                  </Stack>
+                ) : hasEnoughRubies ? (
                   <Stack gap={1.25} alignItems="flex-start">
                     <HoldToOpenButton
                       label="Hold to Open"
@@ -513,6 +542,19 @@ export default function PackDetail() {
             </Box>
           </Box>
 
+          {pack.origin === 'vendor' && pack.vendor && (
+            <>
+              <VendorPackHeader vendor={pack.vendor} />
+              {pack.curator_note && (
+                <CuratorNote note={pack.curator_note} vendorName={pack.vendor.display_name} />
+              )}
+              <PackContentsGrid items={items} />
+              <VendorPackGuaranteeRow pack={pack} items={items} />
+            </>
+          )}
+
+          {pack.origin !== 'vendor' && (
+            <>
           {/* Value Odds */}
           <Box
             sx={{
@@ -633,6 +675,8 @@ export default function PackDetail() {
               </Stack>
             )}
           </Box>
+            </>
+          )}
 
           {/* Variant gallery */}
           <Box sx={{ mb: 2 }}>
@@ -1047,6 +1091,8 @@ function RevealStage({
                 onChange={(next, payoutRubies) =>
                   item.inventory_id && onDispositionChange(item.inventory_id, next, payoutRubies)
                 }
+                // TODO C5: re-enable packOrigin once CardDispositionRow accepts it
+                // packOrigin={pack.origin}
               />
             ))}
           </Stack>
