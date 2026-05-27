@@ -38,6 +38,8 @@ interface CardDispositionRowProps {
    *  All buttons disable while busy is true so we can't double-pay. */
   globalBusy?: boolean;
   onChange?: (next: Disposition, payoutRubies?: number) => void;
+  /** Pack origin type. Hides Sell-back button for vendor packs (Ruby economy not available). */
+  packOrigin?: 'house' | 'vendor' | 'publisher';
 }
 
 function rubyPayoutFor(estimated: number | null): number {
@@ -52,6 +54,7 @@ export default function CardDispositionRow({
   payoutRubies,
   globalBusy,
   onChange,
+  packOrigin,
 }: CardDispositionRowProps) {
   const { refresh: refreshRubies } = useRubyBalance();
   const [busy, setBusy] = useState<'sell' | 'ship' | null>(null);
@@ -277,20 +280,22 @@ export default function CardDispositionRow({
             tone="neutral"
             disabled={isBusy}
           />
-          <DispositionButton
-            label={
-              sellable ? (
-                <>
-                  <RubyIcon size={11} color="#fff" />
-                  {sellbackRubies.toLocaleString('en-US')}
-                </>
-              ) : 'Sell back'
-            }
-            onClick={handleSell}
-            tone="primary"
-            disabled={!sellable || isBusy}
-            busy={busy === 'sell' || (globalBusy === true && sellable)}
-          />
+          {packOrigin !== 'vendor' && (
+            <DispositionButton
+              label={
+                sellable ? (
+                  <>
+                    <RubyIcon size={11} color="#fff" />
+                    {sellbackRubies.toLocaleString('en-US')}
+                  </>
+                ) : 'Sell back'
+              }
+              onClick={handleSell}
+              tone="primary"
+              disabled={!sellable || isBusy}
+              busy={busy === 'sell' || (globalBusy === true && sellable)}
+            />
+          )}
           <DispositionButton
             label="Ship"
             icon={<Truck size={13} />}

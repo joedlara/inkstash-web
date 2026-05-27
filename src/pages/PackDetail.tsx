@@ -1091,8 +1091,7 @@ function RevealStage({
                 onChange={(next, payoutRubies) =>
                   item.inventory_id && onDispositionChange(item.inventory_id, next, payoutRubies)
                 }
-                // TODO C5: re-enable packOrigin once CardDispositionRow accepts it
-                // packOrigin={pack.origin}
+                packOrigin={pack.origin}
               />
             ))}
           </Stack>
