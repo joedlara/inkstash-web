@@ -27,18 +27,9 @@ Hosting the verification file is still required — the CLI command just creates
 
 ---
 
-# PayPal enablement (Stripe Payment Element)
+# PayPal (deferred)
 
-PayPal is a Stripe Payment Element payment method, no separate SDK needed. Enable it once in the Stripe Dashboard:
-
-1. Stripe Dashboard → Settings → Payment methods → PayPal → "Turn on".
-2. Accept Stripe's PayPal terms.
-3. Done. The `automatic_payment_methods: { enabled: true }` setting on every PaymentIntent now surfaces PayPal as an option alongside card/Apple Pay/Google Pay.
-
-## PayPal limitations
-
-- PayPal does NOT support Stripe Connect destination charges with `application_fee_amount` in all modes. Vendor pack PaymentIntents (which use destination charges) will automatically filter PayPal out and surface card + Apple Pay + Google Pay only. This is Stripe's behavior, not a bug — there's nothing to code for.
-- PayPal does support direct charges (Ruby bundle purchases) without restriction.
+PayPal as a Stripe Payment Element method requires Stripe → PayPal account linking through Stripe's PayPal integration setup (not a single dashboard toggle). Deferred from Phase 5 MVP. When you're ready to add it: investigate Stripe's PayPal Connect docs and add it as a separate task. The `automatic_payment_methods: { enabled: true }` setting will surface it automatically once it's enabled on the account.
 
 # Resend email confirmations
 

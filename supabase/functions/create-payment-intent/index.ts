@@ -117,6 +117,10 @@ async function createRubyBundleIntent({
   const bundle = findBundle(bundleId)
   if (!bundle) return json({ error: 'Unknown bundle' }, 404)
 
+  // Note: automatic_tax is intentionally NOT enabled. Stripe Tax requires
+  // explicit activation on the Stripe account plus state-by-state registration.
+  // See docs/operations/apple-pay-domain-verification.md "Tax obligations"
+  // section for the pre-launch checklist. Re-enable here once registered.
   const intent = await stripe.paymentIntents.create({
     amount: bundle.usdCents,
     currency: 'usd',
@@ -124,7 +128,6 @@ async function createRubyBundleIntent({
     // Save the card for future Ruby bundle purchases (vendor packs are one-offs, no save).
     setup_future_usage: 'on_session',
     automatic_payment_methods: { enabled: true },
-    automatic_tax: { enabled: true },
     metadata: {
       payment_type: 'ruby_bundle',
       bundle_id: bundle.id,
