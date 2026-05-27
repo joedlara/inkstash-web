@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import VendorPackHeader from '../components/packs/VendorPackHeader';
 import CuratorNote from '../components/packs/CuratorNote';
 import PackContentsGrid from '../components/packs/PackContentsGrid';
@@ -10,6 +10,7 @@ import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'l
 import AppShell from '../components/layout/AppShell';
 import HoldToOpenButton from '../components/packs/HoldToOpenButton';
 import RubyBundleModal from '../components/packs/RubyBundleModal';
+import CheckoutVendorPackModal from '../components/packs/CheckoutVendorPackModal';
 import CardDispositionRow from '../components/packs/CardDispositionRow';
 import type { Disposition } from '../components/packs/CardDispositionRow';
 import RubyIcon from '../components/ui/RubyIcon';
@@ -64,6 +65,7 @@ export default function PackDetail() {
   const [error, setError] = useState<string | null>(null);
 
   const [bundleModalOpen, setBundleModalOpen] = useState(false);
+  const [vendorCheckoutOpen, setVendorCheckoutOpen] = useState(false);
   const [phase, setPhase] = useState<DetailPhase>('browse');
   const [revealedItems, setRevealedItems] = useState<PackItem[]>([]);
   const [flippedCount, setFlippedCount] = useState(0);
@@ -406,19 +408,21 @@ export default function PackDetail() {
                 pack.origin === 'vendor' ? (
                   <Stack gap={1.25} alignItems="flex-start">
                     <Box
-                      component={RouterLink}
-                      to={`/checkout/vendor-pack/${pack.id}`}
+                      component="button"
+                      type="button"
+                      onClick={() => setVendorCheckoutOpen(true)}
                       sx={{
                         display: 'inline-block',
                         bgcolor: inkstashColors.brand,
                         color: '#fff',
-                        textDecoration: 'none',
+                        border: 'none',
                         padding: '14px 28px',
                         borderRadius: 999,
                         fontFamily: inkstashFonts.ui,
                         fontWeight: 700,
                         fontSize: 14,
                         letterSpacing: '0.02em',
+                        cursor: 'pointer',
                         transition: 'background 140ms ease, transform 100ms ease',
                         '&:hover': { bgcolor: inkstashColors.brandDeep },
                         '&:active': { transform: 'scale(0.98)' },
@@ -760,6 +764,15 @@ export default function PackDetail() {
         requiredRubies={rubyCost}
         currentBalance={rubyBalance}
       />
+
+      {pack && pack.origin === 'vendor' && pack.vendor && (
+        <CheckoutVendorPackModal
+          open={vendorCheckoutOpen}
+          onClose={() => setVendorCheckoutOpen(false)}
+          pack={pack}
+          vendor={pack.vendor}
+        />
+      )}
     </AppShell>
   );
 }
