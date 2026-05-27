@@ -1,7 +1,11 @@
 // Edge Function: stripe-webhook
 // Receives Stripe webhook events. Verifies signature against STRIPE_WEBHOOK_SECRET.
-// On payment_intent.succeeded, upserts a pack_purchases row keyed by
-// stripe_payment_intent_id (idempotent — retries from Stripe are no-ops).
+// Dispatches by event type:
+//   - payment_intent.succeeded → handlePaymentIntentSucceeded
+//       → creditRubyBundle (payment_type='ruby_bundle' or legacy intents)
+//       → openVendorPack   (payment_type='vendor_pack')
+//   - account.updated → handleAccountUpdated (flips vendor status to 'active'
+//       once Connect onboarding completes)
 //
 // NOTE: this function must be deployed with --no-verify-jwt because Stripe
 // will not send a Supabase JWT. Signature verification replaces JWT auth.
@@ -63,31 +67,69 @@ serve(async (req) => {
 
   console.log('[stripe-webhook] event received:', event.type, event.id)
 
-  if (event.type !== 'payment_intent.succeeded') {
-    return new Response('ok', { status: 200 })
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey)
+
+  if (event.type === 'payment_intent.succeeded') {
+    return await handlePaymentIntentSucceeded(event, stripe, serviceClient, supabaseUrl, serviceRoleKey)
   }
 
+  if (event.type === 'account.updated') {
+    return await handleAccountUpdated(event, serviceClient)
+  }
+
+  return new Response('ok', { status: 200 })
+})
+
+async function handlePaymentIntentSucceeded(
+  event: Stripe.Event,
+  stripe: Stripe,
+  serviceClient: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<Response> {
   const intent = event.data.object as Stripe.PaymentIntent
   const userId = intent.metadata?.user_id
-  const bundleId = intent.metadata?.bundle_id
-  const rubyTotalRaw = intent.metadata?.ruby_total
 
-  if (!userId || !bundleId || !rubyTotalRaw) {
-    console.error('[stripe-webhook] missing metadata on intent', intent.id, intent.metadata)
-    return new Response('Missing user_id / bundle_id / ruby_total in metadata', { status: 400 })
+  if (!userId) {
+    console.error('[stripe-webhook] missing user_id on intent', intent.id)
+    return new Response('Missing user_id in metadata', { status: 400 })
   }
 
+  // Backward compat: intents created before A3 don't have payment_type metadata.
+  // Treat them as ruby_bundle.
+  const effectiveType = intent.metadata?.payment_type ?? 'ruby_bundle'
+
+  if (effectiveType === 'ruby_bundle') {
+    return await creditRubyBundle(intent, stripe, serviceClient, userId, supabaseUrl, serviceRoleKey)
+  }
+
+  if (effectiveType === 'vendor_pack') {
+    return await openVendorPack(intent, serviceClient, userId, supabaseUrl, serviceRoleKey)
+  }
+
+  console.warn('[stripe-webhook] unknown payment_type:', effectiveType)
+  return new Response('ok', { status: 200 })
+}
+
+async function creditRubyBundle(
+  intent: Stripe.PaymentIntent,
+  stripe: Stripe,
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<Response> {
+  const bundleId = intent.metadata?.bundle_id
+  const rubyTotalRaw = intent.metadata?.ruby_total
+  if (!bundleId || !rubyTotalRaw) {
+    console.error('[stripe-webhook] ruby_bundle missing metadata', intent.id, intent.metadata)
+    return new Response('Missing bundle_id or ruby_total', { status: 400 })
+  }
   const rubyTotal = parseInt(rubyTotalRaw, 10)
   if (!Number.isFinite(rubyTotal) || rubyTotal <= 0) {
-    console.error('[stripe-webhook] invalid ruby_total', rubyTotalRaw)
     return new Response('Invalid ruby_total', { status: 400 })
   }
 
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey)
-
-  // Credit Rubies via the SECURITY DEFINER function. Idempotent: if this
-  // payment_intent already produced a ruby_transactions row (webhook retry),
-  // the function returns false and balance is untouched.
   const { data: credited, error: rpcError } = await serviceClient.rpc(
     'credit_rubies_from_bundle',
     {
@@ -97,12 +139,10 @@ serve(async (req) => {
       p_payment_intent_id: intent.id,
     },
   )
-
   if (rpcError) {
     console.error('[stripe-webhook] credit_rubies_from_bundle failed:', rpcError)
     return new Response('DB error', { status: 500 })
   }
-
   if (credited === false) {
     console.log('[stripe-webhook] retry: bundle already credited for intent', intent.id)
   } else {
@@ -121,8 +161,6 @@ serve(async (req) => {
         .eq('id', userId)
         .maybeSingle()
 
-      // Re-import findBundle dynamically because the surrounding scope
-      // doesn't already have it.
       const { findBundle } = await import('../_shared/rubyBundles.ts')
       const bundle = findBundle(bundleId)
 
@@ -152,7 +190,6 @@ serve(async (req) => {
   // Save the payment method if Stripe attached one to the user's Customer.
   // This only fires the first time the user pays — subsequent intents
   // confirmed off-session (via charge-saved-card) reuse the same pm_id.
-  // (Reuse the `stripe` instance declared above for signature verification.)
   const paymentMethodId =
     typeof intent.payment_method === 'string' ? intent.payment_method : intent.payment_method?.id
 
@@ -161,7 +198,6 @@ serve(async (req) => {
       const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
       const card = pm.card
       if (card) {
-        // Check if this is the user's first saved card. If so, mark it default.
         const { count } = await serviceClient
           .from('user_payment_methods')
           .select('id', { count: 'exact', head: true })
@@ -196,4 +232,103 @@ serve(async (req) => {
   }
 
   return new Response('ok', { status: 200 })
-})
+}
+
+async function openVendorPack(
+  intent: Stripe.PaymentIntent,
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<Response> {
+  const packId = intent.metadata?.pack_id
+  const vendorId = intent.metadata?.vendor_id
+  if (!packId || !vendorId) {
+    console.error('[stripe-webhook] vendor_pack missing metadata', intent.id, intent.metadata)
+    return new Response('Missing pack_id or vendor_id', { status: 400 })
+  }
+
+  // Idempotency: bail if we already opened this pack for this intent.
+  const { data: existing } = await serviceClient
+    .from('vendor_payouts')
+    .select('id')
+    .eq('stripe_payment_intent_id', intent.id)
+    .maybeSingle()
+  if (existing) {
+    console.log('[stripe-webhook] retry: vendor pack already opened for intent', intent.id)
+    return new Response('ok', { status: 200 })
+  }
+
+  // Delegate to the open-pack-usd edge function via direct invocation.
+  // Function-to-function calls use the service role key.
+  const res = await fetch(`${supabaseUrl}/functions/v1/open-pack-usd`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      pack_id: packId,
+      vendor_id: vendorId,
+      payment_intent_id: intent.id,
+      gross_amount_cents: intent.amount,
+      application_fee_amount_cents: intent.application_fee_amount ?? 0,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    console.error('[stripe-webhook] open-pack-usd failed:', res.status, text)
+    return new Response('open-pack-usd failed', { status: 500 })
+  }
+
+  console.log('[stripe-webhook] vendor pack opened for intent', intent.id)
+  return new Response('ok', { status: 200 })
+}
+
+async function handleAccountUpdated(
+  event: Stripe.Event,
+  serviceClient: ReturnType<typeof createClient>,
+): Promise<Response> {
+  const account = event.data.object as Stripe.Account
+  // Connect account is "active" once charges + payouts are both enabled.
+  const isActive = account.charges_enabled && account.payouts_enabled
+  if (!isActive) {
+    console.log('[stripe-webhook] account.updated: not yet active', account.id)
+    return new Response('ok', { status: 200 })
+  }
+
+  const { data: vendor, error: lookupError } = await serviceClient
+    .from('vendors')
+    .select('id, status')
+    .eq('stripe_connect_account_id', account.id)
+    .maybeSingle()
+
+  if (lookupError) {
+    console.error('[stripe-webhook] vendor lookup failed:', lookupError)
+    return new Response('DB error', { status: 500 })
+  }
+
+  if (!vendor) {
+    console.warn('[stripe-webhook] account.updated for unknown Connect account', account.id)
+    return new Response('ok', { status: 200 })
+  }
+
+  if (vendor.status === 'active') {
+    return new Response('ok', { status: 200 })
+  }
+
+  const { error: updateError } = await serviceClient
+    .from('vendors')
+    .update({ status: 'active', updated_at: new Date().toISOString() })
+    .eq('id', vendor.id)
+
+  if (updateError) {
+    console.error('[stripe-webhook] vendor activate failed:', updateError)
+    return new Response('DB error', { status: 500 })
+  }
+
+  console.log('[stripe-webhook] vendor activated:', vendor.id)
+  return new Response('ok', { status: 200 })
+}
