@@ -12,10 +12,7 @@ import {
   ListItemText,
   useTheme,
   useMediaQuery,
-  Drawer,
-  IconButton,
-  AppBar,
-  Toolbar,
+  Chip,
   Avatar,
 } from '@mui/material';
 import {
@@ -23,11 +20,10 @@ import {
   Lock,
   Notifications,
   Settings,
-  Menu as MenuIcon,
   Payment,
   LocalShipping,
 } from '@mui/icons-material';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import { useAuth } from '../hooks/useAuth';
 import ProfileTab from '../components/common/ProfileTab';
 import PreferencesSettingsTab from '../components/common/PreferencesSettingsTab';
@@ -63,8 +59,6 @@ export default function AccountSettings() {
   const [activeTab, setActiveTab] = useState<TabType>(
     (searchParams.get('tab') as TabType) || 'profile'
   );
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   useEffect(() => {
     if (!user) {
       navigate('/');
@@ -82,13 +76,6 @@ export default function AccountSettings() {
   const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId);
     setSearchParams({ tab: tabId });
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  };
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
   };
 
   const renderTabContent = () => {
@@ -243,40 +230,38 @@ export default function AccountSettings() {
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
+    <AppShell>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Mobile: horizontal scroll chips for settings tabs */}
+        {isMobile && (
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              overflowX: 'auto',
+              pb: 2,
+              mb: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '&::-webkit-scrollbar': { display: 'none' },
+            }}
+          >
+            {sidebarItems.map((item) => (
+              <Chip
+                key={item.id}
+                label={item.label}
+                icon={item.icon as React.ReactElement}
+                onClick={() => handleTabChange(item.id)}
+                color={activeTab === item.id ? 'primary' : 'default'}
+                variant={activeTab === item.id ? 'filled' : 'outlined'}
+                sx={{ flexShrink: 0 }}
+              />
+            ))}
+          </Box>
+        )}
 
-      {/* Mobile App Bar */}
-      {isMobile && (
-        <AppBar
-          position="fixed"
-          sx={{
-            top: 64,
-            bgcolor: 'background.paper',
-            color: 'text.primary',
-            boxShadow: 1,
-          }}
-        >
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div" color="primary" fontWeight={700}>
-              Account Settings
-            </Typography>
-          </Toolbar>
-        </AppBar>
-      )}
-
-      <Container maxWidth="xl" sx={{ py: 4, mt: isMobile ? 16 : 10 }}>
-        <Box sx={{ display: 'flex', gap: 3, minHeight: 'calc(100vh - 150px)' }}>
-          {/* Desktop Sidebar */}
+        <Box sx={{ display: 'flex', gap: 3, minHeight: 'calc(100vh - 200px)' }}>
+          {/* Desktop sidebar */}
           {!isMobile && (
             <Paper
               elevation={2}
@@ -284,40 +269,19 @@ export default function AccountSettings() {
                 width: 280,
                 height: 'fit-content',
                 position: 'sticky',
-                top: 100,
+                top: 24,
               }}
             >
               {sidebarContent}
             </Paper>
           )}
 
-          {/* Mobile Drawer */}
-          {isMobile && (
-            <Drawer
-              variant="temporary"
-              anchor="left"
-              open={mobileOpen}
-              onClose={handleDrawerToggle}
-              ModalProps={{
-                keepMounted: true,
-              }}
-              sx={{
-                '& .MuiDrawer-paper': {
-                  width: 280,
-                  boxSizing: 'border-box',
-                },
-              }}
-            >
-              {sidebarContent}
-            </Drawer>
-          )}
-
-          {/* Main Content Area */}
+          {/* Main content area */}
           <Box sx={{ flex: 1 }}>
             {renderTabContent()}
           </Box>
         </Box>
       </Container>
-    </Box>
+    </AppShell>
   );
 }
