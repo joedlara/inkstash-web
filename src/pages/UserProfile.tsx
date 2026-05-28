@@ -16,7 +16,7 @@ import {
   Button,
 } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import {
   getUserProfile,
   getUserProfileByUsername,
@@ -278,26 +278,29 @@ export default function UserProfile() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <CircularProgress />
-        </Box>
-      </Container>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+            <CircularProgress />
+          </Box>
+        </Container>
+      </AppShell>
     );
   }
 
   if (error || !profile) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error">{error || 'User not found'}</Alert>
-      </Container>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Alert severity="error">{error || 'User not found'}</Alert>
+        </Container>
+      </AppShell>
     );
   }
 
   return (
-    <>
-      <DashboardHeader />
-      <Container maxWidth="lg" sx={{ pt: { xs: 10, sm: 12 }, pb: 4, px: { xs: 0, sm: 3 } }}>
+    <AppShell>
+      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
         {/* Profile Header */}
         <ProfileHeader
         userId={profile.id}
@@ -679,6 +682,6 @@ export default function UserProfile() {
           />
         )}
       </Container>
-    </>
+    </AppShell>
   );
 }
