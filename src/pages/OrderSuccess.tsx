@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
-  Box,
   Typography,
   Paper,
   Button,
@@ -22,7 +21,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { ordersAPI, type Order } from '../api/orders';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 
 interface OrderSuccessState {
   orderId?: string;
@@ -80,20 +79,18 @@ export default function OrderSuccess() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="lg" sx={{ py: 4, mt: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
           <CircularProgress size={60} />
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   if (error || !order) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
           <Alert severity="error" sx={{ mb: 3 }}>
             {error || 'Order not found'}
           </Alert>
@@ -101,16 +98,15 @@ export default function OrderSuccess() {
             Return Home
           </Button>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   const auction = Array.isArray(order.auctions) ? order.auctions[0] : order.auctions;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
-      <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
+    <AppShell>
+      <Container maxWidth="md" sx={{ py: 4 }}>
         {/* Success Header */}
         <Paper elevation={3} sx={{ p: 4, mb: 3, textAlign: 'center', bgcolor: 'success.light', color: 'success.contrastText' }}>
           <CheckCircle sx={{ fontSize: 80, mb: 2 }} />
@@ -293,6 +289,6 @@ export default function OrderSuccess() {
           </Button>
         </Stack>
       </Container>
-    </Box>
+    </AppShell>
   );
 }

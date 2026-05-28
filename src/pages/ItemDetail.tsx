@@ -40,7 +40,7 @@ import {
   getAuctionInteractionCounts
 } from '../api/auctions/auctionInteractions';
 import { getHighestBid, placeBid } from '../api/auctions/bids';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import BidModal from '../components/auctions/BidModal';
 import PaymentShippingSetupModal from '../components/payments/PaymentShippingSetupModal';
 import { checkPaymentAndShipping, getRequiredSetup, type PaymentShippingStatus } from '../utils/paymentValidation';
@@ -449,20 +449,18 @@ export default function ItemDetail() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="xl" sx={{ mt: 10 }}>
+      <AppShell>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
           <Typography variant="h4">Loading...</Typography>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   if (error || !item) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="xl" sx={{ mt: 10 }}>
+      <AppShell>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
           <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="h4" gutterBottom>{error || 'Item not found'}</Typography>
             <Typography variant="body1" color="text.secondary" gutterBottom>
@@ -473,14 +471,13 @@ export default function ItemDetail() {
             </Button>
           </Paper>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
-      <Container maxWidth="xl" sx={{ mt: { xs: 10, md: 12 }, mb: 4 }}>
+    <AppShell>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
         <Grid container spacing={4}>
           {/* Left Side - Image and Stats */}
           <Grid size={{ xs: 12, md: 7 }}>
@@ -900,6 +897,6 @@ export default function ItemDetail() {
         onComplete={handleSetupComplete}
         requiredSetup={setupModalType}
       />
-    </Box>
+    </AppShell>
   );
 }

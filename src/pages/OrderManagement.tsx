@@ -33,7 +33,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { ordersAPI, type Order } from '../api/orders';
 import { sendShippingNotificationEmail } from '../api/email';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 
 export default function OrderManagement() {
   const navigate = useNavigate();
@@ -163,20 +163,18 @@ export default function OrderManagement() {
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="lg" sx={{ py: 4, mt: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
           <CircularProgress size={60} />
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   if (error && !order) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
+      <AppShell>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
@@ -184,7 +182,7 @@ export default function OrderManagement() {
             Back to Orders
           </Button>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
@@ -204,9 +202,8 @@ export default function OrderManagement() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
-      <Container maxWidth="lg" sx={{ py: 4, mt: 8 }}>
+    <AppShell>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Button
@@ -494,6 +491,6 @@ export default function OrderManagement() {
           </DialogActions>
         </Dialog>
       </Container>
-    </Box>
+    </AppShell>
   );
 }

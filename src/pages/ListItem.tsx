@@ -62,7 +62,7 @@ const CATEGORY_OPTIONS = [
   { value: 'golden-silver-age', label: 'Golden Age / Silver Age' },
   { value: 'limited-signed', label: 'Limited Edition / Signed' },
 ];
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import PackageDimensionsInput from '../components/listing/PackageDimensionsInput';
 import ShippingRatesDisplay from '../components/listing/ShippingRatesDisplay';
@@ -1635,8 +1635,7 @@ export default function ListItem() {
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
+    <AppShell>
 
       {/* Ship-From Address Modal */}
       <ShipFromAddressModal
@@ -1680,7 +1679,6 @@ export default function ListItem() {
           borderBottom: 1,
           borderColor: 'divider',
           py: 2,
-          mt: 8,
         }}
       >
         <Container maxWidth="lg">
@@ -1702,6 +1700,6 @@ export default function ListItem() {
         {step === 'details' && renderDetailsStep()}
         {step === 'complete' && renderCompleteListingStep()}
       </Box>
-    </Box>
+    </AppShell>
   );
 }
