@@ -184,6 +184,57 @@ serve(async (req) => {
       // by querying the PaymentIntent's latest_charge.transfer
     })
 
+    // Fire-and-forget confirmation email. Never fail the pack open if email errors —
+    // the inventory + payout are the contract; the email is a nice-to-have.
+    try {
+      const { data: buyer } = await serviceClient
+        .from('users')
+        .select('email, username')
+        .eq('id', body.user_id)
+        .maybeSingle()
+
+      const { data: vendor } = await serviceClient
+        .from('vendors')
+        .select('display_name, handle')
+        .eq('id', body.vendor_id)
+        .maybeSingle()
+
+      const { data: packRow } = await serviceClient
+        .from('packs')
+        .select('name')
+        .eq('id', body.pack_id)
+        .maybeSingle()
+
+      if (buyer?.email && vendor && packRow) {
+        await fetch(`${supabaseUrl}/functions/v1/send-vendor-pack-confirmation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            buyerEmail: buyer.email,
+            buyerName: buyer.username ?? buyer.email,
+            packName: packRow.name,
+            vendorDisplayName: vendor.display_name,
+            vendorHandle: vendor.handle,
+            amountUsdCents: body.gross_amount_cents,
+            items: drawn.map((it) => ({
+              comic_title: it.comic_title,
+              cover_treatment: it.cover_treatment,
+              declared_value: it.declared_value,
+              image_url: it.image_url,
+              is_chase: Boolean(it.is_chase),
+            })),
+            purchaseId: purchase.id,
+            paymentIntentId: body.payment_intent_id,
+          }),
+        }).catch((err) => console.error('[open-pack-usd] confirmation email failed:', err))
+      }
+    } catch (err) {
+      console.error('[open-pack-usd] confirmation email setup failed:', err)
+    }
+
     return json({ ok: true, purchase_id: purchase.id, items: drawn }, 200)
   } catch (err) {
     console.error('[open-pack-usd] error:', err)
