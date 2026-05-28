@@ -52,7 +52,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import { supabase } from '../api/supabase/supabaseClient';
 import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import type { UploadedPhoto } from '../utils/photoUpload';
@@ -1141,8 +1141,7 @@ export default function SellerDashboard() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
+    <AppShell>
 
       {/* Mobile App Bar */}
       {isMobile && (
@@ -1216,6 +1215,6 @@ export default function SellerDashboard() {
           </Box>
         </Box>
       </Container>
-    </Box>
+    </AppShell>
   );
 }

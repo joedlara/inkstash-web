@@ -31,7 +31,7 @@ import { useAuth } from '../hooks/useAuth';
 import { type PaymentMethod, type ShippingAddress, paymentMethodsAPI, shippingAddressesAPI } from '../api/payments';
 import { ordersAPI } from '../api/orders';
 import { sendOrderConfirmationEmail } from '../api/email';
-import DashboardHeader from '../components/home/DashboardHeader';
+import AppShell from '../components/layout/AppShell';
 import ApplePayButton from '../components/payments/ApplePayButton';
 import AddPaymentMethodForm from '../components/payments/AddPaymentMethodForm';
 import AddShippingAddressForm from '../components/payments/AddShippingAddressForm';
@@ -341,32 +341,29 @@ export default function CheckoutNew() {
 
   if (loading || !user) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="md" sx={{ py: 4, mt: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
+      <AppShell>
+        <Container maxWidth="md" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 100px)' }}>
           <CircularProgress size={60} />
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   if (!checkoutData) {
     return (
-      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <DashboardHeader />
-        <Container maxWidth="md" sx={{ py: 4, mt: 8 }}>
+      <AppShell>
+        <Container maxWidth="md" sx={{ py: 4 }}>
           <Alert severity="warning">
             No checkout data found. Redirecting to home...
           </Alert>
         </Container>
-      </Box>
+      </AppShell>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader />
-      <Container maxWidth="md" sx={{ py: 4, mt: 8, mb: 10 }}>
+    <AppShell>
+      <Container maxWidth="md" sx={{ py: 4, mb: 10 }}>
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton onClick={() => navigate(-1)} sx={{ color: 'text.primary' }}>
             <ArrowBack />
@@ -867,6 +864,6 @@ export default function CheckoutNew() {
           </Button>
         </Paper>
       </Container>
-    </Box>
+    </AppShell>
   );
 }
