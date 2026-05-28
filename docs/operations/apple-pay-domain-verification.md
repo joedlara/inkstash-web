@@ -39,6 +39,36 @@ The Resend API key is already configured: `VITE_RESEND_API_KEY` secret on the Su
 
 ---
 
+# Vendor pack ship-from address (manual workflow until in-app label generation lands)
+
+Vendor pack books ship from the vendor's address, not InkStash's. The `vendor_ship_from_addresses` table (migration `20260527000000`) holds these addresses. RLS allows each vendor to manage their own rows.
+
+## Pre-launch: each vendor must have a default ship-from address
+
+For every vendor (including the launch partner), insert at least one row in `vendor_ship_from_addresses` with `is_default = true`:
+
+```sql
+INSERT INTO public.vendor_ship_from_addresses
+  (vendor_id, name, company_name, street1, city, state, postal_code, is_default)
+VALUES
+  ('<vendor uuid>', 'Vendor Owner Name', 'Vendor Brand', '123 Real St',
+   'Brooklyn', 'NY', '11201', true);
+```
+
+(Get the vendor uuid via `SELECT id, handle FROM public.vendors WHERE handle = 'their_handle';`.)
+
+## When a buyer requests shipping on a vendor pack item
+
+1. `request-ship-item` edge function flips the `user_inventory` row to `shipping_pending`.
+2. InkStash admin checks the queue (currently: query `SELECT * FROM public.user_inventory WHERE status = 'shipping_pending'` — there is no UI yet).
+3. For each `shipping_pending` item: trace `inventory.pack_purchase_id → pack_purchase.pack_id → pack.vendor_id → vendor_ship_from_addresses` to get the ship-from address.
+4. Email the vendor with the buyer's ship-to address and ask the vendor to generate + print the label.
+5. Once shipped, manually flip `user_inventory.status = 'shipping_in_transit'` and record the tracking number.
+
+This workflow is a stopgap until the in-app label generation feature lands (see backlog task: "In-app label generation for vendor/inventory ship"). The future flow will let vendors purchase labels directly through InkStash via ShipEngine, similar to how eBay sellers print labels through the eBay UI.
+
+---
+
 # Tax obligations (PRE-LAUNCH TODOs)
 
 InkStash is a marketplace facilitator. Two separate tax obligations apply, handled in different ways:
