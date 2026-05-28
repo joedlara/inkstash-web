@@ -204,72 +204,89 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
       </Box>
 
       <Box
-        component={isAuthenticated ? 'button' : 'div'}
-        type={isAuthenticated ? 'button' : undefined}
-        onClick={isAuthenticated ? () => setProfileOpen(true) : undefined}
         sx={{
           borderTop: `1px solid ${inkstashColors.border}`,
           padding: collapsed ? '12px 8px' : '12px 14px',
           display: 'flex', alignItems: 'center', gap: 1.25,
           position: 'relative',
           width: '100%',
-          bgcolor: 'transparent',
-          border: 'none',
-          textAlign: 'left',
-          cursor: isAuthenticated ? 'pointer' : 'default',
-          transition: 'background 140ms ease',
-          '&:hover': isAuthenticated ? { background: inkstashColors.bgSunken } : {},
         }}
       >
-        {user?.avatar_url ? (
-          <Box
-            component="img"
-            src={user.avatar_url}
-            alt={username}
-            sx={{
+        {/* User tray click target — opens the profile dropdown when authed.
+            Sibling-of (not parent-of) the collapse toggle to avoid the
+            invalid nested-button HTML structure. */}
+        <Box
+          component={isAuthenticated ? 'button' : 'div'}
+          type={isAuthenticated ? 'button' : undefined}
+          onClick={isAuthenticated ? () => setProfileOpen(true) : undefined}
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            minWidth: 0,
+            padding: 0,
+            bgcolor: 'transparent',
+            border: 'none',
+            textAlign: 'left',
+            cursor: isAuthenticated ? 'pointer' : 'default',
+            borderRadius: 1,
+            transition: 'background 140ms ease',
+            '&:hover': isAuthenticated ? { background: inkstashColors.bgSunken } : {},
+          }}
+        >
+          {user?.avatar_url ? (
+            <Box
+              component="img"
+              src={user.avatar_url}
+              alt={username}
+              sx={{
+                width: 32, height: 32, borderRadius: '50%',
+                objectFit: 'cover',
+                flexShrink: 0,
+                border: `1px solid ${inkstashColors.border}`,
+              }}
+            />
+          ) : (
+            <Box sx={{
               width: 32, height: 32, borderRadius: '50%',
-              objectFit: 'cover',
+              background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 13,
               flexShrink: 0,
-              border: `1px solid ${inkstashColors.border}`,
-            }}
-          />
-        ) : (
-          <Box sx={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 13,
-            flexShrink: 0,
-          }}>{initial}</Box>
-        )}
-        {!collapsed && (
-          <>
+            }}>{initial}</Box>
+          )}
+          {!collapsed && (
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Box sx={{ fontWeight: 600, fontSize: 13, color: inkstashColors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</Box>
               <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 10.5, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tier}</Box>
             </Box>
-            <Box
-              component="button"
-              type="button"
-              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onCollapseToggle(); }}
-              aria-label="Collapse sidebar"
-              sx={{
-                bgcolor: 'transparent', border: 'none', cursor: 'pointer',
-                color: inkstashColors.muted,
-                padding: 0.5,
-                display: 'grid', placeItems: 'center',
-                '&:hover': { color: inkstashColors.ink },
-              }}
-            >
-              <PanelLeftClose size={16} />
-            </Box>
-          </>
+          )}
+        </Box>
+
+        {!collapsed && (
+          <Box
+            component="button"
+            type="button"
+            onClick={onCollapseToggle}
+            aria-label="Collapse sidebar"
+            sx={{
+              bgcolor: 'transparent', border: 'none', cursor: 'pointer',
+              color: inkstashColors.muted,
+              padding: 0.5,
+              display: 'grid', placeItems: 'center',
+              flexShrink: 0,
+              '&:hover': { color: inkstashColors.ink },
+            }}
+          >
+            <PanelLeftClose size={16} />
+          </Box>
         )}
         {collapsed && (
           <Box
             component="button"
             type="button"
-            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onCollapseToggle(); }}
+            onClick={onCollapseToggle}
             aria-label="Expand sidebar"
             sx={{
               position: 'absolute', bottom: 14, right: 8,

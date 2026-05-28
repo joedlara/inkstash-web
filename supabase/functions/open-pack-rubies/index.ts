@@ -205,9 +205,49 @@ serve(async (req) => {
       return json({ error: 'Failed to record items' }, 500)
     }
 
+    // Seed user_inventory rows — one per drawn item. This is what powers
+    // the Keep/Sell/Ship buttons on the reveal screen and the My Stash list.
+    const inventoryRows = drawn.map((item) => ({
+      user_id: user.id,
+      pack_purchase_id: purchaseId,
+      pack_item_id: item.id,
+      status: 'vaulted',
+    }))
+
+    const { data: inventoryInserted, error: invError } = await serviceClient
+      .from('user_inventory')
+      .insert(inventoryRows)
+      .select('id, pack_item_id')
+
+    if (invError) {
+      console.error('[open-pack-rubies] inventory insert failed:', invError)
+      // The pack purchase succeeded; surface a soft warning but still return
+      // the items so the reveal can play. The user can sell-back later from
+      // My Stash where we'll re-sync inventory from pack_purchases.items_received.
+    }
+
+    // Pair each drawn item with its newly-created inventory id. Duplicates
+    // of the same pack_item_id (rare but possible) MUST each get their own
+    // distinct inventory_id so the user can sell back / keep / ship each
+    // copy independently. We pop ids off a per-item queue in insert order.
+    const inventoryQueueByItemId = new Map<string, string[]>()
+    if (inventoryInserted) {
+      for (const row of inventoryInserted as Array<{ id: string; pack_item_id: string }>) {
+        const queue = inventoryQueueByItemId.get(row.pack_item_id) ?? []
+        queue.push(row.id)
+        inventoryQueueByItemId.set(row.pack_item_id, queue)
+      }
+    }
+
+    const itemsWithInventoryId = drawn.map((item) => {
+      const queue = inventoryQueueByItemId.get(item.id)
+      const inventoryId = queue && queue.length > 0 ? queue.shift()! : null
+      return { ...item, inventory_id: inventoryId }
+    })
+
     return json({
       purchase_id: purchaseId,
-      items: drawn,
+      items: itemsWithInventoryId,
       ruby_cost: rubyCost,
     }, 200)
   } catch (err) {

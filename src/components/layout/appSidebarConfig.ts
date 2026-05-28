@@ -14,7 +14,7 @@ export const appSidebarPrimary: AppSidebarItem[] = [
   { label: 'Marketplace', route: '/marketplace', icon: Store },
   { label: 'Live Breaks', route: '/live',        icon: Repeat },
   { label: 'Raffles',     route: '/raffles',     icon: Ticket },
-  { label: 'My Vault',    route: '/my-stash',    icon: Archive },
+  { label: 'My Stash',    route: '/my-stash',    icon: Archive },
 ];
 
 export interface AppSidebarEvent {

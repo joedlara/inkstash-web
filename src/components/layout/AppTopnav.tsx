@@ -53,12 +53,16 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
         <Menu size={20} />
       </Box>
 
+      {/* Search bar is hidden below 540px until we design a better mobile
+          placement (overlay sheet, dedicated search route, etc.). The
+          `flex: 1` element ensures the right-side action cluster stays
+          flush right at every breakpoint. */}
       <Box
         component="form"
         onSubmit={(e: React.FormEvent) => e.preventDefault()}
         sx={{
-          flex: 1, maxWidth: 480,
-          display: 'flex', alignItems: 'center', gap: 1.25,
+          flex: 1, minWidth: 0, maxWidth: 480,
+          display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.25,
           bgcolor: inkstashColors.bgSunken,
           border: `1px solid ${inkstashColors.border}`,
           padding: '8px 12px',
@@ -74,7 +78,7 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
           value={q}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
           sx={{
-            flex: 1, bgcolor: 'transparent', border: 'none', outline: 'none',
+            flex: 1, minWidth: 0, bgcolor: 'transparent', border: 'none', outline: 'none',
             color: inkstashColors.ink, fontFamily: inkstashFonts.ui, fontSize: 14,
             '&::placeholder': { color: inkstashColors.muted },
           }}
@@ -168,7 +172,6 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
         open={bundleModalOpen}
         onClose={() => setBundleModalOpen(false)}
         currentBalance={balance}
-        onCredited={() => refreshRubies()}
       />
     </Box>
   );

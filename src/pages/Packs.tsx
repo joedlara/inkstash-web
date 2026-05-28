@@ -89,12 +89,26 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
       </Box>
 
       <Box sx={{ padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
-        <Box sx={{
-          fontFamily: inkstashFonts.mono, fontSize: 10.5,
-          color: inkstashColors.muted, letterSpacing: '0.08em', textTransform: 'uppercase',
-        }}>
-          {pack.partner}
-        </Box>
+        {pack.origin === 'vendor' ? (
+          <Box
+            sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 10,
+              color: inkstashColors.brand,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            by @{pack.partner}
+          </Box>
+        ) : (
+          <Box sx={{
+            fontFamily: inkstashFonts.mono, fontSize: 10.5,
+            color: inkstashColors.muted, letterSpacing: '0.08em', textTransform: 'uppercase',
+          }}>
+            {pack.partner}
+          </Box>
+        )}
 
         <Box sx={{
           fontFamily: inkstashFonts.display, fontWeight: 800,
@@ -139,13 +153,17 @@ function ApiPackCard({ pack, onOpen }: { pack: Pack; onOpen: (pack: Pack) => voi
         {/* Footer row: price + CTA */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 0.5 }}>
           <Stack direction="row" alignItems="center" gap={0.6}>
-            {!soldOut && <RubyIcon size={16} />}
+            {!soldOut && pack.origin !== 'vendor' && <RubyIcon size={16} />}
             <Box sx={{
               fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 22,
               color: soldOut ? inkstashColors.muted2 : inkstashColors.ink,
               lineHeight: 1,
             }}>
-              {soldOut ? '—' : packPriceToRubies(pack.price).toLocaleString('en-US')}
+              {soldOut
+                ? '—'
+                : pack.origin === 'vendor'
+                  ? `$${pack.price.toFixed(2)}`
+                  : packPriceToRubies(pack.price).toLocaleString('en-US')}
             </Box>
           </Stack>
           <Box
@@ -198,6 +216,8 @@ export default function Packs() {
   const navigate = useNavigate();
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
+  type OriginFilter = 'all' | 'house' | 'vendor';
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('all');
   const [packs, setPacks] = useState<Pack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -293,58 +313,100 @@ export default function Packs() {
             </Box>
           </Box>
 
-          {/* Filter pills (segmented control) */}
-          <Box sx={{
-            display: 'flex', gap: 0.5, padding: 0.5,
-            bgcolor: inkstashColors.bgSunken, borderRadius: 999,
-            flexShrink: 0,
-          }}>
-            {FILTERS.map(f => {
-              const active = f === activeFilter;
-              return (
-                <Box
-                  key={f}
-                  component="button"
-                  type="button"
-                  onClick={() => setActiveFilter(f)}
-                  sx={{
-                    padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                    fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
-                    bgcolor: active ? inkstashColors.bgElev : 'transparent',
-                    color: active ? inkstashColors.ink : inkstashColors.ink2,
-                    boxShadow: active ? inkstashShadows.sm : 'none',
-                    transition: 'all 140ms ease',
-                  }}
-                >
-                  {f}
-                </Box>
-              );
-            })}
+          {/* Filter pill rows — stacked vertically, right-aligned */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end', flexShrink: 0 }}>
+            {/* Origin filter pills */}
+            <Box sx={{
+              display: 'flex', gap: 0.5, padding: 0.5,
+              bgcolor: inkstashColors.bgSunken, borderRadius: 999,
+              flexShrink: 0,
+              mr: 1,
+            }}>
+              {(['all', 'house', 'vendor'] as const).map((f) => {
+                const active = f === originFilter;
+                const label = f === 'all' ? 'All' : f === 'house' ? 'InkStash House' : 'Vendor Collabs';
+                return (
+                  <Box
+                    key={f}
+                    component="button"
+                    type="button"
+                    onClick={() => setOriginFilter(f)}
+                    sx={{
+                      padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                      fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
+                      bgcolor: active ? inkstashColors.bgElev : 'transparent',
+                      color: active ? inkstashColors.ink : inkstashColors.ink2,
+                      boxShadow: active ? inkstashShadows.sm : 'none',
+                      transition: 'all 140ms ease',
+                    }}
+                  >
+                    {label}
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {/* Content-category filter pills (segmented control) */}
+            <Box sx={{
+              display: 'flex', gap: 0.5, padding: 0.5,
+              bgcolor: inkstashColors.bgSunken, borderRadius: 999,
+              flexShrink: 0,
+            }}>
+              {FILTERS.map(f => {
+                const active = f === activeFilter;
+                return (
+                  <Box
+                    key={f}
+                    component="button"
+                    type="button"
+                    onClick={() => setActiveFilter(f)}
+                    sx={{
+                      padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                      fontSize: 12.5, fontWeight: 500, fontFamily: inkstashFonts.ui,
+                      bgcolor: active ? inkstashColors.bgElev : 'transparent',
+                      color: active ? inkstashColors.ink : inkstashColors.ink2,
+                      boxShadow: active ? inkstashShadows.sm : 'none',
+                      transition: 'all 140ms ease',
+                    }}
+                  >
+                    {f}
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
         </Box>
 
         {/* Pack grid */}
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'repeat(2, 1fr)',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(3, 1fr)',
-            lg: 'repeat(4, 1fr)',
-          },
-          gap: { xs: 1.75, md: 2.5 },
-        }}>
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => <ApiPackSkeleton key={i} />)
-            : packs.map(pack => (
-                <ApiPackCard
-                  key={pack.id}
-                  pack={pack}
-                  onOpen={handleOpenPack}
-                />
-              ))
-          }
-        </Box>
+        {(() => {
+          const filteredPacks = packs.filter((p) => {
+            if (originFilter === 'all') return true;
+            return p.origin === originFilter;
+          });
+          return (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+              gap: { xs: 1.75, md: 2.5 },
+            }}>
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => <ApiPackSkeleton key={i} />)
+                : filteredPacks.map(pack => (
+                    <ApiPackCard
+                      key={pack.id}
+                      pack={pack}
+                      onOpen={handleOpenPack}
+                    />
+                  ))
+              }
+            </Box>
+          );
+        })()}
       </Container>
 
     </AppShell>

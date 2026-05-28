@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import VendorPackHeader from '../components/packs/VendorPackHeader';
+import CuratorNote from '../components/packs/CuratorNote';
+import PackContentsGrid from '../components/packs/PackContentsGrid';
+import VendorPackGuaranteeRow from '../components/packs/VendorPackGuaranteeRow';
+import type { Vendor } from '../api/vendors';
 import { Box, Container, Stack, Skeleton, Typography, Alert } from '@mui/material';
 import { ArrowLeft, BookOpen, Sparkles, Package, ArrowRight, RotateCcw } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import HoldToOpenButton from '../components/packs/HoldToOpenButton';
 import RubyBundleModal from '../components/packs/RubyBundleModal';
+import CheckoutVendorPackModal from '../components/packs/CheckoutVendorPackModal';
+import CardDispositionRow from '../components/packs/CardDispositionRow';
+import type { Disposition } from '../components/packs/CardDispositionRow';
 import RubyIcon from '../components/ui/RubyIcon';
 import { packsAPI } from '../api/packs';
 import { rubiesAPI } from '../api/rubies';
+import { inventoryAPI } from '../api/inventory';
 import { useRubyBalance } from '../hooks/useRubyBalance';
 import { packPriceToRubies } from '../config/rubyBundles';
 import type { Pack, PackItem } from '../api/packs';
@@ -50,23 +59,30 @@ export default function PackDetail() {
   const navigate = useNavigate();
   const { packId } = useParams<{ packId: string }>();
 
-  const [pack, setPack] = useState<Pack | null>(null);
+  const [pack, setPack] = useState<(Pack & { vendor: Vendor | null }) | null>(null);
   const [items, setItems] = useState<PackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [bundleModalOpen, setBundleModalOpen] = useState(false);
+  const [vendorCheckoutOpen, setVendorCheckoutOpen] = useState(false);
   const [phase, setPhase] = useState<DetailPhase>('browse');
   const [revealedItems, setRevealedItems] = useState<PackItem[]>([]);
   const [flippedCount, setFlippedCount] = useState(0);
   const [chargingError, setChargingError] = useState<string | null>(null);
+  /** Disposition per inventory_id (keep / sell / ship). 'pending' until user acts. */
+  const [dispositions, setDispositions] = useState<Record<string, Disposition>>({});
+  /** Rubies actually paid out per sold inventory_id, for the chip display. */
+  const [payouts, setPayouts] = useState<Record<string, number>>({});
+  /** True while any bulk mutation is in flight. Locks every row's buttons. */
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const { balance: rubyBalance, refresh: refreshRubies } = useRubyBalance();
 
   useEffect(() => {
     if (!packId) return;
     setLoading(true);
-    Promise.all([packsAPI.getById(packId), packsAPI.listItems(packId)])
+    Promise.all([packsAPI.getByIdWithVendor(packId), packsAPI.listItems(packId)])
       .then(([packData, itemList]) => {
         if (!packData) {
           setError('Pack not found');
@@ -105,6 +121,9 @@ export default function PackDetail() {
     setPhase('browse');
     setRevealedItems([]);
     setFlippedCount(0);
+    setDispositions({});
+    setPayouts({});
+    setBulkBusy(false);
   };
 
   const performOpen = async () => {
@@ -112,6 +131,8 @@ export default function PackDetail() {
     setChargingError(null);
     setRevealedItems([]);
     setFlippedCount(0);
+    setDispositions({});
+    setPayouts({});
     setPhase('opening');
     try {
       const result = await rubiesAPI.openPackWithRubies(pack.id);
@@ -141,6 +162,7 @@ export default function PackDetail() {
     performOpen();
   };
 
+  // TODO(Phase 5+): re-wire after vendor pack reveal flow lands
   const handleBundleCredited = async () => {
     // Modal triggers onCredited after webhook lands. Refresh the pill so the
     // user sees the bumped balance, then immediately attempt the pack open.
@@ -148,6 +170,52 @@ export default function PackDetail() {
     setBundleModalOpen(false);
     // brief delay so the modal close animation can run before the page swaps
     setTimeout(() => performOpen(), 250);
+  };
+
+  const handleDispositionChange = (inventoryId: string, next: Disposition, payoutRubies?: number) => {
+    setDispositions((prev) => ({ ...prev, [inventoryId]: next }));
+    if (next === 'sold' && typeof payoutRubies === 'number') {
+      setPayouts((prev) => ({ ...prev, [inventoryId]: payoutRubies }));
+    }
+  };
+
+  const sellAllCommons = async () => {
+    if (bulkBusy) return;
+    const pending = revealedItems.filter(
+      (it) =>
+        it.rarity === 'common' &&
+        it.inventory_id &&
+        !dispositions[it.inventory_id],
+    );
+    if (pending.length === 0) return;
+
+    setBulkBusy(true);
+    try {
+      for (const item of pending) {
+        if (!item.inventory_id) continue;
+        try {
+          const result = await inventoryAPI.sellBack(item.inventory_id);
+          setDispositions((prev) => ({ ...prev, [item.inventory_id!]: 'sold' }));
+          setPayouts((prev) => ({ ...prev, [item.inventory_id!]: result.payout_rubies }));
+        } catch {
+          // Soft-fail per item; keep going. Other rows still process.
+        }
+      }
+      refreshRubies();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const keepAllRemaining = () => {
+    if (bulkBusy) return;
+    const next: Record<string, Disposition> = { ...dispositions };
+    for (const item of revealedItems) {
+      if (item.inventory_id && !next[item.inventory_id]) {
+        next[item.inventory_id] = 'kept';
+      }
+    }
+    setDispositions(next);
   };
 
   if (loading) {
@@ -205,7 +273,7 @@ export default function PackDetail() {
   );
 
   const expectedValue = computeExpectedValue(pack, sortedItems);
-  const valueBands = computeValueBands(sortedItems);
+  const { bands: valueBands, hasChase: packHasChase } = computeValueBands(pack, sortedItems);
 
   const browseVisible = phase === 'browse';
   const revealVisible = phase === 'opening' || phase === 'revealing' || phase === 'summary';
@@ -309,7 +377,7 @@ export default function PackDetail() {
               </Stack>
 
               <Stack direction="row" alignItems="center" gap={1.5} mb={3}>
-                <RubyIcon size={28} glow />
+                {pack.origin !== 'vendor' && <RubyIcon size={28} glow />}
                 <Box
                   sx={{
                     fontFamily: inkstashFonts.display,
@@ -319,7 +387,9 @@ export default function PackDetail() {
                     lineHeight: 1,
                   }}
                 >
-                  {rubyCost.toLocaleString('en-US')}
+                  {pack.origin === 'vendor'
+                    ? `$${pack.price.toFixed(2)}`
+                    : rubyCost.toLocaleString('en-US')}
                 </Box>
                 <Box
                   sx={{
@@ -330,12 +400,38 @@ export default function PackDetail() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  per pack
+                  {pack.origin === 'vendor' ? 'USD per pack' : 'per pack'}
                 </Box>
               </Stack>
 
               {pack.status === 'active' ? (
-                hasEnoughRubies ? (
+                pack.origin === 'vendor' ? (
+                  <Stack gap={1.25} alignItems="flex-start">
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => setVendorCheckoutOpen(true)}
+                      sx={{
+                        display: 'inline-block',
+                        bgcolor: inkstashColors.brand,
+                        color: '#fff',
+                        border: 'none',
+                        padding: '14px 28px',
+                        borderRadius: 999,
+                        fontFamily: inkstashFonts.ui,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        letterSpacing: '0.02em',
+                        cursor: 'pointer',
+                        transition: 'background 140ms ease, transform 100ms ease',
+                        '&:hover': { bgcolor: inkstashColors.brandDeep },
+                        '&:active': { transform: 'scale(0.98)' },
+                      }}
+                    >
+                      Buy with USD — ${pack.price.toFixed(2)}
+                    </Box>
+                  </Stack>
+                ) : hasEnoughRubies ? (
                   <Stack gap={1.25} alignItems="flex-start">
                     <HoldToOpenButton
                       label="Hold to Open"
@@ -452,6 +548,19 @@ export default function PackDetail() {
             </Box>
           </Box>
 
+          {pack.origin === 'vendor' && pack.vendor && (
+            <>
+              <VendorPackHeader vendor={pack.vendor} />
+              {pack.curator_note && (
+                <CuratorNote note={pack.curator_note} vendorName={pack.vendor.display_name} />
+              )}
+              <PackContentsGrid items={items} />
+              <VendorPackGuaranteeRow pack={pack} items={items} />
+            </>
+          )}
+
+          {pack.origin !== 'vendor' && (
+            <>
           {/* Value Odds */}
           <Box
             sx={{
@@ -544,7 +653,36 @@ export default function PackDetail() {
             >
               Expected value is the average value of comics pulled across many pack opens. Individual results vary.
             </Box>
+
+            {packHasChase && (
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={1}
+                sx={{
+                  mt: 1.5,
+                  padding: '8px 12px',
+                  bgcolor: `${inkstashColors.gold}14`,
+                  border: `1px solid ${inkstashColors.gold}40`,
+                  borderRadius: inkstashRadii.sm,
+                }}
+              >
+                <Sparkles size={13} color={inkstashColors.gold} />
+                <Box
+                  sx={{
+                    fontFamily: inkstashFonts.mono,
+                    fontSize: 10.5,
+                    color: inkstashColors.ink2,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  This pack includes <Box component="strong" sx={{ color: inkstashColors.gold, fontWeight: 700 }}>chase variants</Box> — rare pulls valued far above the pack price.
+                </Box>
+              </Stack>
+            )}
           </Box>
+            </>
+          )}
 
           {/* Variant gallery */}
           <Box sx={{ mb: 2 }}>
@@ -608,6 +746,12 @@ export default function PackDetail() {
             showSummary={phase === 'summary'}
             isOpening={phase === 'opening'}
             placeholderCount={pack.item_count}
+            dispositions={dispositions}
+            payouts={payouts}
+            bulkBusy={bulkBusy}
+            onDispositionChange={handleDispositionChange}
+            onSellAllCommons={sellAllCommons}
+            onKeepAllRemaining={keepAllRemaining}
             onOpenAnother={handleOpenAnother}
             onBack={() => navigate('/packs')}
           />
@@ -619,8 +763,16 @@ export default function PackDetail() {
         onClose={() => setBundleModalOpen(false)}
         requiredRubies={rubyCost}
         currentBalance={rubyBalance}
-        onCredited={handleBundleCredited}
       />
+
+      {pack && pack.origin === 'vendor' && pack.vendor && (
+        <CheckoutVendorPackModal
+          open={vendorCheckoutOpen}
+          onClose={() => setVendorCheckoutOpen(false)}
+          pack={pack}
+          vendor={pack.vendor}
+        />
+      )}
     </AppShell>
   );
 }
@@ -628,17 +780,20 @@ export default function PackDetail() {
 function VariantTile({ item }: { item: PackItem }) {
   const rarityColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
   const ratioLabel = item.quantity > 0 && item.quantity <= 50 ? `1:${item.quantity * 50}` : null;
+  const isLegendary = item.rarity === 'legendary';
+  const isChase = item.is_chase === true;
 
   return (
     <Box
       sx={{
         bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${item.rarity === 'legendary' ? inkstashColors.gold + '60' : inkstashColors.border}`,
+        border: `1px solid ${isChase || isLegendary ? inkstashColors.gold + '60' : inkstashColors.border}`,
         borderRadius: inkstashRadii.md,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 140ms ease, border-color 140ms ease',
+        transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+        boxShadow: isChase ? `0 0 16px ${inkstashColors.gold}33` : 'none',
         '&:hover': {
           transform: 'translateY(-2px)',
           borderColor: rarityColor,
@@ -658,7 +813,27 @@ function VariantTile({ item }: { item: PackItem }) {
             <Package size={28} color={inkstashColors.muted2} />
           </Box>
         )}
-        {item.rarity === 'legendary' && (
+        {isChase ? (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              bgcolor: inkstashColors.gold,
+              color: '#fff',
+              padding: '3px 8px',
+              borderRadius: 999,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              boxShadow: `0 2px 10px ${inkstashColors.gold}aa`,
+            }}
+          >
+            Chase
+          </Box>
+        ) : isLegendary && (
           <Box
             sx={{
               position: 'absolute',
@@ -746,6 +921,12 @@ function RevealStage({
   showSummary,
   isOpening,
   placeholderCount,
+  dispositions,
+  payouts,
+  bulkBusy,
+  onDispositionChange,
+  onSellAllCommons,
+  onKeepAllRemaining,
   onOpenAnother,
   onBack,
 }: {
@@ -755,6 +936,12 @@ function RevealStage({
   showSummary: boolean;
   isOpening: boolean;
   placeholderCount: number;
+  dispositions: Record<string, Disposition>;
+  payouts: Record<string, number>;
+  bulkBusy: boolean;
+  onDispositionChange: (inventoryId: string, next: Disposition, payoutRubies?: number) => void;
+  onSellAllCommons: () => void;
+  onKeepAllRemaining: () => void;
   onOpenAnother: () => void;
   onBack: () => void;
 }) {
@@ -764,10 +951,17 @@ function RevealStage({
   const hasLegendary = items.some((i) => i.rarity === 'legendary');
   const cardCount = items.length > 0 ? items.length : placeholderCount;
 
+  const pendingCommonsRubies = items
+    .filter((it) => it.rarity === 'common' && it.inventory_id && dispositions[it.inventory_id] !== 'sold' && dispositions[it.inventory_id] !== 'kept' && dispositions[it.inventory_id] !== 'shipped')
+    .reduce((sum, it) => sum + Math.floor((it.estimated_value ?? 0) * 90), 0);
+
+  const hasPendingDecisions = items.some(
+    (it) => it.inventory_id && !dispositions[it.inventory_id],
+  );
+
   return (
     <Box
       sx={{
-        py: { xs: 3, md: 6 },
         position: 'relative',
         animation: 'inkstashFadeIn 300ms ease both',
         '@keyframes inkstashFadeIn': {
@@ -776,46 +970,58 @@ function RevealStage({
         },
       }}
     >
-      {hasLegendary && showSummary && (
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            pointerEvents: 'none',
-            background: `radial-gradient(ellipse at center, ${inkstashColors.gold}26 0%, transparent 70%)`,
-            zIndex: 0,
-          }}
-        />
-      )}
+      {/* Reveal lives directly on the cream page surface, matching app theme. */}
+      <Box
+        sx={{
+          position: 'relative',
+          padding: { xs: '24px 8px 16px', md: '40px 16px 24px' },
+          mb: showSummary ? 3 : 0,
+          minHeight: { xs: 320, md: 440 },
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        {hasLegendary && showSummary && (
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background: `radial-gradient(ellipse at center, ${inkstashColors.gold}1a 0%, transparent 65%)`,
+            }}
+          />
+        )}
 
-      <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 5 }, position: 'relative', zIndex: 1 }}>
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontSize: 11,
-            color: inkstashColors.muted,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            mb: 1,
-          }}
-        >
-          {pack.partner}
+        <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 4 }, position: 'relative', zIndex: 1 }}>
+          <Box
+            sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              color: inkstashColors.muted,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              mb: 1,
+            }}
+          >
+            {pack.partner}
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 800,
+              fontSize: { xs: 24, md: 32 },
+              textTransform: 'uppercase',
+              letterSpacing: '0.005em',
+              color: inkstashColors.ink,
+            }}
+          >
+            {pack.name}
+          </Typography>
         </Box>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.display,
-            fontWeight: 800,
-            fontSize: { xs: 24, md: 32 },
-            textTransform: 'uppercase',
-            letterSpacing: '0.005em',
-            color: inkstashColors.ink,
-          }}
-        >
-          {pack.name}
-        </Typography>
-      </Box>
 
-      {!showSummary && (
         <Stack
           direction="row"
           gap={{ xs: 1.5, md: 2.5 }}
@@ -831,44 +1037,95 @@ function RevealStage({
                 <FlipCard key={item.id + ':' + idx} item={item} flipped={idx < flippedCount} />
               ))}
         </Stack>
-      )}
 
-      {!showSummary && (
-        <Box
-          sx={{
-            textAlign: 'center',
-            mt: 3,
-            fontFamily: inkstashFonts.mono,
-            fontSize: 11,
-            color: inkstashColors.muted,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {isOpening
-            ? 'Opening pack...'
-            : flippedCount < items.length
-              ? `${flippedCount} / ${items.length} revealed`
-              : ' '}
-        </Box>
-      )}
+        {!showSummary && (
+          <Box
+            sx={{
+              textAlign: 'center',
+              mt: 3,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              color: inkstashColors.muted,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            {isOpening
+              ? 'Opening pack...'
+              : flippedCount < items.length
+                ? `${flippedCount} / ${items.length} revealed`
+                : ' '}
+          </Box>
+        )}
+
+        {showSummary && hasLegendary && (
+          <Box sx={{ textAlign: 'center', mt: 3, position: 'relative', zIndex: 1 }}>
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.display,
+                fontWeight: 900,
+                fontSize: { xs: 20, md: 24 },
+                color: inkstashColors.gold,
+                textTransform: 'uppercase',
+                letterSpacing: '0.01em',
+              }}
+            >
+              Legendary Pull
+            </Typography>
+            <Box
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                color: inkstashColors.muted,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                mt: 0.5,
+              }}
+            >
+              Top tier drop — exceptional find
+            </Box>
+          </Box>
+        )}
+      </Box>
 
       {showSummary && (
-        <Box sx={{ maxWidth: 640, mx: 'auto', position: 'relative', zIndex: 1 }}>
-          {hasLegendary && (
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <Typography
-                sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontWeight: 900,
-                  fontSize: 22,
-                  color: inkstashColors.gold,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Legendary Pull
-              </Typography>
+        <Box sx={{ maxWidth: 720, mx: 'auto', position: 'relative', zIndex: 1 }}>
+          <Stack gap={1} mb={pendingCommonsRubies > 0 || hasPendingDecisions ? 2 : 4}>
+            {sortedItems.map((item, idx) => (
+              <CardDispositionRow
+                key={item.id + ':' + idx}
+                item={item}
+                inventoryId={item.inventory_id ?? null}
+                disposition={
+                  item.inventory_id ? dispositions[item.inventory_id] ?? 'pending' : 'pending'
+                }
+                payoutRubies={item.inventory_id ? payouts[item.inventory_id] : null}
+                globalBusy={bulkBusy}
+                onChange={(next, payoutRubies) =>
+                  item.inventory_id && onDispositionChange(item.inventory_id, next, payoutRubies)
+                }
+                packOrigin={pack.origin}
+              />
+            ))}
+          </Stack>
+
+          {hasPendingDecisions && (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              gap={1.25}
+              justifyContent="center"
+              sx={{
+                mb: 3,
+                padding: '12px 16px',
+                bgcolor: inkstashColors.bgSunken,
+                border: `1px solid ${inkstashColors.border}`,
+                borderRadius: inkstashRadii.md,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
               <Box
                 sx={{
                   fontFamily: inkstashFonts.mono,
@@ -876,19 +1133,90 @@ function RevealStage({
                   color: inkstashColors.muted,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  mt: 0.5,
+                  flex: 1,
+                  textAlign: { xs: 'center', sm: 'left' },
                 }}
               >
-                Top tier drop — exceptional find
+                Quick actions
               </Box>
-            </Box>
+              {pendingCommonsRubies > 0 && (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={onSellAllCommons}
+                  disabled={bulkBusy}
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    bgcolor: inkstashColors.brand,
+                    color: '#fff',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: 999,
+                    fontFamily: inkstashFonts.ui,
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: bulkBusy ? 'wait' : 'pointer',
+                    opacity: bulkBusy ? 0.6 : 1,
+                    transition: 'background 140ms ease, transform 100ms ease, opacity 140ms ease',
+                    '&:hover': bulkBusy ? {} : { bgcolor: inkstashColors.brandDeep },
+                    '&:active': bulkBusy ? {} : { transform: 'scale(0.97)' },
+                  }}
+                >
+                  {bulkBusy ? (
+                    <>
+                      <Box
+                        sx={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTopColor: '#fff',
+                          animation: 'inkstashBulkSpin 0.7s linear infinite',
+                          '@keyframes inkstashBulkSpin': { to: { transform: 'rotate(360deg)' } },
+                        }}
+                      />
+                      Selling commons...
+                    </>
+                  ) : (
+                    <>
+                      Sell all commons{' '}
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
+                        <RubyIcon size={11} color="#fff" />
+                        {pendingCommonsRubies.toLocaleString('en-US')}
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              )}
+              <Box
+                component="button"
+                type="button"
+                onClick={onKeepAllRemaining}
+                disabled={bulkBusy}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  bgcolor: 'transparent',
+                  color: inkstashColors.ink2,
+                  border: `1px solid ${inkstashColors.border}`,
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  fontFamily: inkstashFonts.ui,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  cursor: bulkBusy ? 'not-allowed' : 'pointer',
+                  opacity: bulkBusy ? 0.5 : 1,
+                  transition: 'background 140ms ease, opacity 140ms ease',
+                  '&:hover': bulkBusy ? {} : { bgcolor: inkstashColors.bgElev, color: inkstashColors.ink },
+                }}
+              >
+                Keep everything else
+              </Box>
+            </Stack>
           )}
-
-          <Stack gap={1} mb={4}>
-            {sortedItems.map((item, idx) => (
-              <SummaryRow key={item.id + ':' + idx} item={item} />
-            ))}
-          </Stack>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -959,7 +1287,7 @@ function PlaceholderCard({ index }: { index: number }) {
   return (
     <Box
       sx={{
-        width: { xs: 140, sm: 170 },
+        width: { xs: 150, sm: 180, md: 210 },
         aspectRatio: '0.66',
         borderRadius: inkstashRadii.md,
         background: `linear-gradient(135deg, ${inkstashColors.brandDeep}, ${inkstashColors.ink})`,
@@ -1010,10 +1338,11 @@ function PlaceholderCard({ index }: { index: number }) {
 function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
   const borderColor = RARITY_BORDER[item.rarity] ?? RARITY_BORDER.common;
   const glow = RARITY_GLOW[item.rarity] ?? RARITY_GLOW.common;
-  const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
+  const isLegendary = item.rarity === 'legendary';
+  const isRare = item.rarity === 'rare';
 
   return (
-    <Box sx={{ perspective: '1000px', width: { xs: 140, sm: 170 }, aspectRatio: '0.66' }}>
+    <Box sx={{ perspective: '1000px', width: { xs: 160, sm: 200, md: 240 }, aspectRatio: '0.66' }}>
       <Box
         sx={{
           width: '100%',
@@ -1041,8 +1370,8 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
         >
           <Box
             sx={{
-              width: 56,
-              height: 56,
+              width: 64,
+              height: 64,
               borderRadius: '50%',
               background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
               display: 'flex',
@@ -1051,11 +1380,11 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
               opacity: 0.85,
             }}
           >
-            <Sparkles size={26} color="#fff" />
+            <Sparkles size={30} color="#fff" />
           </Box>
         </Box>
 
-        {/* Front */}
+        {/* Front — full art only, no info strip */}
         <Box
           sx={{
             position: 'absolute',
@@ -1064,176 +1393,90 @@ function FlipCard({ item, flipped }: { item: PackItem; flipped: boolean }) {
             WebkitBackfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)',
             borderRadius: inkstashRadii.md,
-            bgcolor: inkstashColors.bgElev,
-            border: `1px solid ${borderColor}`,
+            bgcolor: inkstashColors.bgSunken,
+            border: `1.5px solid ${borderColor}`,
             boxShadow: flipped ? glow : 'none',
-            display: 'flex',
-            flexDirection: 'column',
             overflow: 'hidden',
-            transition: 'box-shadow 300ms ease',
+            transition: 'box-shadow 300ms ease, transform 200ms ease',
+            '&:hover': flipped ? { transform: 'rotateY(180deg) scale(1.02)' } : {},
           }}
         >
-          <Box
-            sx={{
-              flex: 1,
-              background: item.image_url
-                ? `url(${item.image_url}) center/cover no-repeat`
-                : `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {!item.image_url && (
-              <Box
-                sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontSize: 32,
-                  color: inkstashColors.ink,
-                  opacity: 0.4,
-                }}
-              >
-                {item.rarity === 'legendary' ? '★' : item.rarity === 'rare' ? '◆' : '●'}
-              </Box>
-            )}
-          </Box>
-          <Box sx={{ p: 1.25, bgcolor: inkstashColors.bgElev }}>
+          {item.image_url ? (
+            <Box
+              component="img"
+              src={item.image_url}
+              alt={item.comic_title}
+              sx={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : (
             <Box
               sx={{
-                fontFamily: inkstashFonts.ui,
-                fontWeight: 700,
-                fontSize: 11,
+                width: '100%',
+                height: '100%',
+                background: `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: inkstashFonts.display,
+                fontSize: 48,
                 color: inkstashColors.ink,
-                lineHeight: 1.2,
-                mb: 0.4,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                opacity: 0.35,
               }}
             >
-              {item.comic_title}
+              {isLegendary ? '★' : isRare ? '◆' : '●'}
             </Box>
-            {item.issue_number && (
-              <Box
-                sx={{
-                  fontFamily: inkstashFonts.mono,
-                  fontSize: 9.5,
-                  color: inkstashColors.muted,
-                  mb: 0.4,
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {item.issue_number}
-              </Box>
-            )}
+          )}
+
+          {/* Rarity badge overlay */}
+          {isLegendary && (
             <Box
               sx={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                bgcolor: inkstashColors.gold,
+                color: '#fff',
+                padding: '4px 9px',
+                borderRadius: 999,
                 fontFamily: inkstashFonts.mono,
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: 700,
-                color: labelColor,
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                boxShadow: `0 2px 12px ${inkstashColors.gold}aa`,
               }}
             >
-              {RARITY_LABEL[item.rarity] ?? item.rarity}
-              {item.grade && ` · ${item.grade}`}
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
-function SummaryRow({ item }: { item: PackItem }) {
-  const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
-  const borderColor = item.rarity === 'common' ? inkstashColors.border : RARITY_BORDER[item.rarity];
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        padding: '12px 16px',
-        bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${borderColor}`,
-        borderRadius: inkstashRadii.md,
-      }}
-    >
-      <Box
-        sx={{
-          width: 44,
-          height: 58,
-          borderRadius: inkstashRadii.sm,
-          bgcolor: inkstashColors.bgSunken,
-          flexShrink: 0,
-          backgroundImage: item.image_url ? `url(${item.image_url})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          border: `1px solid ${inkstashColors.border}`,
-        }}
-      />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.ui,
-            fontWeight: 700,
-            fontSize: 14,
-            color: inkstashColors.ink,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {item.comic_title}
-          {item.issue_number && (
-            <Box component="span" sx={{ color: inkstashColors.muted, fontWeight: 400 }}>
-              {' '}
-              {item.issue_number}
+              Legendary
             </Box>
           )}
-        </Box>
-        <Stack direction="row" gap={1} alignItems="center" mt={0.3}>
-          <Box
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: 10.5,
-              fontWeight: 700,
-              color: labelColor,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            {RARITY_LABEL[item.rarity] ?? item.rarity}
-          </Box>
-          {item.grade && (
+          {isRare && (
             <Box
               sx={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                bgcolor: inkstashColors.brand,
+                color: '#fff',
+                padding: '4px 9px',
+                borderRadius: 999,
                 fontFamily: inkstashFonts.mono,
-                fontSize: 10.5,
-                color: inkstashColors.muted,
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                boxShadow: `0 2px 12px ${inkstashColors.brand}aa`,
               }}
             >
-              {item.grade}
+              Rare
             </Box>
           )}
-        </Stack>
-      </Box>
-      {item.estimated_value != null && (
-        <Box
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontWeight: 700,
-            fontSize: 13,
-            color: inkstashColors.ink,
-            flexShrink: 0,
-          }}
-        >
-          ~${item.estimated_value.toFixed(2)}
         </Box>
-      )}
+      </Box>
     </Box>
   );
 }
@@ -1259,27 +1502,94 @@ function computeExpectedValue(pack: Pack, items: PackItem[]): number {
   return perDraw * pack.item_count;
 }
 
-function computeValueBands(items: PackItem[]) {
-  const values = items
-    .map((i) => i.estimated_value ?? 0)
-    .filter((v) => v > 0);
+function computeValueBands(pack: Pack, items: PackItem[]) {
+  // Each tier in the pack has a probability weight (e.g. common 0.80, rare 0.18,
+  // legendary 0.02). Each item has an estimated_value. To compute the
+  // probability of pulling a comic in a given value range, we need:
+  //   P(value in band) = Σ_tier  P(tier) × (count of items in tier with value
+  //                                          in band) / (total items in tier)
+  // This is the per-draw probability — the user can read the bands as
+  // "for any single comic I pull, what are the odds it's worth $X?"
 
-  if (values.length === 0) {
-    return [
-      { label: '$0-10', pct: 80, color: inkstashColors.muted2 },
-      { label: '$10-20', pct: 18, color: inkstashColors.brand },
-      { label: '$20+', pct: 2, color: inkstashColors.gold },
-    ];
+  const tiers = pack.rarity_tiers;
+  const valuesByRarity: Record<string, number[]> = { common: [], rare: [], legendary: [] };
+  for (const item of items) {
+    const v = item.estimated_value ?? 0;
+    if (v > 0 && valuesByRarity[item.rarity]) valuesByRarity[item.rarity].push(v);
   }
 
-  const total = values.length;
-  const lo = values.filter((v) => v < 10).length;
-  const mid = values.filter((v) => v >= 10 && v < 20).length;
-  const hi = values.filter((v) => v >= 20).length;
+  const allValues = items.map((i) => i.estimated_value ?? 0).filter((v) => v > 0);
+  if (allValues.length === 0) {
+    return {
+      bands: [
+        { label: '$0-10', pct: 80, color: inkstashColors.muted2 },
+        { label: '$10-20', pct: 18, color: inkstashColors.brand },
+        { label: '$20+', pct: 2, color: inkstashColors.gold },
+      ],
+      hasChase: false,
+    };
+  }
 
-  return [
-    { label: '$0-10', pct: Math.round((lo / total) * 100), color: inkstashColors.muted2 },
-    { label: '$10-20', pct: Math.round((mid / total) * 100), color: inkstashColors.brand },
-    { label: '$20+', pct: Math.round((hi / total) * 100), color: inkstashColors.gold },
-  ];
+  // Pick bucket cutoffs so each rarity tier lands in its own bucket whenever
+  // possible. Use the *max common value* as the lo cutoff (so commons fall in
+  // band 1, anything above is rare+) and the *max rare value* as the hi
+  // cutoff (so rares fall in band 2, chase/legendary land in band 3).
+  // Falls back to spread thirds when a tier is missing.
+  const commonVals = valuesByRarity.common.filter((v) => v > 0);
+  const rareVals = valuesByRarity.rare.filter((v) => v > 0);
+
+  const sortedValues = [...allValues].sort((a, b) => a - b);
+  const min = sortedValues[0];
+  const max = sortedValues[sortedValues.length - 1];
+
+  let loCut: number;
+  let hiCut: number;
+
+  if (commonVals.length > 0 && rareVals.length > 0) {
+    const maxCommon = Math.max(...commonVals);
+    const maxRare = Math.max(...rareVals);
+    // Bump cuts up by $1 so the upper-edge values fall in the *next* band
+    loCut = Math.ceil(maxCommon + 0.01);
+    hiCut = Math.max(loCut + 1, Math.ceil(maxRare + 0.01));
+  } else {
+    // Missing tiers — fall back to thirds across the actual range
+    const span = Math.max(1, max - min);
+    loCut = Math.round(min + span / 3);
+    hiCut = Math.round(min + (2 * span) / 3);
+    if (hiCut <= loCut) hiCut = loCut + 1;
+  }
+
+  // Probability-weighted distribution
+  let pLo = 0, pMid = 0, pHi = 0;
+  for (const rarity of ['common', 'rare', 'legendary'] as const) {
+    const pool = valuesByRarity[rarity];
+    const weight = tiers[rarity] ?? 0;
+    if (!pool || pool.length === 0 || weight === 0) continue;
+    const lo = pool.filter((v) => v < loCut).length;
+    const mid = pool.filter((v) => v >= loCut && v < hiCut).length;
+    const hi = pool.filter((v) => v >= hiCut).length;
+    pLo += weight * (lo / pool.length);
+    pMid += weight * (mid / pool.length);
+    pHi += weight * (hi / pool.length);
+  }
+
+  // Renormalize (rarity tiers may not sum to exactly 1 due to floating point)
+  const sum = pLo + pMid + pHi;
+  if (sum > 0) {
+    pLo /= sum;
+    pMid /= sum;
+    pHi /= sum;
+  }
+
+  const fmt = (n: number) => `$${n}`;
+  const hasChase = items.some((i) => i.is_chase === true);
+
+  return {
+    bands: [
+      { label: `${fmt(0)}-${fmt(loCut)}`, pct: Math.round(pLo * 100), color: inkstashColors.muted2 },
+      { label: `${fmt(loCut)}-${fmt(hiCut)}`, pct: Math.round(pMid * 100), color: inkstashColors.brand },
+      { label: `${fmt(hiCut)}+`, pct: Math.round(pHi * 100), color: inkstashColors.gold },
+    ],
+    hasChase,
+  };
 }
