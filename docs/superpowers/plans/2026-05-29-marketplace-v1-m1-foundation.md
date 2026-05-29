@@ -183,15 +183,19 @@ ALTER TABLE public.disputes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendor_payouts RENAME TO seller_payouts;
 ALTER TABLE public.seller_payouts RENAME COLUMN vendor_id TO payee_user_id;
 
--- Existing FK pointed at vendors.id; backfill payee_user_id to the underlying user_id.
+-- IMPORTANT: drop the old FK BEFORE the backfill UPDATE. The old constraint
+-- (vendor_payouts_vendor_id_fkey) references vendors.id; rewriting the column
+-- values to point at auth.users.id will violate it. Dropping first lets the
+-- UPDATE proceed; we re-add a fresh FK to auth.users afterward.
+ALTER TABLE public.seller_payouts
+  DROP CONSTRAINT IF EXISTS vendor_payouts_vendor_id_fkey;
+
+-- Backfill: existing rows had payee_user_id = vendors.id. Map each to the
+-- vendor's user_id so the column now points at auth.users.
 UPDATE public.seller_payouts sp
 SET payee_user_id = v.user_id
 FROM public.vendors v
 WHERE sp.payee_user_id = v.id;
-
--- Drop the old FK constraint (its name was vendor_payouts_vendor_id_fkey).
-ALTER TABLE public.seller_payouts
-  DROP CONSTRAINT IF EXISTS vendor_payouts_vendor_id_fkey;
 
 -- Add new FK to auth.users.
 ALTER TABLE public.seller_payouts
