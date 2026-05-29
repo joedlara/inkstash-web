@@ -377,34 +377,86 @@ export default function Packs() {
           </Box>
         </Box>
 
-        {/* Pack grid */}
+        {/* Pack grid — single grid when filtered, sectioned grids when 'all' */}
         {(() => {
-          const filteredPacks = packs.filter((p) => {
-            if (originFilter === 'all') return true;
-            return p.origin === originFilter;
-          });
-          return (
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'repeat(2, 1fr)',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
-                lg: 'repeat(4, 1fr)',
-              },
-              gap: { xs: 1.75, md: 2.5 },
-            }}>
-              {loading
-                ? Array.from({ length: 6 }).map((_, i) => <ApiPackSkeleton key={i} />)
-                : filteredPacks.map(pack => (
-                    <ApiPackCard
-                      key={pack.id}
-                      pack={pack}
-                      onOpen={handleOpenPack}
-                    />
-                  ))
-              }
+          const gridSx = {
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(2, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(4, 1fr)',
+            },
+            gap: { xs: 1.75, md: 2.5 },
+          } as const;
+
+          // Loading: show skeletons in a single grid regardless of filter
+          if (loading) {
+            return (
+              <Box sx={gridSx}>
+                {Array.from({ length: 6 }).map((_, i) => <ApiPackSkeleton key={i} />)}
+              </Box>
+            );
+          }
+
+          // House or Vendor filter: single grid, no section header
+          if (originFilter !== 'all') {
+            const filtered = packs.filter((p) => p.origin === originFilter);
+            return (
+              <Box sx={gridSx}>
+                {filtered.map(pack => (
+                  <ApiPackCard key={pack.id} pack={pack} onOpen={handleOpenPack} />
+                ))}
+              </Box>
+            );
+          }
+
+          // 'all' filter: section headers above each origin group, vendor first
+          const vendorPacks = packs.filter((p) => p.origin === 'vendor');
+          const housePacks = packs.filter((p) => p.origin !== 'vendor');
+
+          const SectionHeader = ({ label, count }: { label: string; count: number }) => (
+            <Box
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                color: inkstashColors.muted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 1,
+              }}
+            >
+              <span>{label}</span>
+              <span style={{ color: inkstashColors.muted2 }}>· {count}</span>
             </Box>
+          );
+
+          return (
+            <Stack gap={4}>
+              {vendorPacks.length > 0 && (
+                <Box>
+                  <SectionHeader label="Vendor Collabs" count={vendorPacks.length} />
+                  <Box sx={gridSx}>
+                    {vendorPacks.map(pack => (
+                      <ApiPackCard key={pack.id} pack={pack} onOpen={handleOpenPack} />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {housePacks.length > 0 && (
+                <Box>
+                  <SectionHeader label="InkStash House" count={housePacks.length} />
+                  <Box sx={gridSx}>
+                    {housePacks.map(pack => (
+                      <ApiPackCard key={pack.id} pack={pack} onOpen={handleOpenPack} />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Stack>
           );
         })()}
       </Container>
