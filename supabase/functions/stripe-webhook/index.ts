@@ -250,7 +250,7 @@ async function openVendorPack(
 
   // Idempotency: bail if we already opened this pack for this intent.
   const { data: existing } = await serviceClient
-    .from('vendor_payouts')
+    .from('seller_payouts')
     .select('id')
     .eq('stripe_payment_intent_id', intent.id)
     .maybeSingle()
@@ -311,7 +311,38 @@ async function handleAccountUpdated(
   }
 
   if (!vendor) {
-    console.warn('[stripe-webhook] account.updated for unknown Connect account', account.id)
+    // Not a vendor — check if it's a regular seller (non-vendor user).
+    const { data: sellerUser, error: userLookupError } = await serviceClient
+      .from('users')
+      .select('id, seller_status')
+      .eq('stripe_connect_account_id', account.id)
+      .maybeSingle()
+
+    if (userLookupError) {
+      console.error('[stripe-webhook] seller user lookup failed:', userLookupError)
+      return new Response('DB error', { status: 500 })
+    }
+
+    if (!sellerUser) {
+      console.warn('[stripe-webhook] account.updated for unknown Connect account', account.id)
+      return new Response('ok', { status: 200 })
+    }
+
+    if (sellerUser.seller_status === 'active') {
+      return new Response('ok', { status: 200 })
+    }
+
+    const { error: sellerUpdateError } = await serviceClient
+      .from('users')
+      .update({ seller_status: 'active', updated_at: new Date().toISOString() })
+      .eq('id', sellerUser.id)
+
+    if (sellerUpdateError) {
+      console.error('[stripe-webhook] seller activate failed:', sellerUpdateError)
+      return new Response('DB error', { status: 500 })
+    }
+
+    console.log('[stripe-webhook] seller activated:', sellerUser.id)
     return new Response('ok', { status: 200 })
   }
 

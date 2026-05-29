@@ -23,6 +23,8 @@ interface UserData {
   created_at?: string;
   seller_verified?: boolean;
   seller_verified_at?: string;
+  stripe_connect_account_id?: string | null;
+  seller_status?: 'inactive' | 'pending' | 'active' | 'paused';
 }
 
 interface AuthState {
@@ -188,7 +190,9 @@ class AuthManager {
           onboarding_completed_at,
           created_at,
           seller_verified,
-          seller_verified_at
+          seller_verified_at,
+          stripe_connect_account_id,
+          seller_status
         `
         )
         .eq('id', session.user.id)
@@ -234,6 +238,8 @@ class AuthManager {
           created_at: data.created_at,
           seller_verified: data.seller_verified || false,
           seller_verified_at: data.seller_verified_at,
+          stripe_connect_account_id: data.stripe_connect_account_id,
+          seller_status: data.seller_status,
         };
       }
 
