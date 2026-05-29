@@ -12,7 +12,7 @@
 //      separate rarity-tier weights)
 //   4. Update pack_items remaining
 //   5. Insert user_inventory rows
-//   6. Insert vendor_payouts row (one per purchase)
+//   6. Insert seller_payouts row (one per purchase)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -65,7 +65,7 @@ serve(async (req) => {
 
     // Idempotency: was this intent already processed?
     const { data: existing } = await serviceClient
-      .from('vendor_payouts')
+      .from('seller_payouts')
       .select('id, pack_purchase_id')
       .eq('stripe_payment_intent_id', body.payment_intent_id)
       .maybeSingle()
@@ -170,10 +170,22 @@ serve(async (req) => {
     }))
     await serviceClient.from('user_inventory').insert(inventoryRows)
 
-    // Insert vendor_payouts row
+    // Look up the vendor's user_id — seller_payouts.payee_user_id points at auth.users.
+    const { data: vendorRow } = await serviceClient
+      .from('vendors')
+      .select('user_id')
+      .eq('id', body.vendor_id)
+      .single()
+
+    if (!vendorRow) {
+      console.error('[open-pack-usd] vendor not found for payout insert:', body.vendor_id)
+      return json({ error: 'Vendor not found' }, 500)
+    }
+
+    // Insert seller_payouts row (was vendor_payouts; renamed in M1 migration).
     const vendorAmountCents = body.gross_amount_cents - body.application_fee_amount_cents
-    await serviceClient.from('vendor_payouts').insert({
-      vendor_id: body.vendor_id,
+    await serviceClient.from('seller_payouts').insert({
+      payee_user_id: vendorRow.user_id,
       pack_purchase_id: purchase.id,
       pack_id: body.pack_id,
       gross_amount_cents: body.gross_amount_cents,
