@@ -20,6 +20,7 @@ import OrderManagement from './pages/OrderManagement';
 import Cart from './pages/Cart';
 import MyBids from './pages/MyBids';
 import MyStash from './pages/MyStash';
+import Purchases from './pages/Purchases';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
 import SellerOnboarding from './pages/SellerOnboarding';
@@ -67,6 +68,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/my-bids" element={<MyBids />} />
                 <Route path="/my-stash" element={<MyStash />} />
+                <Route path="/purchases" element={<Purchases />} />
                 <Route path="/settings" element={<AccountSettings />} />
                 <Route path="/v/:handle" element={<VendorProfile />} />
                 <Route path="/profile/:userId" element={<UserProfile />} />
