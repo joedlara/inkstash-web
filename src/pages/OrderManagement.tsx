@@ -75,9 +75,11 @@ export default function OrderManagement() {
         return;
       }
 
-      // Check if user is the seller
-      if (orderData.seller_id !== user?.id) {
-        setError('You are not authorized to manage this order');
+      // Allow either the buyer or the seller to view this order. The seller
+      // gets the management UI; the buyer gets a read-only summary further
+      // down (gated on `isSeller`).
+      if (orderData.seller_id !== user?.id && orderData.buyer_id !== user?.id) {
+        setError('You do not have access to this order');
         return;
       }
 
@@ -189,6 +191,10 @@ export default function OrderManagement() {
   if (!order) return null;
 
   const auction = Array.isArray(order.auctions) ? order.auctions[0] : order.auctions;
+  const listing = Array.isArray(order.listings) ? order.listings[0] : order.listings;
+  const itemTitle = auction?.title ?? listing?.title ?? 'Order item';
+  const itemImage = auction?.image_url ?? listing?.photos?.[0]?.url ?? null;
+  const isSeller = order.seller_id === user?.id;
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -215,7 +221,7 @@ export default function OrderManagement() {
             </Button>
             <Box>
               <Typography variant="h4" component="h1" fontWeight="bold">
-                Manage Order
+                {isSeller ? 'Manage Order' : 'Order Details'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Order #{order.order_number}
@@ -223,13 +229,15 @@ export default function OrderManagement() {
             </Box>
           </Box>
 
-          <Button
-            variant="contained"
-            startIcon={<Edit />}
-            onClick={() => setShowUpdateDialog(true)}
-          >
-            Update Status
-          </Button>
+          {isSeller && (
+            <Button
+              variant="contained"
+              startIcon={<Edit />}
+              onClick={() => setShowUpdateDialog(true)}
+            >
+              Update Status
+            </Button>
+          )}
         </Box>
 
         {error && (
@@ -313,10 +321,10 @@ export default function OrderManagement() {
               </Stack>
             </Paper>
 
-            {/* Customer Details */}
+            {/* Customer Details (seller view) / Shipping address (buyer view) */}
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Customer Information
+                {isSeller ? 'Customer Information' : 'Shipping To'}
               </Typography>
               <Divider sx={{ my: 2 }} />
 
@@ -359,7 +367,7 @@ export default function OrderManagement() {
           {/* Right Column */}
           <Box sx={{ flex: 1 }}>
             {/* Item Details */}
-            {auction && (
+            {(auction || listing) && (
               <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   Item Details
@@ -370,16 +378,21 @@ export default function OrderManagement() {
                   <CardMedia
                     component="img"
                     height="200"
-                    image={auction.image_url || 'https://via.placeholder.com/400x200'}
-                    alt={auction.title}
-                    sx={{ objectFit: 'cover' }}
+                    image={itemImage || 'https://via.placeholder.com/400x200'}
+                    alt={itemTitle}
+                    sx={{ objectFit: 'cover', cursor: 'pointer' }}
+                    onClick={() => navigate(`/item/${auction?.id ?? listing?.id}`)}
                   />
                   <CardContent>
                     <Typography variant="h6" fontWeight={600} gutterBottom>
-                      {auction.title}
+                      {itemTitle}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {order.purchase_type === 'buy_now' ? 'Buy Now Purchase' : 'Auction Win'}
+                      {order.purchase_type === 'listing'
+                        ? 'Marketplace Purchase'
+                        : order.purchase_type === 'buy_now'
+                          ? 'Buy Now Purchase'
+                          : 'Auction Win'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -426,8 +439,8 @@ export default function OrderManagement() {
           </Box>
         </Box>
 
-        {/* Update Status Dialog */}
-        <Dialog open={showUpdateDialog} onClose={() => !updating && setShowUpdateDialog(false)} maxWidth="sm" fullWidth>
+        {/* Update Status Dialog (seller only) */}
+        <Dialog open={isSeller && showUpdateDialog} onClose={() => !updating && setShowUpdateDialog(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Update Order Status</DialogTitle>
           <DialogContent>
             <Stack spacing={3} sx={{ mt: 2 }}>

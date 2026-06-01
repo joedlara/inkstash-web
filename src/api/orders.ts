@@ -3,7 +3,8 @@ import { supabase } from './supabase/supabaseClient';
 export interface Order {
   id: string;
   order_number: string;
-  auction_id: string;
+  auction_id: string | null;
+  listing_id: string | null;
   buyer_id: string;
   seller_id: string;
   payment_method_id?: string;
@@ -21,7 +22,7 @@ export interface Order {
   shipping_cost: number;
   tax: number;
   total: number;
-  purchase_type: 'buy_now' | 'bid_won';
+  purchase_type: 'buy_now' | 'bid_won' | 'listing';
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   tracking_number?: string;
   carrier?: string;
@@ -35,7 +36,14 @@ export interface Order {
     title: string;
     image_url: string;
     description?: string;
-  };
+  } | null;
+  listings?: {
+    id: string;
+    title: string;
+    photos: Array<{ url?: string }> | null;
+    comic_publisher: string | null;
+    source_inventory_id: string | null;
+  } | null;
 }
 
 export interface CreateOrderParams {
@@ -146,6 +154,13 @@ export const ordersAPI = {
           title,
           image_url,
           description
+        ),
+        listings (
+          id,
+          title,
+          photos,
+          comic_publisher,
+          source_inventory_id
         )
       `)
       .eq('buyer_id', user.id)
@@ -173,6 +188,13 @@ export const ordersAPI = {
           title,
           image_url,
           description
+        ),
+        listings (
+          id,
+          title,
+          photos,
+          comic_publisher,
+          source_inventory_id
         )
       `)
       .eq('seller_id', user.id)

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -99,8 +99,7 @@ export default function ItemDetail() {
   // M3-Task6: open CheckoutListingModal on Buy Now (modal built in Task 7)
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchItemDetails() {
+  const fetchItemDetails = useCallback(async () => {
       if (!id) {
         setError('No item ID provided');
         setLoading(false);
@@ -108,6 +107,10 @@ export default function ItemDetail() {
       }
 
       try {
+        // Reset error so a transient failure on attempt N doesn't keep the
+        // "Item not found" page stuck after a later attempt succeeds.
+        setError(null);
+
         // Try to fetch from auctions table first
         let { data: auctionData, error: auctionError } = await supabase
           .from('auctions')
@@ -208,10 +211,49 @@ export default function ItemDetail() {
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchItemDetails();
   }, [id]);
+
+  useEffect(() => {
+    fetchItemDetails();
+  }, [fetchItemDetails]);
+
+  // Post-purchase: when Stripe returns the buyer here with ?listing_purchase=success,
+  // the webhook may still be in flight. Refetch on a short poll until status flips
+  // to 'sold', then strip the param so we don't loop.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('listing_purchase') !== 'success') return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 6; // ~12s of polling
+    const tick = async () => {
+      if (cancelled) return;
+      await fetchItemDetails();
+      attempts += 1;
+      if (cancelled) return;
+      // Use the freshly-fetched item via the next render; check `attempts` and
+      // schedule another tick if we haven't seen 'sold' yet.
+      // We can't read item synchronously here; rely on a fixed timeout cap.
+      if (attempts < maxAttempts) {
+        setTimeout(tick, 2000);
+      }
+    };
+    // Kick the first refetch slightly delayed so the webhook has a head start.
+    setTimeout(tick, 1500);
+
+    return () => { cancelled = true; };
+  }, [searchParams, fetchItemDetails]);
+
+  // Once the item shows as sold, drop the success param so we stop polling and
+  // a back/forward nav doesn't re-trigger the loop.
+  useEffect(() => {
+    if (item?.status === 'sold' && searchParams.get('listing_purchase') === 'success') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('listing_purchase');
+      setSearchParams(next, { replace: true });
+    }
+  }, [item?.status, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!item) return;
