@@ -1,8 +1,12 @@
 // src/components/listings/ComicSearchInput.tsx
 //
 // Autocomplete input wrapping comicCatalogAPI.search(). Renders a dropdown
-// with cover thumbnail + title + publisher chip. Includes a "Don't see your
-// comic? Enter manually." fallback that surfaces a small free-text form.
+// with cover thumbnail + title + publisher chip.
+//
+// As of M4-Task9 the manual-entry fallback lives one level up in
+// ListingStartPanel as a "Don't see your comic? Enter it manually" link
+// that drops the seller on the listing form with no prefill. We do NOT
+// render a manual-entry affordance inside this component anymore.
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -11,7 +15,6 @@ import {
   Paper,
   CircularProgress,
   Typography,
-  Button,
   Chip,
 } from '@mui/material';
 import { comicCatalogAPI, type ComicCatalogResult } from '../../api/comicCatalog';
@@ -39,15 +42,7 @@ export default function ComicSearchInput({ onSelect, initialQuery = '' }: Props)
   const [results, setResults] = useState<ComicCatalogResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showManual, setShowManual] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Manual entry fields
-  const [manualTitle, setManualTitle] = useState('');
-  const [manualIssue, setManualIssue] = useState('');
-  const [manualPublisher, setManualPublisher] = useState('');
-  const [manualWriter, setManualWriter] = useState('');
-  const [manualArtist, setManualArtist] = useState('');
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -78,73 +73,6 @@ export default function ComicSearchInput({ onSelect, initialQuery = '' }: Props)
       writer: r.writer,
       artist: r.artist,
     });
-  }
-
-  function handleManualSubmit() {
-    if (!manualTitle.trim()) return;
-    onSelect({
-      comic_vine_id: null,
-      title: manualTitle.trim(),
-      issue_number: manualIssue.trim() || null,
-      cover_url: null,
-      publisher: manualPublisher.trim() || null,
-      writer: manualWriter.trim() || null,
-      artist: manualArtist.trim() || null,
-    });
-  }
-
-  if (showManual) {
-    return (
-      <Box>
-        <Typography sx={{ fontSize: 13, color: inkstashColors.muted, mb: 1.5, fontFamily: inkstashFonts.mono, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Manual entry
-        </Typography>
-        <TextField
-          fullWidth
-          autoFocus
-          label="Title (required)"
-          value={manualTitle}
-          onChange={(e) => setManualTitle(e.target.value)}
-          sx={{ mb: 1.5 }}
-        />
-        <TextField
-          fullWidth
-          label="Issue number"
-          value={manualIssue}
-          onChange={(e) => setManualIssue(e.target.value)}
-          sx={{ mb: 1.5 }}
-        />
-        <TextField
-          fullWidth
-          label="Publisher"
-          value={manualPublisher}
-          onChange={(e) => setManualPublisher(e.target.value)}
-          sx={{ mb: 1.5 }}
-        />
-        <TextField
-          fullWidth
-          label="Writer"
-          value={manualWriter}
-          onChange={(e) => setManualWriter(e.target.value)}
-          sx={{ mb: 1.5 }}
-        />
-        <TextField
-          fullWidth
-          label="Artist"
-          value={manualArtist}
-          onChange={(e) => setManualArtist(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
-          <Button variant="text" onClick={() => setShowManual(false)} sx={{ color: inkstashColors.muted }}>
-            Back to search
-          </Button>
-          <Button variant="contained" onClick={handleManualSubmit} disabled={!manualTitle.trim()} sx={{ flex: 1, fontWeight: 700 }}>
-            Continue
-          </Button>
-        </Box>
-      </Box>
-    );
   }
 
   return (
@@ -239,36 +167,11 @@ export default function ComicSearchInput({ onSelect, initialQuery = '' }: Props)
 
           {!loading && !error && results.length === 0 && query.length >= 2 && (
             <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 13, color: inkstashColors.muted, mb: 1.5 }}>
-                No matches found for "{query}".
+              <Typography sx={{ fontSize: 13, color: inkstashColors.muted }}>
+                No matches found for &ldquo;{query}&rdquo;. Use &ldquo;Enter it manually&rdquo; below.
               </Typography>
             </Box>
           )}
-
-          <Box
-            component="button"
-            type="button"
-            onClick={() => setShowManual(true)}
-            sx={{
-              display: 'block',
-              width: '100%',
-              p: 1.5,
-              border: 'none',
-              borderTop: `1px solid ${inkstashColors.border}`,
-              bgcolor: 'transparent',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 600,
-              color: inkstashColors.brand,
-              textAlign: 'center',
-              fontFamily: inkstashFonts.mono,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              '&:hover': { bgcolor: inkstashColors.bgSunken },
-            }}
-          >
-            Don't see your comic? Enter manually
-          </Box>
         </Paper>
       )}
     </Box>
