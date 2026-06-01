@@ -58,8 +58,8 @@ import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import PackageDimensionsInput from '../components/listing/PackageDimensionsInput';
 import ShippingRatesDisplay from '../components/listing/ShippingRatesDisplay';
 import ShipFromAddressModal from '../components/listing/ShipFromAddressModal';
-import ComicSearchInput from '../components/listings/ComicSearchInput';
 import type { ComicSelection } from '../components/listings/ComicSearchInput';
+import ListingStartPanel from '../components/listings/ListingStartPanel';
 import SellerConnectGate from '../components/listings/SellerConnectGate';
 import { useListingPersistence } from '../hooks/useListingPersistence';
 import { uploadListingPhoto } from '../utils/photoUpload';
@@ -314,10 +314,9 @@ export default function ListItem() {
   const handleBack = () => {
     if (step === 'complete') {
       setStep('details');
-    } else if (step === 'match') {
-      setStep('search');
     } else if (step === 'details') {
-      setStep('match');
+      // Match step is gone in M4; details goes straight back to search.
+      setStep('search');
     } else {
       navigate('/seller-dashboard?tab=mystore');
     }
@@ -342,26 +341,6 @@ export default function ListItem() {
     }
   };
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setShowSuggestions(false);
-      setStep('match');
-    }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
-  };
-
-  const handleSearchFocus = () => {
-    setShowSuggestions(true);
-  };
-
-  const handleClickAway = () => {
-    setShowSuggestions(false);
-  };
-
   const handleRestoreDraft = () => {
     setShowDraftDialog(false);
     // Show reminder about photos if on complete step and no photos
@@ -384,7 +363,8 @@ export default function ListItem() {
       artist: sel.artist ?? '',
       coverImageUrl: sel.cover_url ?? '',
       comicVineId: sel.comic_vine_id,
-      step: 'match',
+      // Skip the deleted 'match' step - go straight into the details form.
+      step: 'details',
     });
   };
 
@@ -598,117 +578,8 @@ export default function ListItem() {
   };
 
   const renderSearchStep = () => (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
-      <Box sx={{ textAlign: 'center', mb: 5 }}>
-        <Typography variant="h3" fontWeight={700} gutterBottom sx={{ fontFamily: inkstashFonts.display }}>
-          List a comic
-        </Typography>
-        <Typography variant="body1" sx={{ color: inkstashColors.muted }}>
-          Search the ComicVine catalog or enter your comic's details manually.
-        </Typography>
-      </Box>
-
-      <ComicSearchInput onSelect={(sel) => handleComicSelected(sel)} />
-    </Container>
+    <ListingStartPanel onPicked={(sel) => handleComicSelected(sel)} />
   );
-
-  const renderMatchStep = () => {
-    const handleFilterChange = (filterKey: keyof typeof detailFilters, value: string) => {
-      setDetailFilters({
-        ...detailFilters,
-        [filterKey]: value,
-      });
-    };
-
-    const renderFilterDropdown = (
-      label: string,
-      filterKey: keyof typeof detailFilters,
-      options: string[]
-    ) => (
-      <FormControl fullWidth size="small">
-        <InputLabel>{label}</InputLabel>
-        <Select
-          value={detailFilters[filterKey] || ''}
-          label={label}
-          onChange={(e) => handleFilterChange(filterKey, e.target.value)}
-          MenuProps={{
-            PaperProps: {
-              style: {
-                maxHeight: 200,
-              },
-            },
-          }}
-        >
-          <MenuItem value="">
-            <em>Select {label.toLowerCase()}</em>
-          </MenuItem>
-          {options.slice(0, 5).map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    );
-
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Find a match
-          </Typography>
-          <Typography variant="body1" color="text.secondary" gutterBottom>
-            for "{searchQuery}"
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-          {/* Left Sidebar - Filters */}
-          <Paper sx={{ p: 2, borderRadius: 2, width: { xs: '100%', md: 280 }, flexShrink: 0 }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Add details to sharpen results
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <Stack spacing={2}>
-              {renderFilterDropdown('Type', 'type', DETAIL_FILTER_OPTIONS.type)}
-              {renderFilterDropdown('Brand', 'brand', DETAIL_FILTER_OPTIONS.brand)}
-              {renderFilterDropdown('Year', 'year', DETAIL_FILTER_OPTIONS.year)}
-              {renderFilterDropdown('Exclusive/Release', 'exclusiveEventRetailer', DETAIL_FILTER_OPTIONS.exclusiveEventRetailer)}
-              {renderFilterDropdown('Franchise', 'franchise', DETAIL_FILTER_OPTIONS.franchise)}
-              {renderFilterDropdown('Theme', 'theme', DETAIL_FILTER_OPTIONS.theme)}
-              {renderFilterDropdown('Features', 'features', DETAIL_FILTER_OPTIONS.features)}
-            </Stack>
-          </Paper>
-
-        {/* Right Side - Results */}
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-            Product library matches
-          </Typography>
-
-          {/* No matches message - TODO: This will be replaced when API is integrated */}
-          <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50', mb: 3 }}>
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              No matches found in our product library
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              You can continue without a match and manually enter your item details.
-            </Typography>
-          </Paper>
-
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{ py: 2 }}
-            onClick={() => setStep('details')}
-          >
-            Continue without match
-          </Button>
-        </Box>
-      </Box>
-    </Container>
-    );
-  };
 
   const renderDetailsStep = () => (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -1455,7 +1326,6 @@ export default function ListItem() {
       {/* Main Content */}
       <Box sx={{ minHeight: 'calc(100vh - 200px)' }}>
         {step === 'search' && renderSearchStep()}
-        {step === 'match' && renderMatchStep()}
         {step === 'details' && renderDetailsStep()}
         {step === 'complete' && renderCompleteListingStep()}
       </Box>

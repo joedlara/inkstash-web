@@ -30,10 +30,12 @@ export interface ComicSelection {
 
 interface Props {
   onSelect: (selection: ComicSelection) => void;
+  /** Seed the input on first render. Useful for "Try this" chips that prefill the search. */
+  initialQuery?: string;
 }
 
-export default function ComicSearchInput({ onSelect }: Props) {
-  const [query, setQuery] = useState('');
+export default function ComicSearchInput({ onSelect, initialQuery = '' }: Props) {
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<ComicCatalogResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
