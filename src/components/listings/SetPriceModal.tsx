@@ -175,8 +175,10 @@ export default function SetPriceModal({
           {submitting ? <CircularProgress size={20} color="inherit" /> : 'List for sale'}
         </Button>
 
-        <Typography sx={{ mt: 1.5, fontSize: 10.5, color: inkstashColors.muted, textAlign: 'center', fontFamily: inkstashFonts.mono, letterSpacing: '0.04em' }}>
+        <Typography sx={{ mt: 1.5, fontSize: 10.5, color: inkstashColors.muted, textAlign: 'center', fontFamily: inkstashFonts.mono, letterSpacing: '0.04em', lineHeight: 1.6 }}>
           Book stays in the InkStash vault. We ship to the buyer on sale.
+          <br />
+          Listing forfeits the Ruby sell-back option permanently, even if delisted.
         </Typography>
       </Box>
     </Dialog>
