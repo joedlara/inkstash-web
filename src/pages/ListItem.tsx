@@ -458,6 +458,17 @@ export default function ListItem() {
     setIsSubmitting(true);
     setSubmitError('');
 
+    // Belt-and-suspenders: if anything in the flow wedges (storage hang,
+    // unhandled promise, Supabase WebSocket stall), unlock the button after
+    // 90s so the user can retry instead of staring at a forever-spinner.
+    const watchdog = setTimeout(() => {
+      console.warn('[handleSubmitListing] watchdog tripped after 90s');
+      setSubmitError(
+        'Listing is taking longer than expected. Refresh the page and resume your draft to try again.',
+      );
+      setIsSubmitting(false);
+    }, 90_000);
+
     try {
       // Calculate auction end time if this is an auction
       const auctionStartTime = isAuction ? new Date() : null;
@@ -548,7 +559,7 @@ export default function ListItem() {
           if (photo.file) {
             return withTimeout(
               uploadListingPhoto(photo.file, user.id, itemId, photo.type),
-              30_000,
+              60_000,
               `Photo upload (${photo.file.name})`,
             );
           }
@@ -599,6 +610,7 @@ export default function ListItem() {
       console.error('Error creating listing:', error);
       setSubmitError(error.message || 'Failed to create listing. Please try again.');
     } finally {
+      clearTimeout(watchdog);
       setIsSubmitting(false);
     }
   };
