@@ -1,7 +1,12 @@
 // src/components/listings/SetPriceModal.tsx
 //
-// Lightweight modal: enter asking price, see the 90/10 fee breakdown,
-// confirm to list. Calls listingsAPI.listVaultItem and closes on success.
+// Lightweight modal: enter asking price, confirm to list.
+// Calls listingsAPI.listVaultItem and closes on success.
+//
+// Intentionally does NOT surface InkStash's fee. The seller priced the
+// item — framing their decision around our cut is paternalistic and
+// discourages listing. The fee still gets snapshotted into the listing
+// row server-side (application_fee_pct column); we just don't pre-narrate it.
 
 import { useEffect, useState } from 'react';
 import {
@@ -28,8 +33,6 @@ interface Props {
   onListed?: (listingId: string) => void;
 }
 
-const FEE_PCT = 0.10;
-
 export default function SetPriceModal({
   open, onClose, inventoryId, itemTitle, itemImageUrl, onListed,
 }: Props) {
@@ -50,9 +53,6 @@ export default function SetPriceModal({
     if (!isFinite(parsed) || parsed <= 0) return 0;
     return Math.round(parsed * 100);
   })();
-
-  const feeCents = Math.round(priceCents * FEE_PCT);
-  const receiveCents = priceCents - feeCents;
 
   const canSubmit = priceCents >= 100 && !submitting;
 
@@ -163,27 +163,7 @@ export default function SetPriceModal({
           sx={{ mb: 2 }}
         />
 
-        {/* Fee breakdown */}
-        <Box
-          sx={{
-            bgcolor: inkstashColors.bgSunken,
-            border: `1px solid ${inkstashColors.border}`,
-            borderRadius: inkstashRadii.md,
-            p: 1.5,
-            mb: 2.5,
-            fontFamily: inkstashFonts.mono,
-            fontSize: 13,
-            color: inkstashColors.ink,
-          }}
-        >
-          <Row label="Buyers will pay" value={`$${(priceCents / 100).toFixed(2)}`} />
-          <Row label="InkStash fee (10%)" value={`-$${(feeCents / 100).toFixed(2)}`} color={inkstashColors.muted} />
-          <Box sx={{ borderTop: `1px solid ${inkstashColors.border}`, mt: 1, pt: 1 }}>
-            <Row label="You'll receive" value={`$${(receiveCents / 100).toFixed(2)}`} bold />
-          </Box>
-        </Box>
-
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2, mt: 0.5 }}>{error}</Alert>}
 
         <Button
           variant="contained"
@@ -203,11 +183,3 @@ export default function SetPriceModal({
   );
 }
 
-function Row({ label, value, color, bold }: { label: string; value: string; color?: string; bold?: boolean }) {
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', py: 0.25 }}>
-      <span style={{ color: color ?? 'inherit' }}>{label}</span>
-      <span style={{ fontWeight: bold ? 700 : 400, color: color ?? 'inherit' }}>{value}</span>
-    </Box>
-  );
-}
