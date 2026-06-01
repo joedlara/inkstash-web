@@ -151,7 +151,8 @@ export default function ListItem() {
   const buyNowPrice = formData.buyNowPrice;
   const auctionDurationDays = formData.auctionDurationDays;
   const startingBid = formData.startingBid;
-  const deliveryMethod = formData.deliveryMethod;
+  // Marketplace v1 is shipping-only; force any stale 'pickup' draft back to 'shipping'.
+  const deliveryMethod = 'shipping';
   const isGraded = formData.isGraded;
   const professionalGrader = formData.professionalGrader;
   const grade = formData.grade;
@@ -530,28 +531,44 @@ export default function ListItem() {
         }
       }
 
-      // Step 2: Upload all photos to S3 with the item ID
+      // Step 2: Upload all photos to S3 in parallel with a 30s timeout each.
+      // Sequential awaits used to wedge the whole flow if a single upload
+      // hung (no timeout on the storage client), giving sellers an infinite
+      // "Uploading photos..." spinner with no way to recover.
+      const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+        Promise.race([
+          p,
+          new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
+          ),
+        ]);
+
+      const uploadResults = await Promise.allSettled(
+        uploadedPhotos.map((photo) => {
+          if (photo.file) {
+            return withTimeout(
+              uploadListingPhoto(photo.file, user.id, itemId, photo.type),
+              30_000,
+              `Photo upload (${photo.file.name})`,
+            );
+          }
+          // Already uploaded - pass through.
+          if (photo.path) return Promise.resolve(photo);
+          return Promise.reject(new Error('Photo missing file and path'));
+        }),
+      );
+
       const finalUploadedPhotos: UploadedPhoto[] = [];
-
-      for (let i = 0; i < uploadedPhotos.length; i++) {
-        const photo = uploadedPhotos[i];
-
-        // Only upload if the photo has a file (local preview)
-        if (photo.file) {
-          const uploadedPhoto = await uploadListingPhoto(
-            photo.file,
-            user.id,
-            itemId,
-            photo.type
-          );
-          finalUploadedPhotos.push(uploadedPhoto);
-        } else if (photo.path) {
-          // Photo already uploaded (shouldn't happen with new flow, but keeping for safety)
-          finalUploadedPhotos.push(photo);
+      const uploadFailures: string[] = [];
+      uploadResults.forEach((res, i) => {
+        if (res.status === 'fulfilled') {
+          finalUploadedPhotos.push(res.value);
+        } else {
+          uploadFailures.push(`Photo ${i + 1}: ${res.reason.message || 'upload failed'}`);
         }
-      }
+      });
 
-      // Step 3: Update the listing with the uploaded photo URLs
+      // Step 3: Update the listing with whichever photo URLs succeeded.
       if (finalUploadedPhotos.length > 0) {
         const { error: updateError } = await supabase
           .from('listings')
@@ -562,13 +579,22 @@ export default function ListItem() {
 
         if (updateError) {
           console.error('Error updating photos:', updateError);
-          // Don't throw error - listing was created successfully, just without photos displayed
         }
       }
 
-      // Step 4: Clear the draft and navigate to success page
+      if (uploadFailures.length > 0) {
+        // Listing exists but some photos failed - tell the seller what
+        // happened instead of silently navigating. They can edit later.
+        setSubmitError(
+          `Listing created, but ${uploadFailures.length} photo(s) failed to upload: ${uploadFailures.join('; ')}. You can edit and re-upload from your seller dashboard.`,
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Step 4: Clear the draft and take the seller straight to their new listing.
       clearDraft();
-      navigate('/seller-dashboard?tab=mystore');
+      navigate(`/item/${itemId}`);
     } catch (error: any) {
       console.error('Error creating listing:', error);
       setSubmitError(error.message || 'Failed to create listing. Please try again.');
@@ -653,14 +679,6 @@ export default function ListItem() {
           <Typography variant="h5" fontWeight={700}>
             Item specifics
           </Typography>
-          <Button
-            variant="text"
-            size="small"
-            sx={{ textTransform: 'none', color: 'primary.main', textDecoration: 'underline' }}
-            onClick={() => setStep('details')}
-          >
-            Change
-          </Button>
         </Stack>
 
         <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -890,73 +908,38 @@ export default function ListItem() {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* DELIVERY Section */}
+      {/* DELIVERY Section — shipping only in v1 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" fontWeight={700} gutterBottom>
-          Delivery
+          Shipping
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Enter your package dimensions to fetch live carrier rates.
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <Button
-            variant={deliveryMethod === 'shipping' ? 'contained' : 'outlined'}
-            onClick={() => setDeliveryMethod('shipping')}
-            sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Shipping only
-            </Typography>
-            <Typography variant="caption">
-              Ship items directly to buyers with real-time rates.
-            </Typography>
-          </Button>
+        <PackageDimensionsInput
+          weightValue={packageWeightValue}
+          weightUnit={packageWeightUnit}
+          length={packageLength}
+          width={packageWidth}
+          height={packageHeight}
+          dimensionUnit={packageDimensionUnit}
+          onWeightValueChange={setPackageWeightValue}
+          onWeightUnitChange={setPackageWeightUnit}
+          onLengthChange={setPackageLength}
+          onWidthChange={setPackageWidth}
+          onHeightChange={setPackageHeight}
+          onDimensionUnitChange={setPackageDimensionUnit}
+          onGetRates={handleGetShippingRates}
+          isLoading={loadingRates}
+          error={submitError}
+        />
 
-          <Button
-            variant={deliveryMethod === 'pickup' ? 'contained' : 'outlined'}
-            onClick={() => setDeliveryMethod('pickup')}
-            sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Pickup only
-            </Typography>
-            <Typography variant="caption">
-              Arrange local pickup without any shipping costs.
-            </Typography>
-          </Button>
-        </Box>
-
-        {deliveryMethod === 'shipping' && (
-          <>
-            <PackageDimensionsInput
-              weightValue={packageWeightValue}
-              weightUnit={packageWeightUnit}
-              length={packageLength}
-              width={packageWidth}
-              height={packageHeight}
-              dimensionUnit={packageDimensionUnit}
-              onWeightValueChange={setPackageWeightValue}
-              onWeightUnitChange={setPackageWeightUnit}
-              onLengthChange={setPackageLength}
-              onWidthChange={setPackageWidth}
-              onHeightChange={setPackageHeight}
-              onDimensionUnitChange={setPackageDimensionUnit}
-              onGetRates={handleGetShippingRates}
-              isLoading={loadingRates}
-              error={submitError}
-            />
-
-            <ShippingRatesDisplay
-              rates={shippingRates}
-              selectedRateId={selectedShippingRateId}
-              onSelectRate={setSelectedShippingRateId}
-            />
-          </>
-        )}
-
-        {deliveryMethod === 'pickup' && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Buyers will arrange to pick up the item from you directly. Make sure to specify pickup details in your item description.
-          </Alert>
-        )}
+        <ShippingRatesDisplay
+          rates={shippingRates}
+          selectedRateId={selectedShippingRateId}
+          onSelectRate={setSelectedShippingRateId}
+        />
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -971,7 +954,7 @@ export default function ListItem() {
         </Typography>
 
         <Typography variant="caption" color="text.secondary" display="block" sx={{ my: 2 }}>
-          By selecting List it, you agree to accept the eBay User Agreement and Payments Terms of Use, acknowledge reading the User Privacy Notice, agree to offer products and services that comply with all applicable laws, and assume full responsibility for the item offered and the content of your listing.
+          By selecting List it, you agree to InkStash's seller terms, confirm the item is yours to sell, and assume responsibility for shipping it within 5 business days of sale.
         </Typography>
 
         {submitError && (
