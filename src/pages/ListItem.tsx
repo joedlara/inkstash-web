@@ -15,6 +15,7 @@ import {
   Divider,
   InputAdornment,
   Alert,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,6 +30,7 @@ import {
   ArrowBack,
   HelpOutline,
   Add,
+  AutoAwesome,
   Image as ImageIcon,
   Restore,
 } from '@mui/icons-material';
@@ -313,9 +315,6 @@ export default function ListItem() {
 
   const handleBack = () => {
     if (step === 'complete') {
-      setStep('details');
-    } else if (step === 'details') {
-      // Match step is gone in M4; details goes straight back to search.
       setStep('search');
     } else {
       navigate('/seller-dashboard?tab=mystore');
@@ -363,8 +362,9 @@ export default function ListItem() {
       artist: sel.artist ?? '',
       coverImageUrl: sel.cover_url ?? '',
       comicVineId: sel.comic_vine_id,
-      // Skip the deleted 'match' step - go straight into the details form.
-      step: 'details',
+      // Skip the deleted 'match' + 'details' confirm steps. Go straight
+      // to the listing form so the seller fills it out in one place.
+      step: 'complete',
     });
   };
 
@@ -581,227 +581,6 @@ export default function ListItem() {
     <ListingStartPanel onPicked={(sel) => handleComicSelected(sel)} />
   );
 
-  const renderDetailsStep = () => (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper sx={{ p: 4, borderRadius: 2 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Confirm details
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-          The item details below will pre-fill your listing.
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <Box
-            sx={{
-              width: { xs: '100%', sm: 200 },
-              height: 200,
-              bgcolor: 'grey.100',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              Product Image
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              {searchQuery || 'Item from search'}
-            </Typography>
-            {Object.entries(detailFilters).map(([key, value]) =>
-              value ? (
-                <Typography key={key} variant="body2" color="text.secondary" gutterBottom>
-                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {value}
-                </Typography>
-              ) : null
-            )}
-            <Button variant="text" size="small" sx={{ mt: 1 }}>
-              Show more
-            </Button>
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* Is Graded Toggle */}
-        <Box sx={{ mb: 4 }}>
-          <Paper sx={{ p: 3, bgcolor: isGraded ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Is this item professionally graded?
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Items graded by PSA, BGS, CGC, or other professional grading companies
-                </Typography>
-              </Box>
-              <Switch
-                checked={isGraded}
-                onChange={(e) => setIsGraded(e.target.checked)}
-              />
-            </Stack>
-          </Paper>
-        </Box>
-
-        {/* Grading Details - Show only if item is graded */}
-        {isGraded && (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              Enter grading details
-            </Typography>
-            <Stack spacing={3}>
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Professional Grader
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <FormControl fullWidth>
-                  <InputLabel id="grader-select-label">Select a grader</InputLabel>
-                  <Select
-                    labelId="grader-select-label"
-                    value={professionalGrader}
-                    label="Select a grader"
-                    onChange={(e) => setProfessionalGrader(e.target.value)}
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select a grader</em>
-                    </MenuItem>
-                    {GRADER_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Grade
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <FormControl fullWidth>
-                  <InputLabel id="grade-select-label">Select grade</InputLabel>
-                  <Select
-                    labelId="grade-select-label"
-                    value={grade}
-                    label="Select grade"
-                    onChange={(e) => setGrade(e.target.value)}
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select grade</em>
-                    </MenuItem>
-                    {GRADE_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Certification Number (optional)
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <TextField
-                  fullWidth
-                  value={certificationNumber}
-                  onChange={(e) => setCertificationNumber(e.target.value)}
-                  placeholder="Enter certification number (optional)"
-                  helperText="You can add this later if you don't have it now"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                    },
-                  }}
-                />
-              </Box>
-            </Stack>
-          </Box>
-        )}
-
-        {/* Condition - Show only if NOT graded */}
-        {!isGraded && (
-          <Box sx={{ mb: 4 }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Select the condition of your item
-              </Typography>
-              <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-            </Stack>
-            <FormControl fullWidth>
-                <InputLabel id="condition-select-label">Condition</InputLabel>
-                <Select
-                  labelId="condition-select-label"
-                  value={selectedCondition}
-                  label="Condition"
-                  onChange={(e) => setSelectedCondition(e.target.value)}
-                  sx={{
-                    borderRadius: 2,
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderWidth: 2,
-                    },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Select a condition</em>
-                  </MenuItem>
-                  {CONDITION_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-          </Box>
-        )}
-
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          disabled={
-            isGraded
-              ? !professionalGrader || !grade
-              : !selectedCondition
-          }
-          onClick={handleContinueToListing}
-          sx={{
-            py: 2,
-            borderRadius: 2,
-            textTransform: 'none',
-            fontSize: '1.1rem',
-          }}
-        >
-          Continue to listing
-        </Button>
-      </Paper>
-    </Container>
-  );
 
   const renderCompleteListingStep = () => (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -851,27 +630,17 @@ export default function ListItem() {
 
       {/* TITLE Section */}
       <Box sx={{ mb: 4 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="h5" fontWeight={700}>
-            TITLE
-          </Typography>
-          <Button
-            variant="text"
-            size="small"
-            sx={{ textTransform: 'none' }}
-          >
-            See title options
-          </Button>
-        </Stack>
-
-        <Typography variant="body2" fontWeight={600} gutterBottom>
-          Item title
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
+          Title
         </Typography>
+
         <TextField
           fullWidth
+          required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter item title"
+          placeholder="e.g. Absolute Batman #1"
+          helperText="The comic's name and issue number, as buyers will see it."
           sx={{ mb: 1 }}
         />
       </Box>
@@ -1039,9 +808,31 @@ export default function ListItem() {
 
       {/* DESCRIPTION Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={700} gutterBottom>
-          Description
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h5" fontWeight={700}>
+            Description
+          </Typography>
+          <Tooltip title="AI description coming soon. Upload photos first so we can generate from cover art.">
+            <span>
+              <Button
+                variant="outlined"
+                size="small"
+                disabled
+                startIcon={<AutoAwesome fontSize="small" />}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 999,
+                  fontWeight: 600,
+                  fontFamily: inkstashFonts.ui,
+                  borderColor: inkstashColors.borderStrong,
+                  color: inkstashColors.muted,
+                }}
+              >
+                Generate from photos
+              </Button>
+            </span>
+          </Tooltip>
+        </Stack>
 
         <TextField
           fullWidth
@@ -1049,17 +840,9 @@ export default function ListItem() {
           rows={6}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Write a detailed description of your item, or save time and let AI draft it for you."
-          sx={{ mb: 2 }}
+          placeholder="Describe what makes this copy worth buying — issue, printing, condition notes, signed/sealed details, anything special."
+          sx={{ mb: 1 }}
         />
-
-        <Button
-          variant="outlined"
-          startIcon={<Add />}
-          sx={{ textTransform: 'none', borderRadius: 20 }}
-        >
-          Use AI description
-        </Button>
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -1302,31 +1085,9 @@ export default function ListItem() {
         </DialogActions>
       </Dialog>
 
-      {/* Header with Back Button */}
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          borderBottom: 1,
-          borderColor: 'divider',
-          py: 2,
-        }}
-      >
-        <Container maxWidth="lg">
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <IconButton onClick={handleBack}>
-              <ArrowBack />
-            </IconButton>
-            <IconButton>
-              <HelpOutline />
-            </IconButton>
-          </Stack>
-        </Container>
-      </Box>
-
       {/* Main Content */}
       <Box sx={{ minHeight: 'calc(100vh - 200px)' }}>
         {step === 'search' && renderSearchStep()}
-        {step === 'details' && renderDetailsStep()}
         {step === 'complete' && renderCompleteListingStep()}
       </Box>
     </AppShell>

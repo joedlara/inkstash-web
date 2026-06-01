@@ -25,7 +25,6 @@ import {
   Box,
   Container,
   Typography,
-  TextField,
   Button,
   Stack,
   Chip,
@@ -50,13 +49,6 @@ interface Props {
 }
 
 export default function ListingStartPanel({ onPicked }: Props) {
-  const [manual, setManual] = useState({
-    title: '',
-    issueNumber: '',
-    publisher: '',
-    writer: '',
-    artist: '',
-  });
   const [trending, setTrending] = useState<MarketplaceFeedCard[] | null>(null);
   const [searchSeed, setSearchSeed] = useState('');
 
@@ -69,16 +61,17 @@ export default function ListingStartPanel({ onPicked }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  function submitManual() {
-    if (!manual.title.trim()) return;
+  // "Don't see it? Enter manually" - jumps to the listing form with no
+  // comic prefill. The seller fills title + description there.
+  function startBlank() {
     onPicked({
       comic_vine_id: null,
-      title: manual.title.trim(),
-      issue_number: manual.issueNumber.trim() || null,
+      title: '',
+      issue_number: null,
       cover_url: null,
-      publisher: manual.publisher.trim() || null,
-      writer: manual.writer.trim() || null,
-      artist: manual.artist.trim() || null,
+      publisher: null,
+      writer: null,
+      artist: null,
     });
   }
 
@@ -162,74 +155,22 @@ export default function ListingStartPanel({ onPicked }: Props) {
         ))}
       </Stack>
 
-      {/* Manual form */}
-      <Divider label="or enter it yourself" />
-      <Box
-        sx={{
-          mt: 2,
-          mb: 5,
-          p: { xs: 2, md: 3 },
-          bgcolor: inkstashColors.bgElev,
-          border: `1px solid ${inkstashColors.border}`,
-          borderRadius: inkstashRadii.lg,
-        }}
-      >
-        <Stack spacing={1.75}>
-          <TextField
-            fullWidth
-            label="Title"
-            required
-            placeholder="e.g. Absolute Batman"
-            value={manual.title}
-            onChange={(e) => setManual({ ...manual, title: e.target.value })}
-          />
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 2fr' }, gap: 1.75 }}>
-            <TextField
-              label="Issue #"
-              placeholder="1"
-              value={manual.issueNumber}
-              onChange={(e) => setManual({ ...manual, issueNumber: e.target.value })}
-            />
-            <TextField
-              label="Publisher"
-              placeholder="DC, Marvel, Image…"
-              value={manual.publisher}
-              onChange={(e) => setManual({ ...manual, publisher: e.target.value })}
-            />
-          </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.75 }}>
-            <TextField
-              label="Writer"
-              value={manual.writer}
-              onChange={(e) => setManual({ ...manual, writer: e.target.value })}
-            />
-            <TextField
-              label="Artist"
-              value={manual.artist}
-              onChange={(e) => setManual({ ...manual, artist: e.target.value })}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-            <Button
-              variant="contained"
-              disabled={!manual.title.trim()}
-              onClick={submitManual}
-              sx={{
-                bgcolor: inkstashColors.brand,
-                color: '#fff',
-                fontWeight: 700,
-                px: 3.5,
-                py: 1.1,
-                fontFamily: inkstashFonts.ui,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                '&:hover': { bgcolor: inkstashColors.brandDeep },
-              }}
-            >
-              Continue →
-            </Button>
-          </Box>
-        </Stack>
+      {/* Manual escape hatch — lives in step 2 (no fields here). */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 5, mt: 1 }}>
+        <Button
+          variant="text"
+          onClick={startBlank}
+          sx={{
+            color: inkstashColors.muted,
+            fontFamily: inkstashFonts.mono,
+            fontSize: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            '&:hover': { color: inkstashColors.brand, bgcolor: 'transparent' },
+          }}
+        >
+          Don&apos;t see your comic? Enter it manually →
+        </Button>
       </Box>
 
       {/* Trending */}
@@ -323,26 +264,6 @@ function SectionHeader({ children, subtitle }: { children: React.ReactNode; subt
           {subtitle}
         </Typography>
       )}
-    </Box>
-  );
-}
-
-function Divider({ label }: { label: string }) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 3 }}>
-      <Box sx={{ flex: 1, height: 1, bgcolor: inkstashColors.border }} />
-      <Typography
-        sx={{
-          fontFamily: inkstashFonts.mono,
-          fontSize: 11,
-          color: inkstashColors.muted,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-        }}
-      >
-        {label}
-      </Typography>
-      <Box sx={{ flex: 1, height: 1, bgcolor: inkstashColors.border }} />
     </Box>
   );
 }
