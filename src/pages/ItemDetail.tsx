@@ -28,6 +28,9 @@ import {
   Gavel,
   ShoppingCart,
 } from '@mui/icons-material';
+import { Vault } from 'lucide-react';
+import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
+// TODO M3-Task7: import CheckoutListingModal from '../components/checkout/CheckoutListingModal';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../contexts/CartContext';
@@ -66,6 +69,11 @@ interface ItemDetails {
   us_shipping: number;
   international_shipping: number;
   status?: 'active' | 'sold' | 'ended' | 'cancelled';
+  // Comic metadata (listings only)
+  comic_publisher?: string | null;
+  comic_writer?: string | null;
+  comic_artist?: string | null;
+  source_inventory_id?: string | null;
 }
 
 export default function ItemDetail() {
@@ -88,6 +96,8 @@ export default function ItemDetail() {
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupModalType, setSetupModalType] = useState<'both' | 'payment' | 'shipping'>('both');
   const [pendingAction, setPendingAction] = useState<'bid' | 'buy' | null>(null);
+  // M3-Task6: open CheckoutListingModal on Buy Now (modal built in Task 7)
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     async function fetchItemDetails() {
@@ -135,6 +145,11 @@ export default function ItemDetail() {
             us_shipping: 0,
             international_shipping: 0,
             status: listingData.status,
+            // Comic metadata fields (listings only)
+            comic_publisher: listingData.comic_publisher || null,
+            comic_writer: listingData.comic_writer || null,
+            comic_artist: listingData.comic_artist || null,
+            source_inventory_id: listingData.source_inventory_id || null,
           };
         }
 
@@ -180,6 +195,11 @@ export default function ItemDetail() {
           us_shipping: auctionData.us_shipping || 0,
           international_shipping: auctionData.international_shipping || 0,
           status: auctionData.status || 'active',
+          // Comic metadata (present for listings, null/undefined for auctions)
+          comic_publisher: auctionData.comic_publisher ?? null,
+          comic_writer: auctionData.comic_writer ?? null,
+          comic_artist: auctionData.comic_artist ?? null,
+          source_inventory_id: auctionData.source_inventory_id ?? null,
         };
 
         setItem(itemDetails);
@@ -367,34 +387,10 @@ export default function ItemDetail() {
   };
 
   const handleBuyNow = () => {
-    if (item?.status === 'sold') {
-      alert('This item has already been sold');
-      return;
-    }
-
-    if (!user) {
-      alert('Please log in to purchase this item');
-      return;
-    }
-
-    if (!item?.buy_now_price) {
-      return;
-    }
-
-    // Add item to cart
-    addItem({
-      auctionId: id!,
-      title: item.title,
-      price: item.buy_now_price,
-      imageUrl: item.image_url,
-      sellerId: item.seller_id,
-      type: 'buy_now',
-      shippingCost: item.us_shipping,
-      addedAt: new Date().toISOString(),
-    });
-
-    // Navigate to cart page
-    navigate('/cart');
+    // M3-Task6: open CheckoutListingModal instead of adding to cart.
+    // The modal is built in Task 7; for now this is wired but the render
+    // is commented out below (TODO M3-Task7).
+    setCheckoutOpen(true);
   };
 
   const getBidButtonState = () => {
@@ -657,6 +653,54 @@ export default function ItemDetail() {
                   {item.title}
                 </Typography>
 
+                {/* Comic metadata rows + vault badge (listings only) */}
+                {(item.comic_publisher || item.comic_writer || item.comic_artist || item.source_inventory_id) && (
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+                    {item.comic_publisher && (
+                      <Chip
+                        label={item.comic_publisher}
+                        size="small"
+                        sx={{
+                          bgcolor: inkstashColors.gold,
+                          color: '#fff',
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                        }}
+                      />
+                    )}
+                    {item.comic_writer && (
+                      <Typography sx={{ fontSize: 12, color: inkstashColors.muted }}>
+                        Writer: {item.comic_writer}
+                      </Typography>
+                    )}
+                    {item.comic_artist && (
+                      <Typography sx={{ fontSize: 12, color: inkstashColors.muted }}>
+                        Art: {item.comic_artist}
+                      </Typography>
+                    )}
+                    {item.source_inventory_id && (
+                      <Chip
+                        icon={<Vault size={11} style={{ marginLeft: 6 }} />}
+                        label="Vault item — ships fast"
+                        size="small"
+                        sx={{
+                          bgcolor: inkstashColors.brand,
+                          color: '#fff',
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          '& .MuiChip-icon': { color: '#fff' },
+                        }}
+                      />
+                    )}
+                  </Box>
+                )}
+
                 {/* Seller Info */}
                 <Stack
                   direction="row"
@@ -897,6 +941,16 @@ export default function ItemDetail() {
         onComplete={handleSetupComplete}
         requiredSetup={setupModalType}
       />
+
+      {/* TODO M3-Task7: re-enable when CheckoutListingModal lands
+      {item && (
+        <CheckoutListingModal
+          open={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+          listing={item}
+        />
+      )}
+      */}
     </AppShell>
   );
 }
