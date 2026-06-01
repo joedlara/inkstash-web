@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { Vault } from 'lucide-react';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
-// TODO M3-Task7: import CheckoutListingModal from '../components/checkout/CheckoutListingModal';
+import CheckoutListingModal from '../components/checkout/CheckoutListingModal';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../contexts/CartContext';
@@ -942,15 +942,21 @@ export default function ItemDetail() {
         requiredSetup={setupModalType}
       />
 
-      {/* TODO M3-Task7: re-enable when CheckoutListingModal lands
-      {item && (
+      {item && item.buy_now_price != null && (
         <CheckoutListingModal
           open={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
-          listing={item}
+          listing={{
+            id: item.id,
+            title: item.title,
+            buy_now_price: item.buy_now_price,
+            source_inventory_id: item.source_inventory_id ?? null,
+            comic_publisher: item.comic_publisher ?? null,
+            photos: item.image_url ? [{ url: item.image_url }] : null,
+            user_id: item.seller_id,
+          }}
         />
       )}
-      */}
     </AppShell>
   );
 }
