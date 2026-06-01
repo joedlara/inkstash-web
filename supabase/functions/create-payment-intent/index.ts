@@ -3,6 +3,9 @@
 //   - ruby_bundle  → uses _shared/rubyBundles, no Connect routing
 //   - vendor_pack  → looks up pack + vendor, sets transfer_data.destination
 //                    and application_fee_amount for 90/10 split
+//   - listing      → looks up listing + seller (users table), validates seller
+//                    has stripe_connect_account_id + seller_status='active',
+//                    computes amount = item + shipping, fee = item × application_fee_pct
 //
 // Returns { clientSecret, paymentIntentId, amount }. The webhook does
 // the post-payment work (credit rubies / open vendor pack).
@@ -19,7 +22,7 @@ const corsHeaders = {
 }
 
 interface RequestBody {
-  payment_type?: 'ruby_bundle' | 'vendor_pack'
+  payment_type?: 'ruby_bundle' | 'vendor_pack' | 'listing'
   target_id?: string
   bundle_id?: string // backward-compat for the old shape
 }
@@ -55,7 +58,7 @@ serve(async (req) => {
     const body: RequestBody = await req.json()
 
     // Backward-compat: a body with just { bundle_id } is implicitly a ruby_bundle request.
-    const paymentType: 'ruby_bundle' | 'vendor_pack' =
+    const paymentType: 'ruby_bundle' | 'vendor_pack' | 'listing' =
       body.payment_type ?? 'ruby_bundle'
     const targetId = body.target_id ?? body.bundle_id
 
@@ -95,6 +98,10 @@ serve(async (req) => {
     } else if (paymentType === 'vendor_pack') {
       return await createVendorPackIntent({
         stripe, serviceClient, user, stripeCustomerId, packId: targetId,
+      })
+    } else if (paymentType === 'listing') {
+      return await createListingIntent({
+        stripe, serviceClient, user, stripeCustomerId, listingId: targetId,
       })
     } else {
       return json({ error: `Unknown payment_type: ${paymentType}` }, 400)
@@ -198,6 +205,75 @@ async function createVendorPackIntent({
       pack_id: pack.id,
       vendor_id: vendor.id,
       user_id: user.id,
+    },
+  })
+
+  return json({
+    clientSecret: intent.client_secret,
+    paymentIntentId: intent.id,
+    amount: amountCents,
+  }, 200)
+}
+
+async function createListingIntent({
+  stripe, serviceClient, user, stripeCustomerId, listingId,
+}: {
+  stripe: Stripe
+  serviceClient: ReturnType<typeof createClient>
+  user: { id: string; email?: string | null }
+  stripeCustomerId: string
+  listingId: string
+}): Promise<Response> {
+  // Load listing
+  const { data: listing, error: listingError } = await serviceClient
+    .from('listings')
+    .select('id, buy_now_price, status, is_buy_now, application_fee_pct, source_inventory_id, user_id, title')
+    .eq('id', listingId)
+    .maybeSingle()
+
+  if (listingError || !listing) return json({ error: 'listing_not_found' }, 404)
+  if (listing.status !== 'active' || !listing.is_buy_now) {
+    return json({ error: 'listing_unavailable' }, 409)
+  }
+
+  // Load seller — must exist and be Connect-active; reject early so we never
+  // create a PaymentIntent that can't be routed (Stripe's error for that is opaque).
+  const { data: seller, error: sellerError } = await serviceClient
+    .from('users')
+    .select('id, stripe_connect_account_id, seller_status, email, username')
+    .eq('id', listing.user_id)
+    .maybeSingle()
+
+  if (sellerError || !seller) return json({ error: 'seller_not_found' }, 404)
+  if (seller.seller_status !== 'active' || !seller.stripe_connect_account_id) {
+    return json({ error: 'seller_not_verified' }, 409)
+  }
+
+  // Compute amounts.
+  // v1 simplification: $5 flat shipping for outside (non-vault) items;
+  // $0 for vault items (InkStash absorbs fulfilment cost into ops).
+  // Fee is on the item price only — shipping passes through to the seller at cost.
+  const itemCents = Math.round(Number(listing.buy_now_price) * 100)
+  const shippingCents = listing.source_inventory_id ? 0 : 500
+  const feePct = Number(listing.application_fee_pct ?? 0.100)
+  const feeCents = Math.round(itemCents * feePct) // fee on item only, NOT shipping
+  const amountCents = itemCents + shippingCents
+
+  // Note: automatic_tax is intentionally NOT enabled on listing intents.
+  // Same reason as ruby_bundle / vendor_pack: Stripe Tax requires explicit
+  // account activation + state registration. See ops docs for pre-launch checklist.
+  const intent = await stripe.paymentIntents.create({
+    amount: amountCents,
+    currency: 'usd',
+    customer: stripeCustomerId,
+    automatic_payment_methods: { enabled: true },
+    transfer_data: { destination: seller.stripe_connect_account_id },
+    application_fee_amount: feeCents,
+    metadata: {
+      payment_type: 'listing',
+      listing_id: listing.id,
+      seller_id: listing.user_id,
+      buyer_id: user.id,
     },
   })
 
