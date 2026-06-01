@@ -51,6 +51,7 @@ interface Props {
 export default function ListingStartPanel({ onPicked }: Props) {
   const [trending, setTrending] = useState<MarketplaceFeedCard[] | null>(null);
   const [searchSeed, setSearchSeed] = useState('');
+  const [liveQuery, setLiveQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -61,12 +62,13 @@ export default function ListingStartPanel({ onPicked }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  // "Don't see it? Enter manually" - jumps to the listing form with no
-  // comic prefill. The seller fills title + description there.
-  function startBlank() {
+  // Jumps to the listing form. If the seller has typed something in the
+  // search box but didn't see a match, we carry that text over as the
+  // listing title so they don't have to retype it.
+  function startBlank(seedTitle: string = '') {
     onPicked({
       comic_vine_id: null,
-      title: '',
+      title: seedTitle.trim(),
       issue_number: null,
       cover_url: null,
       publisher: null,
@@ -126,8 +128,37 @@ export default function ListingStartPanel({ onPicked }: Props) {
 
       {/* Search */}
       <SectionHeader>Search by title and issue</SectionHeader>
-      <Box sx={{ mb: 1.5 }}>
-        <ComicSearchInput key={searchSeed || '__empty__'} initialQuery={searchSeed} onSelect={onPicked} />
+      <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start', mb: 1.5 }}>
+        <Box sx={{ flex: 1 }}>
+          <ComicSearchInput
+            key={searchSeed || '__empty__'}
+            initialQuery={searchSeed}
+            onSelect={onPicked}
+            onQueryChange={setLiveQuery}
+          />
+        </Box>
+        {liveQuery.trim().length >= 2 && (
+          <Button
+            variant="contained"
+            onClick={() => startBlank(liveQuery)}
+            sx={{
+              bgcolor: inkstashColors.brand,
+              color: '#fff',
+              fontWeight: 700,
+              fontFamily: inkstashFonts.ui,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              fontSize: 12,
+              whiteSpace: 'nowrap',
+              px: 2,
+              py: 1.85,
+              flexShrink: 0,
+              '&:hover': { bgcolor: inkstashColors.brandDeep },
+            }}
+          >
+            Use this title →
+          </Button>
+        )}
       </Box>
       <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 5 }}>
         <Typography sx={{ fontSize: 11.5, color: inkstashColors.muted, fontFamily: inkstashFonts.mono, alignSelf: 'center', mr: 0.5 }}>
@@ -155,11 +186,11 @@ export default function ListingStartPanel({ onPicked }: Props) {
         ))}
       </Stack>
 
-      {/* Manual escape hatch — lives in step 2 (no fields here). */}
+      {/* Manual escape hatch — also carries the typed query over if any. */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 5, mt: 1 }}>
         <Button
           variant="text"
-          onClick={startBlank}
+          onClick={() => startBlank(liveQuery)}
           sx={{
             color: inkstashColors.muted,
             fontFamily: inkstashFonts.mono,

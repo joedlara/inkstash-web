@@ -35,10 +35,16 @@ interface Props {
   onSelect: (selection: ComicSelection) => void;
   /** Seed the input on first render. Useful for "Try this" chips that prefill the search. */
   initialQuery?: string;
+  /** Fires every keystroke. Parent uses this to render a "Continue with X" affordance. */
+  onQueryChange?: (query: string) => void;
 }
 
-export default function ComicSearchInput({ onSelect, initialQuery = '' }: Props) {
+export default function ComicSearchInput({ onSelect, initialQuery = '', onQueryChange }: Props) {
   const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    onQueryChange?.(query);
+  }, [query, onQueryChange]);
   const [results, setResults] = useState<ComicCatalogResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
