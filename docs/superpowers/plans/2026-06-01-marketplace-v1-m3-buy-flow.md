@@ -139,18 +139,23 @@ BEGIN
   RETURN QUERY
   WITH unified AS (
     -- Listings
+    -- NOTE: explicit ::text casts on varchar columns. listings.title and
+    -- listings.comic_* are declared as `character varying` in the schema,
+    -- but RETURNS TABLE above declares them as `text`. Without casts,
+    -- PostgreSQL raises 42804 "structure of query does not match function
+    -- result type" at first call.
     SELECT
       l.id,
       'listing'::text AS source,
-      l.title,
-      (l.photos->0->>'url') AS cover_url,
+      l.title::text,
+      (l.photos->0->>'url')::text AS cover_url,
       l.buy_now_price AS price,
       'Buy now'::text AS display_price_label,
       l.user_id AS seller_id,
-      l.comic_publisher,
-      l.comic_writer,
-      l.comic_artist,
-      l.comic_issue_number,
+      l.comic_publisher::text,
+      l.comic_writer::text,
+      l.comic_artist::text,
+      l.comic_issue_number::text,
       (l.source_inventory_id IS NOT NULL) AS is_vault_item,
       NULL::timestamptz AS ends_at,
       l.created_at

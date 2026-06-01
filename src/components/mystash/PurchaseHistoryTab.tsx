@@ -99,6 +99,18 @@ export default function PurchaseHistoryTab() {
 
   const OrderCard = ({ order, isSeller = false }: { order: Order; isSeller?: boolean }) => {
     const auction = Array.isArray(order.auctions) ? order.auctions[0] : order.auctions;
+    const listing = Array.isArray(order.listings) ? order.listings[0] : order.listings;
+
+    const itemTitle = auction?.title ?? listing?.title ?? 'Order item';
+    const itemImage =
+      auction?.image_url ??
+      listing?.photos?.[0]?.url ??
+      'https://via.placeholder.com/200x150';
+    const itemHref = auction
+      ? `/item/${auction.id}`
+      : listing
+        ? `/item/${listing.id}`
+        : `/order/${order.id}`;
 
     return (
       <Card
@@ -114,18 +126,17 @@ export default function PurchaseHistoryTab() {
         }}
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          {auction && (
-            <CardMedia
-              component="img"
-              sx={{
-                width: { xs: '100%', sm: 200 },
-                height: { xs: 200, sm: 150 },
-                objectFit: 'cover',
-              }}
-              image={auction.image_url || 'https://via.placeholder.com/200x150'}
-              alt={auction.title}
-            />
-          )}
+          <CardMedia
+            component="img"
+            sx={{
+              width: { xs: '100%', sm: 200 },
+              height: { xs: 200, sm: 150 },
+              objectFit: 'cover',
+            }}
+            image={itemImage}
+            alt={itemTitle}
+            onClick={() => navigate(itemHref)}
+          />
 
           <Box sx={{ flex: 1, p: 2 }}>
             <Stack spacing={1}>
@@ -143,11 +154,9 @@ export default function PurchaseHistoryTab() {
               </Stack>
 
               {/* Item Title */}
-              {auction && (
-                <Typography variant="h6" fontWeight={600}>
-                  {auction.title}
-                </Typography>
-              )}
+              <Typography variant="h6" fontWeight={600} onClick={() => navigate(itemHref)}>
+                {itemTitle}
+              </Typography>
 
               {/* Order Date */}
               <Typography variant="body2" color="text.secondary">

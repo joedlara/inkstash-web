@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -28,6 +28,9 @@ import {
   Gavel,
   ShoppingCart,
 } from '@mui/icons-material';
+import { Vault } from 'lucide-react';
+import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
+import CheckoutListingModal from '../components/checkout/CheckoutListingModal';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../contexts/CartContext';
@@ -66,6 +69,11 @@ interface ItemDetails {
   us_shipping: number;
   international_shipping: number;
   status?: 'active' | 'sold' | 'ended' | 'cancelled';
+  // Comic metadata (listings only)
+  comic_publisher?: string | null;
+  comic_writer?: string | null;
+  comic_artist?: string | null;
+  source_inventory_id?: string | null;
 }
 
 export default function ItemDetail() {
@@ -88,9 +96,10 @@ export default function ItemDetail() {
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupModalType, setSetupModalType] = useState<'both' | 'payment' | 'shipping'>('both');
   const [pendingAction, setPendingAction] = useState<'bid' | 'buy' | null>(null);
+  // M3-Task6: open CheckoutListingModal on Buy Now (modal built in Task 7)
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchItemDetails() {
+  const fetchItemDetails = useCallback(async () => {
       if (!id) {
         setError('No item ID provided');
         setLoading(false);
@@ -98,6 +107,10 @@ export default function ItemDetail() {
       }
 
       try {
+        // Reset error so a transient failure on attempt N doesn't keep the
+        // "Item not found" page stuck after a later attempt succeeds.
+        setError(null);
+
         // Try to fetch from auctions table first
         let { data: auctionData, error: auctionError } = await supabase
           .from('auctions')
@@ -135,6 +148,11 @@ export default function ItemDetail() {
             us_shipping: 0,
             international_shipping: 0,
             status: listingData.status,
+            // Comic metadata fields (listings only)
+            comic_publisher: listingData.comic_publisher || null,
+            comic_writer: listingData.comic_writer || null,
+            comic_artist: listingData.comic_artist || null,
+            source_inventory_id: listingData.source_inventory_id || null,
           };
         }
 
@@ -180,6 +198,11 @@ export default function ItemDetail() {
           us_shipping: auctionData.us_shipping || 0,
           international_shipping: auctionData.international_shipping || 0,
           status: auctionData.status || 'active',
+          // Comic metadata (present for listings, null/undefined for auctions)
+          comic_publisher: auctionData.comic_publisher ?? null,
+          comic_writer: auctionData.comic_writer ?? null,
+          comic_artist: auctionData.comic_artist ?? null,
+          source_inventory_id: auctionData.source_inventory_id ?? null,
         };
 
         setItem(itemDetails);
@@ -188,10 +211,49 @@ export default function ItemDetail() {
       } finally {
         setLoading(false);
       }
-    }
-
-    fetchItemDetails();
   }, [id]);
+
+  useEffect(() => {
+    fetchItemDetails();
+  }, [fetchItemDetails]);
+
+  // Post-purchase: when Stripe returns the buyer here with ?listing_purchase=success,
+  // the webhook may still be in flight. Refetch on a short poll until status flips
+  // to 'sold', then strip the param so we don't loop.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('listing_purchase') !== 'success') return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 6; // ~12s of polling
+    const tick = async () => {
+      if (cancelled) return;
+      await fetchItemDetails();
+      attempts += 1;
+      if (cancelled) return;
+      // Use the freshly-fetched item via the next render; check `attempts` and
+      // schedule another tick if we haven't seen 'sold' yet.
+      // We can't read item synchronously here; rely on a fixed timeout cap.
+      if (attempts < maxAttempts) {
+        setTimeout(tick, 2000);
+      }
+    };
+    // Kick the first refetch slightly delayed so the webhook has a head start.
+    setTimeout(tick, 1500);
+
+    return () => { cancelled = true; };
+  }, [searchParams, fetchItemDetails]);
+
+  // Once the item shows as sold, drop the success param so we stop polling and
+  // a back/forward nav doesn't re-trigger the loop.
+  useEffect(() => {
+    if (item?.status === 'sold' && searchParams.get('listing_purchase') === 'success') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('listing_purchase');
+      setSearchParams(next, { replace: true });
+    }
+  }, [item?.status, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!item) return;
@@ -240,6 +302,14 @@ export default function ItemDetail() {
     async function loadInteractionStatus() {
       if (!id) return;
 
+      // Auction interaction RPCs (record_auction_view, getAuctionInteractionCounts)
+      // are pre-pivot legacy code that fails for marketplace listings — the
+      // underlying SQL functions assume an auctions row exists. Skip them entirely
+      // when the loaded item is a listing (item.end_date is empty for listings,
+      // populated for real auctions per the conversion in the fetch effect above).
+      const isAuction = !!item?.end_date;
+      if (!isAuction) return;
+
       try {
         await recordAuctionView(id, user?.id);
         const counts = await getAuctionInteractionCounts(id);
@@ -266,7 +336,7 @@ export default function ItemDetail() {
     }
 
     loadInteractionStatus();
-  }, [user, id]);
+  }, [user, id, item?.end_date]);
 
   // Check payment and shipping status when user logs in
   useEffect(() => {
@@ -367,34 +437,10 @@ export default function ItemDetail() {
   };
 
   const handleBuyNow = () => {
-    if (item?.status === 'sold') {
-      alert('This item has already been sold');
-      return;
-    }
-
-    if (!user) {
-      alert('Please log in to purchase this item');
-      return;
-    }
-
-    if (!item?.buy_now_price) {
-      return;
-    }
-
-    // Add item to cart
-    addItem({
-      auctionId: id!,
-      title: item.title,
-      price: item.buy_now_price,
-      imageUrl: item.image_url,
-      sellerId: item.seller_id,
-      type: 'buy_now',
-      shippingCost: item.us_shipping,
-      addedAt: new Date().toISOString(),
-    });
-
-    // Navigate to cart page
-    navigate('/cart');
+    // M3-Task6: open CheckoutListingModal instead of adding to cart.
+    // The modal is built in Task 7; for now this is wired but the render
+    // is commented out below (TODO M3-Task7).
+    setCheckoutOpen(true);
   };
 
   const getBidButtonState = () => {
@@ -657,6 +703,54 @@ export default function ItemDetail() {
                   {item.title}
                 </Typography>
 
+                {/* Comic metadata rows + vault badge (listings only) */}
+                {(item.comic_publisher || item.comic_writer || item.comic_artist || item.source_inventory_id) && (
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+                    {item.comic_publisher && (
+                      <Chip
+                        label={item.comic_publisher}
+                        size="small"
+                        sx={{
+                          bgcolor: inkstashColors.gold,
+                          color: '#fff',
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                        }}
+                      />
+                    )}
+                    {item.comic_writer && (
+                      <Typography sx={{ fontSize: 12, color: inkstashColors.muted }}>
+                        Writer: {item.comic_writer}
+                      </Typography>
+                    )}
+                    {item.comic_artist && (
+                      <Typography sx={{ fontSize: 12, color: inkstashColors.muted }}>
+                        Art: {item.comic_artist}
+                      </Typography>
+                    )}
+                    {item.source_inventory_id && (
+                      <Chip
+                        icon={<Vault size={11} style={{ marginLeft: 6 }} />}
+                        label="Vault item — ships fast"
+                        size="small"
+                        sx={{
+                          bgcolor: inkstashColors.brand,
+                          color: '#fff',
+                          fontFamily: inkstashFonts.mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          '& .MuiChip-icon': { color: '#fff' },
+                        }}
+                      />
+                    )}
+                  </Box>
+                )}
+
                 {/* Seller Info */}
                 <Stack
                   direction="row"
@@ -897,6 +991,22 @@ export default function ItemDetail() {
         onComplete={handleSetupComplete}
         requiredSetup={setupModalType}
       />
+
+      {item && item.buy_now_price != null && (
+        <CheckoutListingModal
+          open={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+          listing={{
+            id: item.id,
+            title: item.title,
+            buy_now_price: item.buy_now_price,
+            source_inventory_id: item.source_inventory_id ?? null,
+            comic_publisher: item.comic_publisher ?? null,
+            photos: item.image_url ? [{ url: item.image_url }] : null,
+            user_id: item.seller_id,
+          }}
+        />
+      )}
     </AppShell>
   );
 }

@@ -50,6 +50,9 @@ function OrderCard({
   onView: (id: string) => void;
 }) {
   const auction = Array.isArray(order.auctions) ? order.auctions[0] : order.auctions;
+  const listing = Array.isArray(order.listings) ? order.listings[0] : order.listings;
+  const itemTitle = auction?.title ?? listing?.title ?? 'Order item';
+  const itemImage = auction?.image_url ?? listing?.photos?.[0]?.url ?? null;
   const status = STATUS_STYLES[order.status];
 
   return (
@@ -76,11 +79,11 @@ function OrderCard({
         bgcolor: inkstashColors.bgSunken,
         overflow: 'hidden',
       }}>
-        {auction?.image_url && (
+        {itemImage && (
           <Box
             component="img"
-            src={auction.image_url}
-            alt={auction.title}
+            src={itemImage}
+            alt={itemTitle}
             sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         )}
@@ -111,18 +114,16 @@ function OrderCard({
           </Box>
         </Stack>
 
-        {auction && (
-          <Box sx={{
-            fontFamily: inkstashFonts.display, fontWeight: 800,
-            fontSize: 18, lineHeight: 1.2,
-            textTransform: 'uppercase', letterSpacing: '0.005em',
-            color: inkstashColors.ink,
-            overflow: 'hidden', textOverflow: 'ellipsis',
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          }}>
-            {auction.title}
-          </Box>
-        )}
+        <Box sx={{
+          fontFamily: inkstashFonts.display, fontWeight: 800,
+          fontSize: 18, lineHeight: 1.2,
+          textTransform: 'uppercase', letterSpacing: '0.005em',
+          color: inkstashColors.ink,
+          overflow: 'hidden', textOverflow: 'ellipsis',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        }}>
+          {itemTitle}
+        </Box>
 
         <Box sx={{
           fontFamily: inkstashFonts.mono, fontSize: 11.5,

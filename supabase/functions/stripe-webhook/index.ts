@@ -88,23 +88,36 @@ async function handlePaymentIntentSucceeded(
   serviceRoleKey: string,
 ): Promise<Response> {
   const intent = event.data.object as Stripe.PaymentIntent
-  const userId = intent.metadata?.user_id
-
-  if (!userId) {
-    console.error('[stripe-webhook] missing user_id on intent', intent.id)
-    return new Response('Missing user_id in metadata', { status: 400 })
-  }
 
   // Backward compat: intents created before A3 don't have payment_type metadata.
   // Treat them as ruby_bundle.
   const effectiveType = intent.metadata?.payment_type ?? 'ruby_bundle'
 
+  // Each branch validates the metadata IT needs. ruby_bundle / vendor_pack
+  // require user_id; listing requires buyer_id + seller_id + listing_id and
+  // sets buyer_id (not user_id). Validating user_id up front would (and did)
+  // reject listing webhooks with 400 before they ever dispatched.
   if (effectiveType === 'ruby_bundle') {
+    const userId = intent.metadata?.user_id
+    if (!userId) {
+      console.error('[stripe-webhook] ruby_bundle missing user_id', intent.id)
+      return new Response('Missing user_id in metadata', { status: 400 })
+    }
     return await creditRubyBundle(intent, stripe, serviceClient, userId, supabaseUrl, serviceRoleKey)
   }
 
   if (effectiveType === 'vendor_pack') {
+    const userId = intent.metadata?.user_id
+    if (!userId) {
+      console.error('[stripe-webhook] vendor_pack missing user_id', intent.id)
+      return new Response('Missing user_id in metadata', { status: 400 })
+    }
     return await openVendorPack(intent, serviceClient, userId, supabaseUrl, serviceRoleKey)
+  }
+
+  if (effectiveType === 'listing') {
+    // openListingOrder validates listing_id/seller_id/buyer_id internally.
+    return await openListingOrder(intent, supabaseUrl, serviceRoleKey)
   }
 
   console.warn('[stripe-webhook] unknown payment_type:', effectiveType)
@@ -361,5 +374,45 @@ async function handleAccountUpdated(
   }
 
   console.log('[stripe-webhook] vendor activated:', vendor.id)
+  return new Response('ok', { status: 200 })
+}
+
+async function openListingOrder(
+  intent: Stripe.PaymentIntent,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<Response> {
+  const listing_id = intent.metadata?.listing_id
+  const seller_id = intent.metadata?.seller_id
+  const buyer_id = intent.metadata?.buyer_id
+
+  if (!listing_id || !seller_id || !buyer_id) {
+    console.error('[stripe-webhook] listing intent missing metadata', intent.id, intent.metadata)
+    return new Response('Missing listing metadata', { status: 400 })
+  }
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/open-listing-order`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      listing_id,
+      seller_id,
+      buyer_id,
+      payment_intent_id: intent.id,
+      amount_cents: intent.amount,
+      application_fee_cents: intent.application_fee_amount ?? 0,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error('[stripe-webhook] open-listing-order failed', res.status, body)
+    return new Response('open-listing-order failed', { status: 502 })
+  }
+
+  console.log('[stripe-webhook] listing order opened for intent', intent.id)
   return new Response('ok', { status: 200 })
 }
