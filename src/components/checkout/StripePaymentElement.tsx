@@ -25,7 +25,7 @@ import { supabase } from '../../api/supabase/supabaseClient';
 import { getStripe } from '../../config/stripe';
 import { inkstashColors } from '../../theme/inkstashTokens';
 
-export type PaymentType = 'ruby_bundle' | 'vendor_pack';
+export type PaymentType = 'ruby_bundle' | 'vendor_pack' | 'listing';
 
 export interface StripePaymentElementProps {
   /** What kind of purchase this is — drives the edge function branch. */
