@@ -195,6 +195,7 @@ export default function InventoryTab() {
                 remaining: 0,
                 inventory_id: inv.id,
               }}
+              packOrigin={inv.pack_item.pack?.origin ?? 'house'}
               disposition={dispositionFor(inv)}
               payoutRubies={inv.sold_back_rubies}
               onChange={() => handleDispositionChange(inv.id)}
