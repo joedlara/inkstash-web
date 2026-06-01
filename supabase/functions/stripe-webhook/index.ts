@@ -88,26 +88,35 @@ async function handlePaymentIntentSucceeded(
   serviceRoleKey: string,
 ): Promise<Response> {
   const intent = event.data.object as Stripe.PaymentIntent
-  const userId = intent.metadata?.user_id
-
-  if (!userId) {
-    console.error('[stripe-webhook] missing user_id on intent', intent.id)
-    return new Response('Missing user_id in metadata', { status: 400 })
-  }
 
   // Backward compat: intents created before A3 don't have payment_type metadata.
   // Treat them as ruby_bundle.
   const effectiveType = intent.metadata?.payment_type ?? 'ruby_bundle'
 
+  // Each branch validates the metadata IT needs. ruby_bundle / vendor_pack
+  // require user_id; listing requires buyer_id + seller_id + listing_id and
+  // sets buyer_id (not user_id). Validating user_id up front would (and did)
+  // reject listing webhooks with 400 before they ever dispatched.
   if (effectiveType === 'ruby_bundle') {
+    const userId = intent.metadata?.user_id
+    if (!userId) {
+      console.error('[stripe-webhook] ruby_bundle missing user_id', intent.id)
+      return new Response('Missing user_id in metadata', { status: 400 })
+    }
     return await creditRubyBundle(intent, stripe, serviceClient, userId, supabaseUrl, serviceRoleKey)
   }
 
   if (effectiveType === 'vendor_pack') {
+    const userId = intent.metadata?.user_id
+    if (!userId) {
+      console.error('[stripe-webhook] vendor_pack missing user_id', intent.id)
+      return new Response('Missing user_id in metadata', { status: 400 })
+    }
     return await openVendorPack(intent, serviceClient, userId, supabaseUrl, serviceRoleKey)
   }
 
   if (effectiveType === 'listing') {
+    // openListingOrder validates listing_id/seller_id/buyer_id internally.
     return await openListingOrder(intent, supabaseUrl, serviceRoleKey)
   }
 

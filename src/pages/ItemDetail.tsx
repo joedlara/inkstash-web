@@ -260,6 +260,14 @@ export default function ItemDetail() {
     async function loadInteractionStatus() {
       if (!id) return;
 
+      // Auction interaction RPCs (record_auction_view, getAuctionInteractionCounts)
+      // are pre-pivot legacy code that fails for marketplace listings — the
+      // underlying SQL functions assume an auctions row exists. Skip them entirely
+      // when the loaded item is a listing (item.end_date is empty for listings,
+      // populated for real auctions per the conversion in the fetch effect above).
+      const isAuction = !!item?.end_date;
+      if (!isAuction) return;
+
       try {
         await recordAuctionView(id, user?.id);
         const counts = await getAuctionInteractionCounts(id);
@@ -286,7 +294,7 @@ export default function ItemDetail() {
     }
 
     loadInteractionStatus();
-  }, [user, id]);
+  }, [user, id, item?.end_date]);
 
   // Check payment and shipping status when user logs in
   useEffect(() => {
