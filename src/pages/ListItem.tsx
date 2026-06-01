@@ -64,7 +64,6 @@ import ShipFromAddressModal from '../components/listing/ShipFromAddressModal';
 import ComicSearchInput from '../components/listings/ComicSearchInput';
 import type { ComicSelection } from '../components/listings/ComicSearchInput';
 import SellerConnectGate from '../components/listings/SellerConnectGate';
-import ConnectOnboardingModal from '../components/listings/ConnectOnboardingModal';
 import { useListingPersistence } from '../hooks/useListingPersistence';
 import { uploadListingPhoto } from '../utils/photoUpload';
 import type { UploadedPhoto } from '../utils/photoUpload';
@@ -130,7 +129,6 @@ export default function ListItem() {
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedShipFromAddress, setSelectedShipFromAddress] = useState<SellerShipFromAddress | null>(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   // Seller verification gate
   const isSeller = user?.seller_status === 'active';
@@ -446,6 +444,21 @@ export default function ListItem() {
           professional_grader: isGraded ? professionalGrader : null,
           grade: isGraded ? grade : null,
           certification_number: isGraded && certificationNumber.trim() ? certificationNumber.trim() : null,
+          // Shipping fields — preserve so resuming the draft does not reset them
+          package_weight_value: deliveryMethod === 'shipping' && packageWeightValue ? parseFloat(packageWeightValue) : null,
+          package_weight_unit: deliveryMethod === 'shipping' ? packageWeightUnit : null,
+          package_length: deliveryMethod === 'shipping' && packageLength ? parseFloat(packageLength) : null,
+          package_width: deliveryMethod === 'shipping' && packageWidth ? parseFloat(packageWidth) : null,
+          package_height: deliveryMethod === 'shipping' && packageHeight ? parseFloat(packageHeight) : null,
+          package_dimension_unit: deliveryMethod === 'shipping' ? packageDimensionUnit : null,
+          selected_shipping_rate_id: deliveryMethod === 'shipping' ? selectedShippingRateId : null,
+          // Comic metadata — preserve so a draft started from ComicVine search
+          // restores the matched comic instead of forcing the user to re-search
+          comic_vine_id: formData.comicVineId ?? null,
+          comic_publisher: formData.publisher || null,
+          comic_writer: formData.writer || null,
+          comic_artist: formData.artist || null,
+          comic_issue_number: formData.issueNumber || null,
           metadata: {
             detailFilters,
             searchQuery,
@@ -1479,7 +1492,6 @@ export default function ListItem() {
               Start verification
             </Button>
           </SellerConnectGate>
-          <ConnectOnboardingModal open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
         </Container>
       </AppShell>
     );
