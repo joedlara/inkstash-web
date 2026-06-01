@@ -13,11 +13,6 @@ import {
   IconButton,
   Chip,
   Divider,
-  List,
-  ListItem as MuiListItem,
-  ListItemButton,
-  ListItemText,
-  ClickAwayListener,
   Switch,
   InputAdornment,
   Alert,
@@ -35,21 +30,20 @@ import {
 } from '@mui/material';
 import {
   ArrowBack,
-  Search,
-  Clear,
   HelpOutline,
   Add,
   Image as ImageIcon,
   Restore,
 } from '@mui/icons-material';
 
-// Condition options
+// Condition options — comics-specific
 const CONDITION_OPTIONS = [
-  { value: 'new', label: 'New' },
-  { value: 'manufacturer-refurbished', label: 'Manufacturer Refurbished' },
-  { value: 'used-very-good', label: 'Used - Very good' },
-  { value: 'used-acceptable', label: 'Used - Acceptable' },
-  { value: 'used-poor', label: 'Used - Poor' },
+  { value: 'sealed', label: 'Sealed' },
+  { value: 'near-mint', label: 'Near Mint' },
+  { value: 'very-fine', label: 'Very Fine' },
+  { value: 'fine', label: 'Fine' },
+  { value: 'good', label: 'Good' },
+  { value: 'poor', label: 'Poor' },
 ];
 
 // Category options — comic-niche only
@@ -67,6 +61,10 @@ import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import PackageDimensionsInput from '../components/listing/PackageDimensionsInput';
 import ShippingRatesDisplay from '../components/listing/ShippingRatesDisplay';
 import ShipFromAddressModal from '../components/listing/ShipFromAddressModal';
+import ComicSearchInput from '../components/listings/ComicSearchInput';
+import type { ComicSelection } from '../components/listings/ComicSearchInput';
+import SellerConnectGate from '../components/listings/SellerConnectGate';
+import ConnectOnboardingModal from '../components/listings/ConnectOnboardingModal';
 import { useListingPersistence } from '../hooks/useListingPersistence';
 import { uploadListingPhoto } from '../utils/photoUpload';
 import type { UploadedPhoto } from '../utils/photoUpload';
@@ -74,6 +72,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
 import { shippingRatesAPI } from '../api/shipping';
 import { sellerShipFromAddressesAPI, type SellerShipFromAddress } from '../api/sellerShipFromAddresses';
+import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 
 // Professional grading companies
 const GRADER_OPTIONS = [
@@ -107,15 +106,15 @@ const GRADE_OPTIONS = [
   { value: '1', label: '1 - Poor' },
 ];
 
-// Detail filter options for the match step - Generic collectibles filters
+// Detail filter options for the match step - Comics-only filters
 const DETAIL_FILTER_OPTIONS = {
-  type: ['Trading Card', 'Figure', 'Toy', 'Comic', 'Print', 'Memorabilia', 'Other'],
+  type: ['Floppy (Single Issue)', 'Trade Paperback / OGN', 'Graded Slab', 'Variant Cover', 'Key / First Appearance', 'Golden Age / Silver Age', 'Limited Edition / Signed', 'Other'],
   brand: ['Various - Type to add'],
   year: ['2026', '2025', '2024', '2023', '2022', '2021', '2020', 'Pre-2020', 'Other'],
   exclusiveEventRetailer: ['Store Exclusive', 'Convention Exclusive', 'Limited Release', 'Standard Release', 'Other'],
-  franchise: ['Pokemon', 'Marvel', 'DC', 'Star Wars', 'Sports', 'Gaming', 'Anime', 'Other'],
-  theme: ['Anime', 'Movies', 'TV Shows', 'Video Games', 'Sports', 'Music', 'Other'],
-  features: ['Limited Edition', 'Signed', 'First Edition', 'Numbered', 'Holographic', 'Other'],
+  franchise: ['Marvel', 'DC', 'Image', 'Dark Horse', 'IDW', 'BOOM! Studios', 'Independent', 'Other'],
+  theme: ['Superhero', 'Horror', 'Sci-Fi', 'Fantasy', 'Crime / Noir', 'Manga', 'Other'],
+  features: ['Limited Edition', 'Signed', 'First Edition', 'Numbered', 'Foil Cover', 'Newsstand', 'Other'],
 };
 
 export default function ListItem() {
@@ -131,6 +130,10 @@ export default function ListItem() {
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedShipFromAddress, setSelectedShipFromAddress] = useState<SellerShipFromAddress | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  // Seller verification gate
+  const isSeller = user?.seller_status === 'active';
 
   // Check for saved draft on mount
   useEffect(() => {
@@ -390,6 +393,19 @@ export default function ListItem() {
     setShowDraftDialog(false);
   };
 
+  const handleComicSelected = (sel: ComicSelection) => {
+    updateFormData({
+      title: sel.title,
+      issueNumber: sel.issue_number ?? '',
+      publisher: sel.publisher ?? '',
+      writer: sel.writer ?? '',
+      artist: sel.artist ?? '',
+      coverImageUrl: sel.cover_url ?? '',
+      comicVineId: sel.comic_vine_id,
+      step: 'match',
+    });
+  };
+
   const handleSaveDraft = async () => {
     if (!user?.id) {
       setSubmitError('You must be logged in to save a draft');
@@ -479,7 +495,7 @@ export default function ListItem() {
           title,
           description,
           condition: !isGraded ? selectedCondition : null,
-          category: null, // Category is optional, can be added later
+          category: null,
           photos: [], // Will update after uploading photos
           is_auction: isAuction,
           is_buy_now: isBuyNow,
@@ -489,7 +505,7 @@ export default function ListItem() {
           auction_end_time: auctionEndTime?.toISOString(),
           auction_duration_days: isAuction ? auctionDurationDays : null,
           delivery_method: deliveryMethod,
-          quantity: 1, // Default quantity
+          quantity: 1,
           status: 'active',
           // Graded item fields
           is_graded: isGraded,
@@ -504,6 +520,14 @@ export default function ListItem() {
           package_height: deliveryMethod === 'shipping' ? parseFloat(packageHeight) : null,
           package_dimension_unit: deliveryMethod === 'shipping' ? packageDimensionUnit : null,
           selected_shipping_rate_id: deliveryMethod === 'shipping' ? selectedShippingRateId : null,
+          // Comic metadata from ComicVine search
+          comic_vine_id: formData.comicVineId ?? null,
+          comic_publisher: formData.publisher || null,
+          comic_writer: formData.writer || null,
+          comic_artist: formData.artist || null,
+          comic_issue_number: formData.issueNumber || null,
+          // Platform fee snapshot
+          application_fee_pct: 0.100,
           // Detail filters as metadata
           metadata: {
             detailFilters,
@@ -577,216 +601,17 @@ export default function ListItem() {
   };
 
   const renderSearchStep = () => (
-    <Container maxWidth="lg" sx={{ py: 8 }}>
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
-        <Typography variant="h3" fontWeight={700} gutterBottom>
-          Start your listing
+    <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Box sx={{ textAlign: 'center', mb: 5 }}>
+        <Typography variant="h3" fontWeight={700} gutterBottom sx={{ fontFamily: inkstashFonts.display }}>
+          List a comic
+        </Typography>
+        <Typography variant="body1" sx={{ color: inkstashColors.muted }}>
+          Search the ComicVine catalog or enter your comic's details manually.
         </Typography>
       </Box>
 
-      {/* Search Box */}
-      <Box sx={{ maxWidth: 800, mx: 'auto', mb: 8, position: 'relative' }}>
-        <ClickAwayListener onClickAway={handleClickAway}>
-          <Box>
-            <Stack direction="row" spacing={2}>
-              <Box sx={{ position: 'relative', flex: 1 }}>
-                <TextField
-                  fullWidth
-                  ref={searchInputRef}
-                  placeholder="Tell us what you're selling (e.g., Amazing Spider-Man #300 CGC 9.8)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={handleSearchFocus}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  slotProps={{
-                    input: {
-                      endAdornment: searchQuery && (
-                        <IconButton
-                          onClick={() => setSearchQuery('')}
-                          edge="end"
-                          size="small"
-                        >
-                          <Clear />
-                        </IconButton>
-                      ),
-                    },
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      fontSize: '1.1rem',
-                    },
-                  }}
-                />
-
-                {/* API Suggestions Dropdown - TODO: Enable when API is ready */}
-                {showSuggestions && apiSuggestions.length > 0 && (
-                  <Paper
-                    elevation={3}
-                    sx={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      mt: 1,
-                      maxHeight: 400,
-                      overflow: 'auto',
-                      zIndex: 1000,
-                      borderRadius: 2,
-                    }}
-                  >
-                    <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        Suggested items
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Select a match or continue typing
-                      </Typography>
-                    </Box>
-                    <List sx={{ p: 0 }}>
-                      {apiSuggestions.map((suggestion: string, index: number) => (
-                        <MuiListItem key={index} disablePadding>
-                          <ListItemButton
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            sx={{
-                              py: 1.5,
-                              px: 3,
-                              '&:hover': {
-                                bgcolor: 'grey.100',
-                              },
-                            }}
-                          >
-                            <Add sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
-                            <ListItemText
-                              primary={suggestion}
-                              slotProps={{
-                                primary: {
-                                  style: {
-                                    color: '#0078FF',
-                                    fontWeight: 500,
-                                  },
-                                },
-                              }}
-                            />
-                          </ListItemButton>
-                        </MuiListItem>
-                      ))}
-                    </List>
-                  </Paper>
-                )}
-              </Box>
-              <Button
-                variant="contained"
-                onClick={handleSearch}
-                disabled={!searchQuery.trim()}
-                sx={{
-                  borderRadius: 2,
-                  px: 4,
-                  minWidth: 120,
-                }}
-              >
-                <Search />
-              </Button>
-            </Stack>
-          </Box>
-        </ClickAwayListener>
-      </Box>
-
-      {/* Steps Overview */}
-      <Box sx={{ display: 'flex', gap: 4, maxWidth: 1200, mx: 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Card sx={{ width: '100%', maxWidth: 350, borderRadius: 2 }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                mx: 'auto',
-                mb: 3,
-                bgcolor: 'grey.100',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Typography variant="h2" fontWeight={700} color="primary">
-                1
-              </Typography>
-            </Box>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
-              STEP 1
-            </Typography>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
-              Share item details
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Use keywords like brand, model, or unique info (ISBN, MPN, VIN).
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ width: '100%', maxWidth: 350, borderRadius: 2 }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                mx: 'auto',
-                mb: 3,
-                bgcolor: 'grey.100',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Typography variant="h2" fontWeight={700} color="primary">
-                2
-              </Typography>
-            </Box>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
-              STEP 2
-            </Typography>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
-              Find a match
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              We'll search our catalog to find similar items.
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ width: '100%', maxWidth: 350, borderRadius: 2 }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                mx: 'auto',
-                mb: 3,
-                bgcolor: 'grey.100',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Typography variant="h2" fontWeight={700} color="primary">
-                3
-              </Typography>
-            </Box>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
-              STEP 3
-            </Typography>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
-              Edit and list
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              You can preview or make changes before listing your item.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
+      <ComicSearchInput onSelect={(sel) => handleComicSelected(sel)} />
     </Container>
   );
 
@@ -1633,6 +1458,32 @@ export default function ListItem() {
       </Paper>
     </Container>
   );
+
+  // Seller verification gate — show card instead of wizard for unverified users
+  if (!isSeller) {
+    return (
+      <AppShell>
+        <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1.5, fontFamily: inkstashFonts.display }}>
+            Verify to start selling
+          </Typography>
+          <Typography sx={{ color: inkstashColors.muted, mb: 3 }}>
+            List items on InkStash after a 5-minute verification with Stripe.
+          </Typography>
+          <SellerConnectGate>
+            <Button
+              variant="contained"
+              size="large"
+              sx={{ fontWeight: 700, py: 1.5, px: 4 }}
+            >
+              Start verification
+            </Button>
+          </SellerConnectGate>
+          <ConnectOnboardingModal open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
+        </Container>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

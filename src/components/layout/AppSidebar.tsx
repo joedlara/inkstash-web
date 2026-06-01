@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
-import { ChevronRight, PanelLeftClose } from 'lucide-react';
+import { ChevronRight, PanelLeftClose, Check, Clock, Ban } from 'lucide-react';
 import { appSidebarPrimary, appSidebarEvents } from './appSidebarConfig';
 import { useAuth } from '../../hooks/useAuth';
 import ProfileDropdown from '../home/ProfileDropdown';
@@ -22,7 +22,19 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
 
   const username = user?.username || 'guest';
   const initial = username[0]?.toUpperCase() || 'G';
-  const tier = user?.seller_verified ? 'Seller' : 'Free tier';
+  const sellerStatus = user?.seller_status ?? 'inactive';
+
+  const STATUS_BADGE: Record<
+    'inactive' | 'pending' | 'active' | 'paused',
+    { label: string; color: string; icon: React.ReactNode | null }
+  > = {
+    inactive: { label: 'Free',                  color: inkstashColors.muted, icon: null },
+    pending:  { label: 'Pending verification',  color: inkstashColors.gold,  icon: <Clock size={11} /> },
+    active:   { label: 'Seller',                color: inkstashColors.brand, icon: <Check size={11} /> },
+    paused:   { label: 'Paused',                color: '#ef4444',            icon: <Ban size={11} /> },
+  };
+
+  const badge = STATUS_BADGE[sellerStatus];
 
   return (
     <Box
@@ -259,7 +271,19 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
           {!collapsed && (
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Box sx={{ fontWeight: 600, fontSize: 13, color: inkstashColors.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</Box>
-              <Box sx={{ fontFamily: inkstashFonts.mono, fontSize: 10.5, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tier}</Box>
+              <Box sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 10.5,
+                color: badge.color,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+              }}>
+                {badge.icon}
+                <span>{badge.label}</span>
+              </Box>
             </Box>
           )}
         </Box>

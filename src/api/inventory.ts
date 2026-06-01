@@ -22,7 +22,12 @@ export interface InventoryItemWithDetails extends InventoryItem {
   pack_item: Pick<
     PackItem,
     'id' | 'comic_title' | 'issue_number' | 'grade' | 'condition' | 'rarity' | 'estimated_value' | 'image_url' | 'quantity'
-  >;
+  > & {
+    /** Pack origin from the joined packs row. Used to gate the "List for sale"
+     *  button — vendor pack pulls cannot be listed in v1 (those are the
+     *  vendor's product to control). */
+    pack: { origin: 'house' | 'vendor' | 'publisher' } | null;
+  };
 }
 
 export interface SellBackResult {
@@ -76,7 +81,8 @@ export const inventoryAPI = {
       .select(`
         *,
         pack_item:pack_items (
-          id, comic_title, issue_number, grade, condition, rarity, estimated_value, image_url, quantity
+          id, comic_title, issue_number, grade, condition, rarity, estimated_value, image_url, quantity,
+          pack:packs ( origin )
         )
       `)
       .order('created_at', { ascending: false });

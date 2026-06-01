@@ -21,6 +21,13 @@ export interface ListingFormData {
   professionalGrader: string;
   grade: string;
   certificationNumber: string;
+  // Comic metadata from ComicVine search (step 1)
+  comicVineId?: number | null;
+  issueNumber?: string;
+  publisher?: string;
+  writer?: string;
+  artist?: string;
+  coverImageUrl?: string;
   // Detail filters from match step
   detailFilters: {
     type?: string;

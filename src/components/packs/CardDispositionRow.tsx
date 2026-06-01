@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Box, Stack } from '@mui/material';
-import { Vault, Truck, Check } from 'lucide-react';
+import { Vault, Truck, Check, Tag } from 'lucide-react';
 import RubyIcon from '../ui/RubyIcon';
 import ShipAddressModal from '../inventory/ShipAddressModal';
+import SellerConnectGate from '../listings/SellerConnectGate';
+import SetPriceModal from '../listings/SetPriceModal';
 import { inventoryAPI } from '../../api/inventory';
 import type { PackItem } from '../../api/packs';
 import { useRubyBalance } from '../../hooks/useRubyBalance';
@@ -40,6 +42,9 @@ interface CardDispositionRowProps {
   onChange?: (next: Disposition, payoutRubies?: number) => void;
   /** Pack origin type. Hides Sell-back button for vendor packs (Ruby economy not available). */
   packOrigin?: 'house' | 'vendor' | 'publisher';
+  /** Fires after the inventory row is successfully listed. Parent should
+   *  refresh so the row reflects the new 'listed' status. */
+  onListed?: (listingId: string) => void;
 }
 
 function rubyPayoutFor(estimated: number | null): number {
@@ -55,11 +60,13 @@ export default function CardDispositionRow({
   globalBusy,
   onChange,
   packOrigin,
+  onListed,
 }: CardDispositionRowProps) {
   const { refresh: refreshRubies } = useRubyBalance();
   const [busy, setBusy] = useState<'sell' | 'ship' | null>(null);
   const [error, setError] = useState<string>('');
   const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
 
   const labelColor = RARITY_DOT[item.rarity] ?? inkstashColors.muted2;
   const borderColor = item.rarity === 'common' ? inkstashColors.border : RARITY_BORDER[item.rarity];
@@ -304,6 +311,27 @@ export default function CardDispositionRow({
             disabled={!shippable || isBusy}
             busy={busy === 'ship'}
           />
+          {packOrigin === 'house' && inventoryId && (
+            <SellerConnectGate
+              fallback={
+                <DispositionButton
+                  label="List for sale"
+                  icon={<Tag size={13} />}
+                  onClick={() => { /* opens onboarding modal via gate */ }}
+                  tone="neutral"
+                  disabled={isBusy}
+                />
+              }
+            >
+              <DispositionButton
+                label="List for sale"
+                icon={<Tag size={13} />}
+                onClick={() => setPriceModalOpen(true)}
+                tone="neutral"
+                disabled={isBusy}
+              />
+            </SellerConnectGate>
+          )}
         </Stack>
       )}
 
@@ -313,6 +341,20 @@ export default function CardDispositionRow({
         onConfirm={handleShipConfirm}
         itemLabel={`${item.comic_title}${item.issue_number ? ` ${item.issue_number}` : ''}`}
       />
+
+      {priceModalOpen && (
+        <SetPriceModal
+          open={priceModalOpen}
+          onClose={() => setPriceModalOpen(false)}
+          inventoryId={inventoryId}
+          itemTitle={`${item.comic_title}${item.issue_number ? ` ${item.issue_number}` : ''}`}
+          itemImageUrl={item.image_url}
+          onListed={(listingId) => {
+            setPriceModalOpen(false);
+            onListed?.(listingId);
+          }}
+        />
+      )}
     </Box>
   );
 }

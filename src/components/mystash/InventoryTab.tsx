@@ -52,7 +52,14 @@ export default function InventoryTab() {
   const refresh = () => {
     setLoading(true);
     inventoryAPI.listMineWithDetails()
-      .then(setItems)
+      .then((rows) => {
+        // Listed + sold inventory rows are committed to the marketplace —
+        // they no longer belong to the user's actionable stash. Listings show
+        // up in /seller-dashboard; sold-out items are part of the user's
+        // sales history, not their inventory feed.
+        const visible = rows.filter((it) => it.status !== 'listed' && it.status !== 'sold');
+        setItems(visible);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -195,9 +202,11 @@ export default function InventoryTab() {
                 remaining: 0,
                 inventory_id: inv.id,
               }}
+              packOrigin={inv.pack_item.pack?.origin ?? 'house'}
               disposition={dispositionFor(inv)}
               payoutRubies={inv.sold_back_rubies}
               onChange={() => handleDispositionChange(inv.id)}
+              onListed={() => handleDispositionChange(inv.id)}
             />
           ))}
         </Stack>
