@@ -13,11 +13,8 @@ import {
   IconButton,
   Chip,
   Divider,
-  Switch,
   InputAdornment,
   Alert,
-  ToggleButtonGroup,
-  ToggleButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -175,8 +172,6 @@ export default function ListItem() {
   const setUploadedPhotos = (photos: UploadedPhoto[]) => updateFormData({ uploadedPhotos: photos });
   const setTitle = (newTitle: string) => updateFormData({ title: newTitle });
   const setDescription = (desc: string) => updateFormData({ description: desc });
-  const setIsAuction = (auction: boolean) => updateFormData({ isAuction: auction });
-  const setIsBuyNow = (buyNow: boolean) => updateFormData({ isBuyNow: buyNow });
   const setBuyNowPrice = (price: string) => {
     // Only allow numbers and decimal point
     const numericValue = price.replace(/[^0-9.]/g, '');
@@ -186,17 +181,6 @@ export default function ListItem() {
       ? `${parts[0]}.${parts.slice(1).join('')}`
       : numericValue;
     updateFormData({ buyNowPrice: sanitizedValue });
-  };
-  const setAuctionDurationDays = (days: number) => updateFormData({ auctionDurationDays: days });
-  const setStartingBid = (price: string) => {
-    // Only allow numbers and decimal point
-    const numericValue = price.replace(/[^0-9.]/g, '');
-    // Prevent multiple decimal points
-    const parts = numericValue.split('.');
-    const sanitizedValue = parts.length > 2
-      ? `${parts[0]}.${parts.slice(1).join('')}`
-      : numericValue;
-    updateFormData({ startingBid: sanitizedValue });
   };
   const setDeliveryMethod = (method: string) => updateFormData({ deliveryMethod: method });
   const setIsGraded = (graded: boolean) => updateFormData({ isGraded: graded });
@@ -1215,127 +1199,39 @@ export default function ListItem() {
           Pricing
         </Typography>
 
-        {/* Auction Toggle */}
-        <Paper sx={{ p: 3, mb: 2, bgcolor: isAuction ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: isAuction ? 2 : 0 }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Auction
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Set a starting amount and let buyers compete for your item.
-              </Typography>
-            </Box>
-            <Switch
-              checked={isAuction}
-              onChange={(e) => setIsAuction(e.target.checked)}
+        {/* Buy It Now price (auctions are Phase 6) */}
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'rgba(0, 120, 255, 0.05)' }}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Buy It Now
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Set the price buyers pay to purchase immediately.
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Price
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              Beat the online trending price to maximize your chance of selling.
+            </Typography>
+            <TextField
+              fullWidth
+              value={buyNowPrice}
+              onChange={(e) => setBuyNowPrice(e.target.value)}
+              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+              slotProps={{
+                input: {
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                },
+              }}
             />
-          </Stack>
-
-          {isAuction && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Starting Bid
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Set the minimum price to start the auction.
-              </Typography>
-              <TextField
-                fullWidth
-                value={startingBid}
-                onChange={(e) => setStartingBid(e.target.value)}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-                slotProps={{
-                  input: {
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  },
-                }}
-                sx={{ mb: 2 }}
-              />
-
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Auction Duration
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Choose how long your auction will run (1-14 days).
-              </Typography>
-              <FormControl fullWidth>
-                <Select
-                  value={auctionDurationDays}
-                  onChange={(e) => setAuctionDurationDays(Number(e.target.value))}
-                >
-                  <MenuItem value={1}>1 day</MenuItem>
-                  <MenuItem value={3}>3 days</MenuItem>
-                  <MenuItem value={5}>5 days</MenuItem>
-                  <MenuItem value={7}>7 days</MenuItem>
-                  <MenuItem value={10}>10 days</MenuItem>
-                  <MenuItem value={14}>14 days</MenuItem>
-                </Select>
-              </FormControl>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                Your auction will end on {new Date(Date.now() + auctionDurationDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit'
-                })}
-              </Typography>
-            </Box>
-          )}
+          </Box>
         </Paper>
-
-        {/* Buy It Now Toggle */}
-        <Paper sx={{ p: 3, mb: 3, bgcolor: isBuyNow ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: isBuyNow ? 2 : 0 }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Buy It Now
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Buyers can purchase immediately at this price.
-              </Typography>
-            </Box>
-            <Switch
-              checked={isBuyNow}
-              onChange={(e) => setIsBuyNow(e.target.checked)}
-            />
-          </Stack>
-
-          {isBuyNow && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Price
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Beat the online trending price to maximize your chance of selling.
-              </Typography>
-              <TextField
-                fullWidth
-                value={buyNowPrice}
-                onChange={(e) => setBuyNowPrice(e.target.value)}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-                slotProps={{
-                  input: {
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  },
-                }}
-              />
-            </Box>
-          )}
-        </Paper>
-
-        <Button
-          variant="text"
-          sx={{ textTransform: 'none' }}
-        >
-          More options
-        </Button>
       </Box>
 
       <Divider sx={{ my: 4 }} />
