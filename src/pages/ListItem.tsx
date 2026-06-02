@@ -124,6 +124,7 @@ export default function ListItem() {
   const searchInputRef = useRef<HTMLDivElement>(null);
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
@@ -376,7 +377,7 @@ export default function ListItem() {
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSavingDraft(true);
     setSubmitError('');
 
     try {
@@ -446,33 +447,49 @@ export default function ListItem() {
       console.error('Error saving draft:', error);
       setSubmitError(error.message || 'Failed to save draft. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setIsSavingDraft(false);
     }
   };
 
   const handleGenerateDescription = async () => {
-    // Only photos that have actually been uploaded (path is set) have a public
-    // URL Claude can fetch. Local-preview-only photos (blob:) are useless.
-    const uploadedUrls = uploadedPhotos
-      .filter((p) => p.path && p.url && !p.url.startsWith('blob:'))
-      .map((p) => p.url);
-
-    if (uploadedUrls.length === 0) {
-      setSubmitError('Upload at least one photo before generating a description.');
+    if (!user?.id) {
+      setSubmitError('You must be logged in.');
+      return;
+    }
+    if (uploadedPhotos.length === 0) {
+      setSubmitError('Add at least one photo before generating a description.');
       return;
     }
 
     setGeneratingDescription(true);
     setSubmitError('');
     try {
+      // The seller hasn't submitted the listing yet, so photos may only
+      // exist as local blob previews (path === undefined). Claude needs
+      // public URLs to read the images, so push any unUploaded photos to
+      // Supabase Storage under a temp listing id namespace first.
+      const tempItemId = `ai-${Date.now()}`;
+      const photosForAI = uploadedPhotos.slice(0, 5);
+      const urls: string[] = [];
+
+      for (const photo of photosForAI) {
+        if (photo.path && photo.url && !photo.url.startsWith('blob:')) {
+          urls.push(photo.url);
+        } else if (photo.file) {
+          const uploaded = await uploadListingPhoto(photo.file, user.id, tempItemId, photo.type);
+          urls.push(uploaded.url);
+        }
+      }
+
+      if (urls.length === 0) {
+        throw new Error('Photos must finish processing before generating.');
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('You must be logged in.');
 
       const { data, error } = await supabase.functions.invoke('generate-listing-description', {
-        body: {
-          photo_urls: uploadedUrls.slice(0, 5),
-          title: title || undefined,
-        },
+        body: { photo_urls: urls, title: title || undefined },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (error) throw new Error(error.message);
@@ -714,176 +731,6 @@ export default function ListItem() {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* TITLE Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
-          Title
-        </Typography>
-
-        <TextField
-          fullWidth
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Absolute Batman #1"
-          helperText="The comic's name and issue number, as buyers will see it."
-          sx={{ mb: 1 }}
-        />
-      </Box>
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* ITEM SPECIFICS Section */}
-      <Box sx={{ mb: 4 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="h5" fontWeight={700}>
-            Item specifics
-          </Typography>
-        </Stack>
-
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          These details were collected from your previous steps.
-        </Typography>
-
-        {/* Item Specifics Grid */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mt: 3 }}>
-          {/* Show grading details if item is graded */}
-          {isGraded && (
-            <>
-              <Box>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Item Type
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Professionally Graded
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Professional Grader
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {GRADER_OPTIONS.find(g => g.value === professionalGrader)?.label || professionalGrader.toUpperCase()}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Grade
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {GRADE_OPTIONS.find(g => g.value === grade)?.label || grade}
-                </Typography>
-              </Box>
-
-              {certificationNumber && (
-                <Box>
-                  <Typography variant="body2" fontWeight={600} gutterBottom>
-                    Certification Number
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {certificationNumber}
-                  </Typography>
-                </Box>
-              )}
-            </>
-          )}
-
-          {/* Show condition if not graded */}
-          {!isGraded && selectedCondition && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Condition
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {CONDITION_OPTIONS.find(c => c.value === selectedCondition)?.label || selectedCondition}
-              </Typography>
-            </Box>
-          )}
-
-          {/* Show detail filters */}
-          {detailFilters.type && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Type
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.type}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.brand && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Brand
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.brand}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.year && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Year
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.year}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.exclusiveEventRetailer && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Exclusive Event/Retailer
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.exclusiveEventRetailer}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.franchise && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Franchise
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.franchise}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.theme && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Theme
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.theme}
-              </Typography>
-            </Box>
-          )}
-
-          {detailFilters.features && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Features
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detailFilters.features}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </Box>
-
-      <Divider sx={{ my: 4 }} />
-
       {/* DESCRIPTION Section */}
       <Box sx={{ mb: 4 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -892,8 +739,8 @@ export default function ListItem() {
           </Typography>
           <Tooltip
             title={
-              uploadedPhotos.filter(p => p.path && !p.url.startsWith('blob:')).length === 0
-                ? 'Upload at least one photo first.'
+              uploadedPhotos.length === 0
+                ? 'Add at least one photo first.'
                 : 'Generate a short product description from your photos.'
             }
           >
@@ -901,7 +748,7 @@ export default function ListItem() {
               <Button
                 variant="outlined"
                 size="small"
-                disabled={generatingDescription || uploadedPhotos.filter(p => p.path && !p.url.startsWith('blob:')).length === 0}
+                disabled={generatingDescription || uploadedPhotos.length === 0}
                 onClick={handleGenerateDescription}
                 startIcon={
                   generatingDescription
@@ -1063,23 +910,15 @@ export default function ListItem() {
             )}
           </Button>
           <Button
-            variant="outlined"
-            size="large"
-            fullWidth
-            disabled={isSubmitting}
-            sx={{ py: 1.5, textTransform: 'none', fontSize: '1.1rem' }}
-          >
-            Preview
-          </Button>
-          <Button
             variant="text"
             size="large"
             fullWidth
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSavingDraft}
             onClick={handleSaveDraft}
+            startIcon={isSavingDraft ? <CircularProgress size={16} /> : undefined}
             sx={{ textTransform: 'none' }}
           >
-            Save for later
+            {isSavingDraft ? 'Saving…' : 'Save for later'}
           </Button>
         </Stack>
       </Paper>

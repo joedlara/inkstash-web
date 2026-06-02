@@ -354,15 +354,8 @@ export default function PhotoUploadSection({
                 borderColor: 'primary.main',
               },
             }}
-            onClick={handleUploadClick}
+            onClick={(e) => { e.stopPropagation(); handleUploadClick(); }}
           >
-            <input
-              type="file"
-              hidden
-              accept="image/*,video/*"
-              multiple
-              onChange={handleFileInput}
-            />
             <ImageIcon sx={{ fontSize: 32, color: 'text.secondary', mb: 0.5 }} />
             <Typography variant="caption" fontWeight={500}>Add</Typography>
           </Paper>
