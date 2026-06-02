@@ -23,20 +23,22 @@ const corsHeaders = {
 
 const MAX_PHOTOS = 5
 const MODEL = 'claude-haiku-4-5-20251001'
-const MAX_TOKENS = 400
+const MAX_TOKENS = 200 // ~300-500 char output cap
+const DAILY_LIMIT_PER_USER = 20
 
-const SYSTEM_PROMPT = `You are writing a product description for a comic book marketplace listing on InkStash. Look at the uploaded photos and write a 100-200 word product description in a friendly, knowledgeable tone.
+const SYSTEM_PROMPT = `You are writing a short product description for a comic book marketplace listing on InkStash. Look at the uploaded photos and write 300-500 characters of plain prose (NOT longer) in a friendly, knowledgeable tone.
 
 Cover:
 - What the comic is (title, issue number, publisher if visible)
 - Visible condition notes (creases, color, spine, corners, etc.)
-- Anything noteworthy from the cover (variant, signed, sealed, key issue if you can confirm from the cover/indicia)
+- Anything noteworthy from the cover (variant, signed, sealed)
 
 Do not:
 - Speculate about value or pricing
-- Make claims you cannot verify from the photos (no "first appearance of X" unless the cover/indicia confirms it)
+- Claim "first appearance of X" or other key-issue facts unless the cover/indicia explicitly confirms it
 - Use exclamation points or salesy language
 - Use markdown, bullet points, or headings
+- Exceed 500 characters
 
 Plain prose only.`
 
@@ -96,6 +98,24 @@ serve(async (req) => {
     }
     if (photoUrls.length > MAX_PHOTOS) {
       return json({ error: `Maximum ${MAX_PHOTOS} photos per request` }, 400)
+    }
+
+    // Per-user daily rate limit. Counts calls in the last 24h from the
+    // anthropic_usage log. Caps abuse / runaway costs.
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { count: usageCount, error: usageErr } = await serviceClient
+      .from('anthropic_usage')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('feature', 'listing_description')
+      .gte('created_at', since)
+    if (usageErr) {
+      console.warn('[generate-listing-description] usage count failed, allowing request', usageErr)
+    } else if ((usageCount ?? 0) >= DAILY_LIMIT_PER_USER) {
+      return json(
+        { error: `Daily limit reached (${DAILY_LIMIT_PER_USER} descriptions per day). Try again tomorrow.` },
+        429,
+      )
     }
 
     const titleText = body.title?.trim()

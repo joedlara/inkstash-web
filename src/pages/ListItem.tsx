@@ -124,6 +124,7 @@ export default function ListItem() {
   const searchInputRef = useRef<HTMLDivElement>(null);
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -446,6 +447,41 @@ export default function ListItem() {
       setSubmitError(error.message || 'Failed to save draft. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    // Only photos that have actually been uploaded (path is set) have a public
+    // URL Claude can fetch. Local-preview-only photos (blob:) are useless.
+    const uploadedUrls = uploadedPhotos
+      .filter((p) => p.path && p.url && !p.url.startsWith('blob:'))
+      .map((p) => p.url);
+
+    if (uploadedUrls.length === 0) {
+      setSubmitError('Upload at least one photo before generating a description.');
+      return;
+    }
+
+    setGeneratingDescription(true);
+    setSubmitError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('You must be logged in.');
+
+      const { data, error } = await supabase.functions.invoke('generate-listing-description', {
+        body: {
+          photo_urls: uploadedUrls.slice(0, 5),
+          title: title || undefined,
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.description) setDescription(data.description);
+    } catch (err: any) {
+      setSubmitError(err.message ?? 'Failed to generate description');
+    } finally {
+      setGeneratingDescription(false);
     }
   };
 
@@ -854,23 +890,38 @@ export default function ListItem() {
           <Typography variant="h5" fontWeight={700}>
             Description
           </Typography>
-          <Tooltip title="AI description coming soon. Upload photos first so we can generate from cover art.">
+          <Tooltip
+            title={
+              uploadedPhotos.filter(p => p.path && !p.url.startsWith('blob:')).length === 0
+                ? 'Upload at least one photo first.'
+                : 'Generate a short product description from your photos.'
+            }
+          >
             <span>
               <Button
                 variant="outlined"
                 size="small"
-                disabled
-                startIcon={<AutoAwesome fontSize="small" />}
+                disabled={generatingDescription || uploadedPhotos.filter(p => p.path && !p.url.startsWith('blob:')).length === 0}
+                onClick={handleGenerateDescription}
+                startIcon={
+                  generatingDescription
+                    ? <CircularProgress size={14} />
+                    : <AutoAwesome fontSize="small" />
+                }
                 sx={{
                   textTransform: 'none',
                   borderRadius: 999,
                   fontWeight: 600,
                   fontFamily: inkstashFonts.ui,
                   borderColor: inkstashColors.borderStrong,
-                  color: inkstashColors.muted,
+                  color: generatingDescription ? inkstashColors.muted : inkstashColors.ink,
+                  '&:hover:not(:disabled)': {
+                    borderColor: inkstashColors.brand,
+                    color: inkstashColors.brand,
+                  },
                 }}
               >
-                Generate from photos
+                {generatingDescription ? 'Generating…' : 'Generate from photos'}
               </Button>
             </span>
           </Tooltip>

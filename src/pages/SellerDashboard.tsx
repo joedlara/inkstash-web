@@ -50,10 +50,12 @@ import {
   Add,
   Remove,
   Edit as EditIcon,
+  Block,
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import AppShell from '../components/layout/AppShell';
 import { supabase } from '../api/supabase/supabaseClient';
+import { listingsAPI } from '../api/listings';
 import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import type { UploadedPhoto } from '../utils/photoUpload';
 import { uploadListingPhoto, deleteListingPhoto } from '../utils/photoUpload';
@@ -135,6 +137,12 @@ export default function SellerDashboard() {
   const [storeView, setStoreView] = useState<'active' | 'drafts'>('active'); // Toggle between active listings and drafts
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
+  // Delist confirmation modal — single source of truth so the dialog text
+  // can reference the listing title and so we can disable buttons while in
+  // flight.
+  const [delistTarget, setDelistTarget] = useState<Listing | null>(null);
+  const [delisting, setDelisting] = useState(false);
+  const [delistError, setDelistError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
@@ -288,6 +296,23 @@ export default function SellerDashboard() {
     } catch (error: any) {
       console.error('Error updating quantity:', error);
       alert(`Failed to update quantity: ${error.message}`);
+    }
+  };
+
+  const handleConfirmDelist = async () => {
+    if (!delistTarget) return;
+    setDelisting(true);
+    setDelistError(null);
+    try {
+      await listingsAPI.delist(delistTarget.id);
+      // Optimistically remove from local state so the row disappears
+      // without waiting for a refetch round-trip.
+      setListings((prev) => prev.filter((l) => l.id !== delistTarget.id));
+      setDelistTarget(null);
+    } catch (err: any) {
+      setDelistError(err.message ?? 'Failed to delist');
+    } finally {
+      setDelisting(false);
     }
   };
 
@@ -833,15 +858,29 @@ export default function SellerDashboard() {
                           sx={{
                             '&:hover': { bgcolor: 'primary.light', color: 'white' },
                           }}
+                          title="Edit"
                         >
                           <EditIcon />
                         </IconButton>
+                        {storeView === 'active' && listing.status === 'active' && (
+                          <IconButton
+                            color="warning"
+                            onClick={() => setDelistTarget(listing)}
+                            sx={{
+                              '&:hover': { bgcolor: 'warning.light', color: 'white' },
+                            }}
+                            title="Delist"
+                          >
+                            <Block />
+                          </IconButton>
+                        )}
                         <IconButton
                           color="error"
                           onClick={() => handleDeleteListing(listing.id)}
                           sx={{
                             '&:hover': { bgcolor: 'error.light', color: 'white' },
                           }}
+                          title="Delete"
                         >
                           <Delete />
                         </IconButton>
@@ -1023,6 +1062,33 @@ export default function SellerDashboard() {
             ) : (
               'Save Changes'
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delist confirmation dialog */}
+      <Dialog open={!!delistTarget} onClose={() => !delisting && setDelistTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Take this listing down?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            <strong>{delistTarget?.title}</strong> will no longer be visible on the marketplace. You can list it again later, but Ruby sell-back stays unavailable.
+          </Typography>
+          {delistError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {delistError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDelistTarget(null)} disabled={delisting}>Cancel</Button>
+          <Button
+            onClick={handleConfirmDelist}
+            color="warning"
+            variant="contained"
+            disabled={delisting}
+            startIcon={delisting ? <CircularProgress size={16} /> : <Block />}
+          >
+            {delisting ? 'Delisting…' : 'Delist'}
           </Button>
         </DialogActions>
       </Dialog>
