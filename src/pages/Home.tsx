@@ -11,8 +11,8 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
 import { authManager } from '../api/auth/authManager';
 import OnboardingModal from '../components/onboarding/OnboardingModal';
-import { dropsAPI } from '../api/dropsRaffles';
-import type { Drop } from '../api/dropsRaffles';
+import { dropsAPI } from '../api/drops';
+import type { Drop } from '../api/drops';
 import { PACKS } from '../data/handoffSeed';
 import AppShell from '../components/layout/AppShell';
 import HomeHero from '../components/home/HomeHero';
@@ -66,10 +66,14 @@ const RARITY_STYLE: Record<string, { border: string; glow: string; chip: string;
 };
 
 // ── Next drop hook ────────────────────────────────────────────────────────────
+// Returns the next live OR upcoming drop. Banner falls back to a
+// far-future placeholder if there are no drops scheduled.
 function useNextDrop() {
   const [drop, setDrop] = useState<Drop | null>(null);
   useEffect(() => {
-    dropsAPI.getNextUpcoming().then(setDrop).catch(() => setDrop(null));
+    dropsAPI.getDrops({ state: 'live_or_upcoming', limit: 1 })
+      .then((ds) => setDrop(ds[0] ?? null))
+      .catch(() => setDrop(null));
   }, []);
   return drop;
 }
@@ -95,7 +99,7 @@ function SplashPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nextDrop = useNextDrop();
-  const dropTarget = nextDrop?.drop_at ?? new Date(Date.now() + 9999 * 3600000).toISOString();
+  const dropTarget = nextDrop?.go_live_at ?? new Date(Date.now() + 9999 * 3600000).toISOString();
   const [dropSecs, setDropSecs] = useState(() => Math.max(0, Math.floor((new Date(dropTarget).getTime() - Date.now()) / 1000)));
   useEffect(() => {
     const id = setInterval(() => setDropSecs(s => Math.max(0, s - 1)), 1000);
