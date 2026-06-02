@@ -90,40 +90,44 @@ export default function ListingStartPanel({ onPicked }: Props) {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontSize: 11,
-            color: inkstashColors.gold,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            mb: 0.75,
-          }}
-        >
-          List a comic · ~2 minutes
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
+      <Box sx={{ mb: { xs: 4, md: 6 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
+          <Box sx={{ width: 24, height: 2, bgcolor: inkstashColors.brand }} />
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              color: inkstashColors.brand,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              fontWeight: 700,
+            }}
+          >
+            New listing · about 2 minutes
+          </Typography>
+        </Box>
         <Typography
           sx={{
             fontFamily: inkstashFonts.display,
-            fontWeight: 800,
-            fontSize: { xs: 30, md: 36 },
+            fontWeight: 900,
+            fontSize: { xs: 36, sm: 44, md: 52 },
             color: inkstashColors.ink,
-            lineHeight: 1.05,
+            lineHeight: 1.02,
             textTransform: 'uppercase',
-            letterSpacing: '0.005em',
+            letterSpacing: '-0.005em',
+            maxWidth: 720,
           }}
         >
-          What comic are you<br />putting up for sale?
+          What comic are you putting up for sale?
         </Typography>
       </Box>
 
-      {/* How it works */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1.5, mb: 5 }}>
-        <HowItWorksCard step="1" title="Pick your comic" body="Search, pick from trending, or type the details yourself." icon={<Search fontSize="small" />} />
-        <HowItWorksCard step="2" title="Add details" body="Condition, grade, photos. Takes about a minute." icon={<ListAlt fontSize="small" />} />
-        <HowItWorksCard step="3" title="Set price + ship" body="We handle the payment, you handle the box." icon={<MonetizationOn fontSize="small" />} />
+      {/* How it works — bolder, more presence */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1.5, mb: { xs: 5, md: 7 } }}>
+        <HowItWorksCard step="1" title="Pick your comic" body="Search the catalog, clone a recent listing, or type the details yourself." icon={<Search />} />
+        <HowItWorksCard step="2" title="Add details" body="Condition, grade, photos. AI can write the description from your photos." icon={<ListAlt />} />
+        <HowItWorksCard step="3" title="Price &amp; ship" body="Set your price. We handle Stripe payouts, you ship the book." icon={<MonetizationOn />} />
       </Box>
 
       {/* Search */}
@@ -206,22 +210,28 @@ export default function ListingStartPanel({ onPicked }: Props) {
 
       {/* Trending */}
       {trending !== null && trending.length > 0 && (
-        <>
-          <SectionHeader subtitle="Click a recent listing to copy its comic info">
+        <Box sx={{ mt: { xs: 4, md: 5 } }}>
+          <SectionHeader subtitle="Click a recent listing to clone its comic info">
             <AutoAwesome sx={{ fontSize: 14, mr: 0.75, color: inkstashColors.gold, verticalAlign: 'middle' }} />
             Recent on InkStash
           </SectionHeader>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1.25 }}>
-            {trending.map((card) => (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
+              gap: { xs: 1.5, md: 2 },
+            }}
+          >
+            {trending.slice(0, 4).map((card) => (
               <TrendingTile key={card.id} card={card} onClick={() => pickFromTrending(card)} />
             ))}
           </Box>
-        </>
+        </Box>
       )}
       {trending === null && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1.25 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} variant="rectangular" height={160} sx={{ borderRadius: inkstashRadii.md }} />
+        <Box sx={{ mt: { xs: 4, md: 5 }, display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} variant="rectangular" height={280} sx={{ borderRadius: inkstashRadii.md }} />
           ))}
         </Box>
       )}
@@ -233,42 +243,73 @@ function HowItWorksCard({ step, title, body, icon }: { step: string; title: stri
   return (
     <Box
       sx={{
-        p: 1.75,
+        position: 'relative',
+        p: { xs: 2.25, md: 2.75 },
         bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${inkstashColors.border}`,
-        borderRadius: inkstashRadii.md,
-        transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+        border: `1.5px solid ${inkstashColors.border}`,
+        borderRadius: inkstashRadii.lg,
+        transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          borderColor: inkstashColors.borderStrong,
+          transform: 'translateY(-3px)',
+          borderColor: inkstashColors.brand,
           boxShadow: inkstashShadows.md,
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-        <Box
-          sx={{
-            width: 22,
-            height: 22,
-            borderRadius: '50%',
-            bgcolor: inkstashColors.brand,
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 11,
-            fontWeight: 800,
-            fontFamily: inkstashFonts.mono,
-          }}
-        >
-          {step}
-        </Box>
-        <Box sx={{ color: inkstashColors.gold, display: 'flex', alignItems: 'center' }}>{icon}</Box>
-        <Typography sx={{ fontWeight: 700, fontSize: 13, color: inkstashColors.ink, fontFamily: inkstashFonts.ui }}>
-          {title}
-        </Typography>
+      {/* Big numbered badge — anchored top-right so the row of three reads
+          as ① ② ③ at a glance even from across the page. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 14,
+          right: 14,
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          bgcolor: inkstashColors.brandSoft,
+          color: inkstashColors.brand,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: inkstashFonts.display,
+          fontSize: 18,
+          fontWeight: 900,
+        }}
+      >
+        {step}
       </Box>
-      <Typography sx={{ fontSize: 12, color: inkstashColors.muted, lineHeight: 1.45 }}>
+
+      <Box
+        sx={{
+          width: 36,
+          height: 36,
+          borderRadius: inkstashRadii.sm,
+          bgcolor: inkstashColors.bgSunken,
+          color: inkstashColors.brand,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mb: 1.5,
+          '& svg': { fontSize: 20 },
+        }}
+      >
+        {icon}
+      </Box>
+
+      <Typography
+        sx={{
+          fontFamily: inkstashFonts.display,
+          fontWeight: 800,
+          fontSize: 16,
+          color: inkstashColors.ink,
+          textTransform: 'uppercase',
+          letterSpacing: '0.005em',
+          mb: 0.5,
+        }}
+      >
+        {title}
+      </Typography>
+      <Typography sx={{ fontSize: 13, color: inkstashColors.muted, lineHeight: 1.5, fontFamily: inkstashFonts.ui }}>
         {body}
       </Typography>
     </Box>
@@ -277,21 +318,29 @@ function HowItWorksCard({ step, title, body, icon }: { step: string; title: stri
 
 function SectionHeader({ children, subtitle }: { children: React.ReactNode; subtitle?: string }) {
   return (
-    <Box sx={{ mb: 1.5 }}>
+    <Box sx={{ mb: 2 }}>
       <Typography
         sx={{
-          fontFamily: inkstashFonts.mono,
-          fontSize: 11,
-          color: inkstashColors.ink2,
+          fontFamily: inkstashFonts.display,
+          fontSize: { xs: 18, md: 20 },
+          fontWeight: 800,
+          color: inkstashColors.ink,
           textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          fontWeight: 700,
+          letterSpacing: '0.005em',
+          lineHeight: 1.15,
         }}
       >
         {children}
       </Typography>
       {subtitle && (
-        <Typography sx={{ fontSize: 12, color: inkstashColors.muted, mt: 0.25 }}>
+        <Typography
+          sx={{
+            fontSize: 13,
+            color: inkstashColors.muted,
+            mt: 0.5,
+            fontFamily: inkstashFonts.ui,
+          }}
+        >
           {subtitle}
         </Typography>
       )}
@@ -309,21 +358,23 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
         display: 'block',
         width: '100%',
         p: 0,
-        border: `1px solid ${inkstashColors.border}`,
-        borderRadius: inkstashRadii.md,
+        border: `1.5px solid ${inkstashColors.border}`,
+        borderRadius: inkstashRadii.lg,
         bgcolor: inkstashColors.bgElev,
         overflow: 'hidden',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+        transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
+          transform: 'translateY(-4px)',
           borderColor: inkstashColors.brand,
           boxShadow: inkstashShadows.md,
         },
         '&:active': { transform: 'scale(0.98)' },
       }}
     >
+      {/* Cover art — larger aspect than before, inset shadow on the bottom
+          edge so the cover lifts off the title section visually. */}
       <Box
         sx={{
           width: '100%',
@@ -332,12 +383,14 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
           backgroundImage: card.cover_url ? `url(${card.cover_url})` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          borderBottom: `1px solid ${inkstashColors.border}`,
         }}
       />
-      <Box sx={{ p: 1 }}>
+      <Box sx={{ p: { xs: 1.25, md: 1.5 } }}>
         <Typography
           sx={{
-            fontSize: 11.5,
+            fontFamily: inkstashFonts.ui,
+            fontSize: 14,
             fontWeight: 700,
             color: inkstashColors.ink,
             overflow: 'hidden',
@@ -345,16 +398,31 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            minHeight: 28,
-            lineHeight: 1.25,
+            minHeight: 38,
+            lineHeight: 1.3,
+            mb: card.comic_publisher ? 0.75 : 0,
           }}
         >
           {card.title}
         </Typography>
         {card.comic_publisher && (
-          <Typography sx={{ fontSize: 9.5, color: inkstashColors.muted, fontFamily: inkstashFonts.mono, textTransform: 'uppercase', letterSpacing: '0.06em', mt: 0.25 }}>
+          <Box
+            sx={{
+              display: 'inline-block',
+              px: 1,
+              py: 0.25,
+              bgcolor: inkstashColors.brandSoft,
+              color: inkstashColors.brand,
+              borderRadius: 999,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
             {card.comic_publisher}
-          </Typography>
+          </Box>
         )}
       </Box>
     </Box>
