@@ -625,17 +625,40 @@ async function openCartOrderGroup(
     console.warn('[stripe-webhook] buyer cart email failed (non-fatal)', err)
   }
 
-  // Per-seller emails. Reuse the existing send-listing-sold-seller fn.
+  // Per-seller emails. Reuse the existing send-listing-sold-seller fn,
+  // which expects a fat payload with listing details. We've got everything
+  // already loaded above (orders + listingRow earlier in the loop won't
+  // survive — refetch per email since each is independent).
   for (const order of orders) {
-    const o = order as { id: string }
+    const o = order as {
+      id: string
+      seller_id: string
+      buyer_id: string
+      listing_id: string
+      item_price: number
+      shipping_cost: number
+    }
     try {
+      const { data: l } = await serviceClient
+        .from('listings')
+        .select('id, title, comic_publisher, source_inventory_id')
+        .eq('id', o.listing_id)
+        .maybeSingle()
+      if (!l) continue
       await fetch(`${supabaseUrl}/functions/v1/send-listing-sold-seller`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${serviceRoleKey}`,
         },
-        body: JSON.stringify({ order_id: o.id }),
+        body: JSON.stringify({
+          orderId: o.id,
+          listing: l,
+          buyer_id: o.buyer_id,
+          seller_id: o.seller_id,
+          amount_cents: Math.round((Number(o.item_price) + Number(o.shipping_cost)) * 100),
+          payment_intent_id: intent.id,
+        }),
       })
     } catch (err) {
       console.warn('[stripe-webhook] seller email failed (non-fatal)', o.id, err)
