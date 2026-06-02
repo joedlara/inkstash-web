@@ -397,49 +397,58 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
           {card.title}
         </Typography>
 
-        {/* Price pill — color encodes the source: cobalt blue for buy-now,
-            gold for auction. The label is the actual price the seller set,
-            since 'Buy now · Buy now' read as redundant noise. */}
+        {/* Price on the left in display font, source pill on the right.
+            Cobalt blue for buy-now, gold for auction. */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: card.comic_publisher ? 0.75 : 0 }}>
-          {card.comic_publisher ? (
-            <Box
-              sx={{
-                px: 1,
-                py: 0.25,
-                bgcolor: inkstashColors.brandSoft,
-                color: inkstashColors.brand,
-                borderRadius: 999,
-                fontFamily: inkstashFonts.mono,
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: '60%',
-              }}
-            >
-              {card.comic_publisher}
-            </Box>
-          ) : <span />}
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 800,
+              fontSize: 17,
+              color: inkstashColors.ink,
+              lineHeight: 1,
+            }}
+          >
+            {card.display_price_label}
+          </Typography>
           <Box
             sx={{
-              px: 1.1,
-              py: 0.4,
+              px: 1,
+              py: 0.3,
               bgcolor: card.source === 'auction' ? inkstashColors.gold : '#2A4D8A',
               color: '#fff',
               borderRadius: 999,
               fontFamily: inkstashFonts.mono,
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: 800,
-              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
               flexShrink: 0,
             }}
           >
-            {card.display_price_label}
+            {card.source === 'auction' ? 'Auction' : 'Buy now'}
           </Box>
         </Box>
+
+        {card.comic_publisher && (
+          <Box
+            sx={{
+              display: 'inline-block',
+              px: 1,
+              py: 0.25,
+              bgcolor: inkstashColors.brandSoft,
+              color: inkstashColors.brand,
+              borderRadius: 999,
+              fontFamily: inkstashFonts.mono,
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            {card.comic_publisher}
+          </Box>
+        )}
       </Box>
     </Box>
   );
