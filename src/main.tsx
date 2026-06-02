@@ -12,6 +12,7 @@ import Packs from './pages/Packs';
 import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
 import Drops from './pages/Drops';
+import DropDetail from './pages/DropDetail';
 import Raffles from './pages/Raffles';
 import Marketplace from './pages/Marketplace';
 import Checkout from './pages/CheckoutNew';
@@ -55,6 +56,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/pack-reveal/:purchaseId" element={<Navigate to="/packs" replace />} />
                 <Route path="/live" element={<Live />} />
                 <Route path="/drops" element={<Drops />} />
+                <Route path="/drop/:id" element={<DropDetail />} />
                 <Route path="/raffles" element={<Raffles />} />
                 <Route path="/marketplace" element={<Marketplace />} />
                 {/* Redirects for removed routes */}
