@@ -64,12 +64,23 @@ export default function CartCheckoutSuccess() {
       }
 
       if (attempts >= MAX_POLLS) {
+        // Even on timeout the buyer's card was charged (Stripe wouldn't
+        // redirect to return_url otherwise). Empty the cart so they don't
+        // see stale items if the webhook is slow.
+        clearCart().catch(() => { /* non-fatal */ });
         if (!cancelled) setStatus('timeout');
         return;
       }
 
       setTimeout(poll, POLL_INTERVAL_MS);
     };
+
+    // Defensive: empty the cart immediately on mount. The buyer landed here
+    // because Stripe confirmed payment. We don't need the webhook to fire
+    // before we clear the cart UX — the orders are already inserted by
+    // create-cart-payment-intent (status='pending'), so the cart is logically
+    // empty whether or not the webhook has processed yet.
+    clearCart().catch(() => { /* non-fatal */ });
 
     poll();
     return () => { cancelled = true; };
