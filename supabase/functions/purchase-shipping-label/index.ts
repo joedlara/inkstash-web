@@ -55,7 +55,9 @@ serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     // @ts-expect-error Deno env
     const shipEngineKey = Deno.env.get('SHIPENGINE_API_KEY')
-      // Fall back to the older secret name some envs may still use.
+      // Fall back to older secret names — both are in use across envs.
+      // @ts-expect-error Deno env
+      ?? Deno.env.get('SHIPSTATION_API_KEY')
       // @ts-expect-error Deno env
       ?? Deno.env.get('VITE_SHIPSTATION_API_KEY')
 
