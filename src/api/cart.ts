@@ -192,6 +192,38 @@ export const cartAPI = {
     }
   },
 
+  /**
+   * Server-validates the cart and creates ONE Stripe PaymentIntent on the
+   * InkStash platform covering the whole cart. The webhook (Cart-Task7)
+   * fans the charge out into per-seller Transfers after it clears.
+   *
+   * Rejects on stale items, missing shipping address, or any seller not
+   * being Connect-active — the modal in Cart-Task6 handles each branch.
+   */
+  async createPaymentIntent(): Promise<{
+    client_secret: string;
+    order_group_id: string;
+    total_amount: number;
+  }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in to check out.');
+
+    const { data, error } = await supabase.functions.invoke('create-cart-payment-intent', {
+      body: {},
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) {
+      // Wrap structured errors with a typed Error so the modal can branch on .name.
+      const e = new Error(data.error);
+      e.name = data.error;
+      (e as Error & { details?: unknown }).details = data;
+      throw e;
+    }
+    if (!data?.client_secret) throw new Error('No client_secret returned');
+    return data;
+  },
+
   async clear(): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
