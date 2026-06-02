@@ -6,11 +6,13 @@
 // Grouped by seller so a multi-seller cart visually maps to the multi-Transfer
 // fan-out happening on the backend.
 
+import { useState } from 'react';
 import { Box, Drawer, IconButton, Typography, Button, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import CartItemRow from './CartItemRow';
+import CartCheckoutModal from './CartCheckoutModal';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 export default function CartDrawer() {
@@ -26,12 +28,8 @@ export default function CartDrawer() {
     groupedBySeller,
   } = useCart();
 
-  const handleCheckout = () => {
-    // Task 6 will replace this with the CartCheckoutModal mount. For now
-    // close the drawer so the inevitable bug report tells me which surface
-    // came next instead of "nothing happened."
-    console.log('[CartDrawer] checkout clicked — modal lands in Task 6');
-  };
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const handleCheckout = () => setCheckoutOpen(true);
 
   const handleBrowse = () => {
     setDrawerOpen(false);
@@ -251,6 +249,7 @@ export default function CartDrawer() {
           </Button>
         </Box>
       )}
+      <CartCheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </Drawer>
   );
 }
