@@ -46,31 +46,20 @@ export const listingsAPI = {
   },
 
   /**
-   * Delists an active listing (the seller's own only). Sets status to 'delisted'
-   * and if it was a vault listing, reverts inventory.status back to 'vaulted'.
-   *
-   * For M2 this is a simple status update (RLS-enforced ownership). When a
-   * full delist flow is needed (e.g., to revert inventory atomically), revisit.
+   * Delists an active listing. Calls the delist-listing edge function so
+   * the listing status flip + vault inventory revert happen atomically
+   * under service role. sell_back_forfeited stays true per M2 policy
+   * (one-shot forfeit — listing once permanently disables Ruby sell-back).
    */
   async delist(listingId: string): Promise<void> {
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'delisted' })
-      .eq('id', listingId);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in.');
+
+    const { data, error } = await supabase.functions.invoke('delist-listing', {
+      body: { listing_id: listingId },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
     if (error) throw new Error(error.message);
-
-    // Best-effort: if there's a source_inventory_id, revert it.
-    const { data: listing } = await supabase
-      .from('listings')
-      .select('source_inventory_id')
-      .eq('id', listingId)
-      .maybeSingle();
-
-    if (listing?.source_inventory_id) {
-      await supabase
-        .from('user_inventory')
-        .update({ status: 'vaulted' })
-        .eq('id', listing.source_inventory_id);
-    }
+    if (data?.error) throw new Error(data.error);
   },
 };
