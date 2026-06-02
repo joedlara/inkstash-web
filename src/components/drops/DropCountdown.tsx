@@ -1,8 +1,9 @@
 // src/components/drops/DropCountdown.tsx
 //
-// Simple ticking countdown to a target timestamp. Renders Xd Yh Zm Ws.
-// Stops updating once <= 0 (caller is responsible for switching to a
-// "live" state at that point — usually a refresh of the drop data).
+// Big flip-card style countdown. Each unit lives in its own dark card with
+// a subtle gold pulse on the seconds tick — slot-machine energy without
+// crossing into kitsch. Used both on the drop detail page (large) and on
+// drop cards (compact, no cards, just digits).
 //
 // Lightweight: setInterval at 1s, cleared on unmount or target change.
 
@@ -12,9 +13,8 @@ import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
   targetDate: string | Date;
-  /** Label prefix, e.g. "Drops in" or "Closes in". Defaults to no prefix. */
   label?: string;
-  /** Compact mode hides the d/h/m/s separators and shrinks type. */
+  /** Compact mode: small inline digits, no flip cards. Used inside DropCard tiles. */
   compact?: boolean;
 }
 
@@ -38,16 +38,13 @@ export default function DropCountdown({ targetDate, label, compact = false }: Pr
     return () => clearInterval(id);
   }, [target]);
 
-  const fontSize = compact ? 12 : 14;
-  const numWeight = 800;
-
   if (t.ms <= 0) {
     return (
       <Typography
         sx={{
           fontFamily: inkstashFonts.mono,
-          fontSize,
-          fontWeight: 700,
+          fontSize: compact ? 12 : 14,
+          fontWeight: 800,
           color: inkstashColors.brand,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
@@ -58,53 +55,140 @@ export default function DropCountdown({ targetDate, label, compact = false }: Pr
     );
   }
 
-  // Show down to the most relevant unit. Skip days if 0, etc.
+  if (compact) {
+    return <CompactCountdown d={t.d} h={t.h} m={t.m} s={t.s} label={label} />;
+  }
+
+  return <FlipCardCountdown d={t.d} h={t.h} m={t.m} s={t.s} tick={t.s} />;
+}
+
+// ── Big flip-card style ──────────────────────────────────────────────────────
+
+function FlipCardCountdown({ d, h, m, s, tick }: { d: number; h: number; m: number; s: number; tick: number }) {
+  const showDays = d > 0;
+  const units: Array<{ value: number; label: string; isSeconds?: boolean }> = [
+    ...(showDays ? [{ value: d, label: 'Days' }] : []),
+    { value: h, label: 'Hours' },
+    { value: m, label: 'Mins' },
+    { value: s, label: 'Secs', isSeconds: true },
+  ];
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: { xs: 0.75, sm: 1 },
+      }}
+    >
+      {units.map((u, i) => (
+        <Box key={u.label} sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 } }}>
+          <FlipCard value={u.value} label={u.label} pulse={u.isSeconds ? tick : undefined} />
+          {i < units.length - 1 && (
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.display,
+                fontWeight: 900,
+                fontSize: { xs: 24, sm: 36 },
+                color: inkstashColors.brand,
+                lineHeight: 1,
+                opacity: 0.5,
+                mb: 2.5,
+              }}
+            >
+              :
+            </Typography>
+          )}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function FlipCard({ value, label, pulse }: { value: number; label: string; pulse?: number }) {
+  const padded = String(value).padStart(2, '0');
+  const isSeconds = pulse !== undefined;
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.6 }}>
+      <Box
+        key={isSeconds ? padded : undefined}
+        sx={{
+          position: 'relative',
+          minWidth: { xs: 52, sm: 68 },
+          height: { xs: 64, sm: 84 },
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: inkstashColors.ink,
+          color: '#FFF8E7',
+          borderRadius: 2,
+          overflow: 'hidden',
+          fontFamily: inkstashFonts.display,
+          fontWeight: 900,
+          fontSize: { xs: 36, sm: 50 },
+          letterSpacing: '0.01em',
+          fontVariantNumeric: 'tabular-nums',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.18), inset 0 -2px 0 rgba(255,255,255,0.08)',
+          // Slot-machine gold pulse only on the seconds card.
+          animation: isSeconds ? 'dropPulseGold 1s ease-out' : undefined,
+          '@keyframes dropPulseGold': {
+            '0%':   { boxShadow: '0 8px 24px rgba(0,0,0,0.18), inset 0 -2px 0 rgba(255,255,255,0.08), 0 0 0 0 rgba(255,184,0,0.55)' },
+            '40%':  { boxShadow: '0 8px 24px rgba(0,0,0,0.18), inset 0 -2px 0 rgba(255,255,255,0.08), 0 0 0 8px rgba(255,184,0,0)' },
+            '100%': { boxShadow: '0 8px 24px rgba(0,0,0,0.18), inset 0 -2px 0 rgba(255,255,255,0.08), 0 0 0 0 rgba(255,184,0,0)' },
+          },
+          // Faux split line through the middle — flip-card aesthetic.
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '50%',
+            height: 1,
+            bgcolor: 'rgba(0,0,0,0.35)',
+          },
+        }}
+      >
+        {padded}
+      </Box>
+      <Typography
+        sx={{
+          fontFamily: inkstashFonts.mono,
+          fontSize: 10,
+          fontWeight: 700,
+          color: inkstashColors.muted,
+          textTransform: 'uppercase',
+          letterSpacing: '0.12em',
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+// ── Compact (used on the grid tiles) ─────────────────────────────────────────
+
+function CompactCountdown({ d, h, m, s, label }: { d: number; h: number; m: number; s: number; label?: string }) {
   const segments: Array<{ value: number; unit: string }> = [];
-  if (t.d > 0) segments.push({ value: t.d, unit: 'd' });
-  if (t.h > 0 || t.d > 0) segments.push({ value: t.h, unit: 'h' });
-  if (t.m > 0 || t.h > 0 || t.d > 0) segments.push({ value: t.m, unit: 'm' });
-  segments.push({ value: t.s, unit: 's' });
+  if (d > 0) segments.push({ value: d, unit: 'd' });
+  if (h > 0 || d > 0) segments.push({ value: h, unit: 'h' });
+  if (m > 0 || h > 0 || d > 0) segments.push({ value: m, unit: 'm' });
+  segments.push({ value: s, unit: 's' });
 
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.75, fontFamily: inkstashFonts.mono }}>
       {label && (
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontSize: fontSize - 2,
-            color: inkstashColors.muted,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            mr: 0.5,
-          }}
-        >
+        <Typography sx={{ fontFamily: inkstashFonts.mono, fontSize: 10, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.08em', mr: 0.5 }}>
           {label}
         </Typography>
       )}
       {segments.map((seg, i) => (
         <Box key={seg.unit} sx={{ display: 'inline-flex', alignItems: 'baseline' }}>
-          <Typography
-            component="span"
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontWeight: numWeight,
-              fontSize,
-              color: inkstashColors.ink,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
+          <Typography component="span" sx={{ fontFamily: inkstashFonts.mono, fontWeight: 800, fontSize: 12, color: inkstashColors.ink, fontVariantNumeric: 'tabular-nums' }}>
             {String(seg.value).padStart(2, '0')}
           </Typography>
-          <Typography
-            component="span"
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: fontSize - 2,
-              color: inkstashColors.muted,
-              ml: 0.2,
-              mr: i < segments.length - 1 ? 0.4 : 0,
-            }}
-          >
+          <Typography component="span" sx={{ fontFamily: inkstashFonts.mono, fontSize: 10, color: inkstashColors.muted, ml: 0.2, mr: i < segments.length - 1 ? 0.4 : 0 }}>
             {seg.unit}
           </Typography>
         </Box>

@@ -110,6 +110,31 @@ export const dropsAPI = {
     }
 
     const all = (data ?? []).map((r) => enrich(r as DropRow));
+
+    // Backfill missing title / hero_image from linked listings so grid tiles
+    // never render "Untitled drop" or a blank cover when authors omitted them.
+    // Two FKs between drops and the same target prevent a single embed, so we
+    // batch one IN query and merge.
+    const listingIdsNeedingBackfill = all
+      .filter((d) => d.kind === 'listing' && d.listing_id && (!d.title || !d.hero_image_url))
+      .map((d) => d.listing_id as string);
+
+    if (listingIdsNeedingBackfill.length > 0) {
+      const { data: listings } = await supabase
+        .from('listings')
+        .select('id, title, photos')
+        .in('id', listingIdsNeedingBackfill);
+      const byId = new Map<string, { title: string; photos: Array<{ url?: string }> | null }>();
+      (listings ?? []).forEach((l: any) => byId.set(l.id, { title: l.title, photos: l.photos }));
+      for (const drop of all) {
+        if (drop.listing_id && byId.has(drop.listing_id)) {
+          const meta = byId.get(drop.listing_id)!;
+          if (!drop.title) drop.title = meta.title;
+          if (!drop.hero_image_url) drop.hero_image_url = meta.photos?.[0]?.url ?? null;
+        }
+      }
+    }
+
     const filtered = opts.state
       ? all.filter((d) =>
           opts.state === 'live_or_upcoming'
@@ -189,12 +214,12 @@ export const dropsAPI = {
    *   sold_out     — capacity exhausted
    *   drop_not_found
    */
-  async createPaymentIntent(dropId: string): Promise<{ client_secret: string; drop_id: string }> {
+  async createPaymentIntent(dropId: string, qty: number = 1): Promise<{ client_secret: string; drop_id: string; qty: number }> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('You must be logged in to buy a drop.');
 
     const { data, error } = await supabase.functions.invoke('create-drop-payment-intent', {
-      body: { drop_id: dropId },
+      body: { drop_id: dropId, qty },
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (error) throw new Error(error.message);

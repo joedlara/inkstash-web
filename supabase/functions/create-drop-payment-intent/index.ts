@@ -25,7 +25,11 @@ const corsHeaders = {
 
 interface RequestBody {
   drop_id?: string
+  /** Number of copies to buy. Defaults to 1. Capped server-side at MAX_QTY_PER_BUY. */
+  qty?: number
 }
+
+const MAX_QTY_PER_BUY = 5
 
 interface DropRow {
   id: string
@@ -65,6 +69,8 @@ serve(async (req) => {
     const body: RequestBody = await req.json()
     if (!body.drop_id) return json({ error: 'drop_id is required' }, 400)
 
+    const requestedQty = Math.max(1, Math.min(MAX_QTY_PER_BUY, Math.floor(body.qty ?? 1)))
+
     // Load drop so we know what we're charging for.
     const { data: dropRow, error: dropErr } = await serviceClient
       .from('drops')
@@ -80,10 +86,11 @@ serve(async (req) => {
 
     const drop = dropRow as DropRow
 
-    // Reserve capacity. Locks the row + increments quantity_sold atomically.
-    // Returns false if sold out, raises 'not_yet_live' if before go_live_at.
+    // Reserve N copies atomically. Locks the row FOR UPDATE so two concurrent
+    // buyers can't both pass the capacity check. Returns false if not enough
+    // copies remain; raises 'not_yet_live' if before go_live_at.
     const { data: reserved, error: reserveErr } = await serviceClient
-      .rpc('reserve_drop_capacity', { p_drop_id: drop.id })
+      .rpc('reserve_drop_capacity_n', { p_drop_id: drop.id, p_qty: requestedQty })
 
     if (reserveErr) {
       const msg = reserveErr.message ?? ''
@@ -92,92 +99,126 @@ serve(async (req) => {
       console.error('[create-drop-payment-intent] reserve failed', reserveErr)
       return json({ error: 'reserve failed' }, 500)
     }
-    if (reserved === false) return json({ error: 'sold_out' }, 400)
+    if (reserved === false) return json({ error: 'not_enough_copies' }, 400)
 
-    // Build the PaymentIntent per kind.
-    if (drop.kind === 'listing') {
-      if (!drop.listing_id) {
-        return json({ error: 'listing-kind drop missing listing_id' }, 500)
-      }
+    // Helper to release the provisional N-copy reservation if anything below
+    // throws. Capacity is bumped up-front to win the race against concurrent
+    // buyers; if PI creation fails we MUST release or the counter drifts.
+    const releaseAndError = async (errBody: Record<string, unknown>, status: number) => {
+      await serviceClient.rpc('release_drop_capacity_n', { p_drop_id: drop.id, p_qty: requestedQty })
+      return json(errBody, status)
+    }
 
-      const { data: listingRow } = await serviceClient
-        .from('listings')
-        .select('id, user_id, title')
-        .eq('id', drop.listing_id)
-        .maybeSingle()
+    try {
+      // Build the PaymentIntent per kind.
+      if (drop.kind === 'listing') {
+        if (!drop.listing_id) {
+          return await releaseAndError({ error: 'listing-kind drop missing listing_id' }, 500)
+        }
 
-      if (!listingRow) {
-        return json({ error: 'underlying listing not found' }, 500)
-      }
+        const { data: listingRow } = await serviceClient
+          .from('listings')
+          .select('id, user_id, title')
+          .eq('id', drop.listing_id)
+          .maybeSingle()
 
-      const { data: sellerRow } = await serviceClient
-        .from('users')
-        .select('stripe_connect_account_id, seller_status')
-        .eq('id', (listingRow as { user_id: string }).user_id)
-        .maybeSingle()
+        if (!listingRow) {
+          return await releaseAndError({ error: 'underlying listing not found' }, 500)
+        }
 
-      const connectId = (sellerRow as { stripe_connect_account_id?: string } | null)?.stripe_connect_account_id
-      if (!connectId) {
-        return json({ error: 'seller_not_connect_active' }, 400)
-      }
+        const sellerId = (listingRow as { user_id: string }).user_id
 
-      // Destination charge: amount lands on platform, transferred to the
-      // seller's Connect account minus the 10% application fee.
-      const amountCents = Math.round(Number(drop.price) * 100)
-      const feeCents = Math.round(amountCents * 0.10)
+        const { data: sellerRow } = await serviceClient
+          .from('users')
+          .select('stripe_connect_account_id, seller_status')
+          .eq('id', sellerId)
+          .maybeSingle()
 
-      const pi = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'usd',
-        application_fee_amount: feeCents,
-        transfer_data: { destination: connectId },
-        automatic_payment_methods: { enabled: true },
-        metadata: {
+        const connectId = (sellerRow as { stripe_connect_account_id?: string } | null)?.stripe_connect_account_id
+        if (!connectId) {
+          return await releaseAndError({ error: 'seller_not_connect_active' }, 400)
+        }
+
+        // Dev/test fallback: seeded sellers have placeholder Connect IDs that
+        // Stripe rejects (acct_test_PLACEHOLDER_*). In that case fall back to a
+        // platform charge so the drop flow remains testable until the seller
+        // completes real Stripe Connect onboarding. The webhook still records
+        // drop_id on the order; only the destination + application fee diverge.
+        const isPlaceholderConnect = connectId.startsWith('acct_test_PLACEHOLDER')
+
+        const unitCents = Math.round(Number(drop.price) * 100)
+        const amountCents = unitCents * requestedQty
+        const feeCents = Math.round(amountCents * 0.10)
+
+        const pi = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'usd',
+          ...(isPlaceholderConnect
+            ? {}
+            : {
+                application_fee_amount: feeCents,
+                transfer_data: { destination: connectId },
+              }),
+          automatic_payment_methods: { enabled: true },
+          metadata: {
+            payment_type: 'listing',
+            listing_id: drop.listing_id,
+            seller_id: sellerId,
+            buyer_id: user.id,
+            drop_id: drop.id,
+            drop_qty: String(requestedQty),
+            placeholder_connect: isPlaceholderConnect ? 'true' : 'false',
+          },
+        })
+
+        return json({
+          client_secret: pi.client_secret,
+          drop_id: drop.id,
+          qty: requestedQty,
           payment_type: 'listing',
-          listing_id: drop.listing_id,
-          seller_id: (listingRow as { user_id: string }).user_id,
-          buyer_id: user.id,
-          drop_id: drop.id,
-        },
-      })
-
-      return json({
-        client_secret: pi.client_secret,
-        drop_id: drop.id,
-        payment_type: 'listing',
-      }, 200)
-    }
-
-    if (drop.kind === 'pack') {
-      if (!drop.pack_id) {
-        return json({ error: 'pack-kind drop missing pack_id' }, 500)
+        }, 200)
       }
 
-      // Platform charge — vendor packs have their own payout model
-      // (vendor_payouts / pack_revenue_splits) so no transfer_data.
-      // Mirrors create-payment-intent's vendor_pack branch.
-      const amountCents = Math.round(Number(drop.price) * 100)
-      const pi = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'usd',
-        automatic_payment_methods: { enabled: true },
-        metadata: {
-          payment_type: 'vendor_pack',
-          pack_id: drop.pack_id,
-          user_id: user.id,
+      if (drop.kind === 'pack') {
+        if (!drop.pack_id) {
+          return await releaseAndError({ error: 'pack-kind drop missing pack_id' }, 500)
+        }
+
+        // Platform charge — vendor packs have their own payout model
+        // (vendor_payouts / pack_revenue_splits) so no transfer_data.
+        const unitCents = Math.round(Number(drop.price) * 100)
+        const amountCents = unitCents * requestedQty
+        const pi = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'usd',
+          automatic_payment_methods: { enabled: true },
+          metadata: {
+            payment_type: 'vendor_pack',
+            pack_id: drop.pack_id,
+            user_id: user.id,
+            drop_id: drop.id,
+            drop_qty: String(requestedQty),
+          },
+        })
+
+        return json({
+          client_secret: pi.client_secret,
           drop_id: drop.id,
-        },
-      })
+          qty: requestedQty,
+          payment_type: 'vendor_pack',
+        }, 200)
+      }
 
-      return json({
-        client_secret: pi.client_secret,
-        drop_id: drop.id,
-        payment_type: 'vendor_pack',
-      }, 200)
+      // standalone — v1.1
+      return await releaseAndError({ error: 'standalone drops not yet supported' }, 501)
+    } catch (piErr) {
+      // Stripe (or any post-reserve) failure: release the reservation so the
+      // counter doesn't drift.
+      console.error('[create-drop-payment-intent] post-reserve failure, releasing capacity', piErr)
+      await serviceClient.rpc('release_drop_capacity_n', { p_drop_id: drop.id, p_qty: requestedQty })
+      const msg = piErr instanceof Error ? piErr.message : 'payment_intent_creation_failed'
+      return json({ error: msg }, 500)
     }
-
-    // standalone — v1.1
-    return json({ error: 'standalone drops not yet supported' }, 501)
   } catch (err) {
     console.error('[create-drop-payment-intent] error', err)
     return json({ error: err instanceof Error ? err.message : 'Unknown error' }, 500)
