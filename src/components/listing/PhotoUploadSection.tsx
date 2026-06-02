@@ -17,6 +17,7 @@ import {
 import { createImagePreview } from '../../utils/photoUpload';
 import type { UploadedPhoto } from '../../utils/photoUpload';
 import { useAuth } from '../../hooks/useAuth';
+import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface PhotoUploadSectionProps {
   photos: UploadedPhoto[];
@@ -172,12 +173,33 @@ export default function PhotoUploadSection({
         </Alert>
       )}
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {photos.length}/{maxPhotos}
+      <Typography
+        sx={{
+          mb: 2,
+          fontFamily: inkstashFonts.mono,
+          fontSize: 11,
+          color: inkstashColors.muted,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {photos.length} / {maxPhotos} photos
       </Typography>
 
-      {/* Photo Upload Grid - StubHub Style Layout */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'auto 1fr' }, gap: 2 }}>
+      {/* Photo Upload Grid — main photo + responsive thumb grid.
+          minWidth: 0 prevents the inner grid from forcing horizontal overflow
+          when the page gets narrow (the original bug — scrolling right into
+          a white void past the page edge). */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(280px, 380px) 1fr' },
+          gap: { xs: 2, md: 2.5 },
+          alignItems: 'start',
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
         {/* Left Side - Main Upload Box */}
         <Paper
           component="label"
@@ -186,11 +208,12 @@ export default function PhotoUploadSection({
           onDragLeave={photos.length === 0 ? handleDrag : undefined}
           onDrop={photos.length === 0 ? handleDrop : (e) => handlePhotoDrop(e, 0)}
           sx={{
-            width: { xs: '100%', md: 380 },
+            width: '100%',
             height: { xs: 300, md: 380 },
             border: '2px dashed',
-            borderColor: dragOverIndex === 0 ? 'success.main' : (dragActive ? 'primary.main' : 'grey.300'),
-            borderRadius: 2,
+            borderColor: dragOverIndex === 0 ? 'success.main' : (dragActive ? inkstashColors.brand : inkstashColors.borderStrong),
+            borderRadius: inkstashRadii.lg,
+            bgcolor: photos.length === 0 ? inkstashColors.bgElev : 'transparent',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -254,24 +277,29 @@ export default function PhotoUploadSection({
                   />
                 )}
               </Box>
-              {/* Main badge at bottom center */}
+              {/* Main badge — brand red so it reads as the canonical primary,
+                  not just a generic grey label. */}
               <Box
                 sx={{
                   position: 'absolute',
                   bottom: 16,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  bgcolor: 'rgba(100, 100, 100, 0.8)',
-                  color: 'white',
-                  px: 3,
-                  py: 1,
-                  borderRadius: 20,
+                  bgcolor: inkstashColors.brand,
+                  color: '#fff',
+                  px: 2,
+                  py: 0.6,
+                  borderRadius: 999,
                   pointerEvents: 'none',
+                  fontFamily: inkstashFonts.mono,
+                  fontSize: 10.5,
+                  fontWeight: 800,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  boxShadow: '0 4px 10px -2px rgba(161,35,44,0.45)',
                 }}
               >
-                <Typography variant="body2" fontWeight={600}>
-                  Main
-                </Typography>
+                Main
               </Box>
               {/* Drag indicator */}
               <Tooltip title="Drag to reorder">
@@ -316,15 +344,41 @@ export default function PhotoUploadSection({
             </>
           ) : (
             <>
-              <ImageIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-              <Typography variant="body1" fontWeight={600} textAlign="center" px={2}>
-                Drag and drop files
+              <ImageIcon sx={{ fontSize: 56, color: inkstashColors.muted2, mb: 1.5 }} />
+              <Typography
+                sx={{
+                  fontFamily: inkstashFonts.display,
+                  fontWeight: 800,
+                  fontSize: 18,
+                  color: inkstashColors.ink,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.005em',
+                  textAlign: 'center',
+                  px: 2,
+                  mb: 0.5,
+                }}
+              >
+                Drag &amp; drop files
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: inkstashColors.muted, mb: 2 }}>
+                or click below
               </Typography>
               <Button
-                variant="outlined"
-                size="medium"
+                variant="contained"
                 onClick={handleUploadClick}
-                sx={{ mt: 2, textTransform: 'none', borderRadius: 20, px: 3 }}
+                sx={{
+                  bgcolor: inkstashColors.brand,
+                  color: '#fff',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontFamily: inkstashFonts.ui,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  borderRadius: inkstashRadii.sm,
+                  px: 3,
+                  py: 1,
+                  '&:hover': { bgcolor: inkstashColors.brandDeep },
+                }}
               >
                 Upload image
               </Button>
@@ -332,32 +386,60 @@ export default function PhotoUploadSection({
           )}
         </Paper>
 
-        {/* Right Side - All Photos Grid (includes uploaded + category boxes + empty slots) */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(5, 1fr)' }, gap: 1.5 }}>
-          {/* Add Button */}
+        {/* Right Side - thumb grid. minWidth: 0 + overflow: hidden so the
+            inner tiles can never push the page sideways. */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(3, 1fr)',
+              sm: 'repeat(4, 1fr)',
+              md: 'repeat(4, 1fr)',
+              lg: 'repeat(5, 1fr)',
+            },
+            gap: 1.25,
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Add Button — branded, matches the empty-tile bg so the grid reads
+              as a single surface; brand red border + lift on hover so it's
+              clearly the actionable one. */}
           <Paper
-            component="label"
+            elevation={0}
             sx={{
               aspectRatio: '1',
-              border: '1px solid',
-              borderColor: 'grey.300',
-              borderRadius: 1.5,
+              border: `1.5px solid ${inkstashColors.borderStrong}`,
+              borderRadius: inkstashRadii.md,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'background.paper',
+              bgcolor: inkstashColors.bgElev,
               cursor: 'pointer',
-              transition: 'all 0.2s',
+              transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
               '&:hover': {
-                bgcolor: 'grey.50',
-                borderColor: 'primary.main',
+                borderColor: inkstashColors.brand,
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px -4px rgba(161, 35, 44, 0.25)',
               },
+              '&:active': { transform: 'scale(0.97)' },
             }}
             onClick={(e) => { e.stopPropagation(); handleUploadClick(); }}
           >
-            <ImageIcon sx={{ fontSize: 32, color: 'text.secondary', mb: 0.5 }} />
-            <Typography variant="caption" fontWeight={500}>Add</Typography>
+            <ImageIcon sx={{ fontSize: 28, color: inkstashColors.brand, mb: 0.5 }} />
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: inkstashColors.brand,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              Add
+            </Typography>
           </Paper>
 
           {/* Uploaded Photos (starting from index 1, since 0 is main) */}
@@ -453,24 +535,27 @@ export default function PhotoUploadSection({
             );
           })}
 
-          {/* Empty placeholder boxes for remaining slots */}
+          {/* Empty placeholder slots. Page bg is cream (bgSunken), so empty
+              tiles need a darker/intentional fill + visible border to read
+              as real targets instead of vanishing into the background. */}
           {Array.from({ length: Math.min(maxPhotos - photos.length - 1, 14) }).map((_, idx) => (
             <Paper
+              elevation={0}
               key={`empty-${idx}`}
               sx={{
                 aspectRatio: '1',
-                border: '1px solid',
-                borderColor: 'grey.200',
-                borderRadius: 1.5,
+                border: `1px dashed ${inkstashColors.borderStrong}`,
+                borderRadius: inkstashRadii.md,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: 'grey.50',
+                bgcolor: inkstashColors.bgSunken,
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'border-color 140ms ease, background-color 140ms ease',
                 '&:hover': {
-                  borderColor: 'grey.400',
-                  bgcolor: 'grey.100',
+                  borderColor: inkstashColors.brand,
+                  borderStyle: 'solid',
+                  bgcolor: inkstashColors.brandSoft,
                 },
               }}
               onClick={handleUploadClick}
