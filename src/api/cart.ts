@@ -31,8 +31,6 @@ interface ServerCartRow {
     status: string;
     user_id: string;
     selected_shipping_rate_id: string | null;
-    shipping_rates?: { rate_amount?: number } | { rate_amount?: number }[] | null;
-    users?: { username: string } | { username: string }[] | null;
   } | { id: string; [k: string]: unknown }[] | null;
 }
 
@@ -54,6 +52,11 @@ export const cartAPI = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
+    // Two-step fetch: cart_items + listings + users in one go, then a
+    // separate batched fetch for shipping_rates. There are two FKs between
+    // listings and shipping_rates (rates.listing_id and listings.selected_-
+    // shipping_rate_id), so a single embed errors with PGRST201. The
+    // separate fetch is also cheap — at most N rate rows per cart.
     const { data, error } = await supabase
       .from('cart_items')
       .select(`
@@ -66,9 +69,7 @@ export const cartAPI = {
           buy_now_price,
           status,
           user_id,
-          selected_shipping_rate_id,
-          shipping_rates ( rate_amount ),
-          users ( username )
+          selected_shipping_rate_id
         )
       `)
       .eq('user_id', user.id)
@@ -79,7 +80,45 @@ export const cartAPI = {
       return [];
     }
 
-    return ((data ?? []) as unknown as ServerCartRow[])
+    const rows = (data ?? []) as unknown as ServerCartRow[];
+
+    // Collect rate ids to fetch in one batched query.
+    const rateIds = rows
+      .map((r) => unwrap(r.listings))
+      .map((l) => (l as { selected_shipping_rate_id?: string } | null)?.selected_shipping_rate_id)
+      .filter((id): id is string => !!id);
+
+    let ratesById = new Map<string, number>();
+    if (rateIds.length > 0) {
+      const { data: rateRows } = await supabase
+        .from('shipping_rates')
+        .select('id, rate_amount')
+        .in('id', rateIds);
+      if (rateRows) {
+        ratesById = new Map(rateRows.map((r) => [r.id as string, Number((r as { rate_amount: number }).rate_amount)]));
+      }
+    }
+
+    // Seller usernames: same PostgREST disambiguation issue as shipping_rates,
+    // so we fetch them in a separate batch keyed by user_id.
+    const sellerIds = Array.from(new Set(
+      rows.map((r) => unwrap(r.listings))
+        .map((l) => (l as { user_id?: string } | null)?.user_id)
+        .filter((id): id is string => !!id)
+    ));
+
+    let usernamesById = new Map<string, string>();
+    if (sellerIds.length > 0) {
+      const { data: userRows } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', sellerIds);
+      if (userRows) {
+        usernamesById = new Map(userRows.map((u) => [u.id as string, (u as { username: string }).username ?? 'seller']));
+      }
+    }
+
+    return rows
       .map((row): ServerCartItem | null => {
         const listing = unwrap(row.listings) as {
           id: string;
@@ -88,22 +127,22 @@ export const cartAPI = {
           buy_now_price: number;
           status: string;
           user_id: string;
-          shipping_rates?: { rate_amount?: number } | { rate_amount?: number }[] | null;
-          users?: { username: string } | { username: string }[] | null;
+          selected_shipping_rate_id: string | null;
         } | null;
         if (!listing || listing.status !== 'active') return null;
 
-        const rate = unwrap(listing.shipping_rates) as { rate_amount?: number } | null;
-        const sellerUser = unwrap(listing.users) as { username: string } | null;
+        const shippingCost = listing.selected_shipping_rate_id
+          ? (ratesById.get(listing.selected_shipping_rate_id) ?? 0)
+          : 0;
 
         return {
           listing_id: row.listing_id,
           title: listing.title,
           cover_url: listing.photos?.[0]?.url ?? null,
           price: Number(listing.buy_now_price),
-          shipping_cost: Number(rate?.rate_amount ?? 0),
+          shipping_cost: shippingCost,
           seller_id: listing.user_id,
-          seller_username: sellerUser?.username ?? 'seller',
+          seller_username: usernamesById.get(listing.user_id) ?? 'seller',
           added_at: row.added_at,
         };
       })

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Badge } from '@mui/material';
 import { Menu, Search, Bell, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCart } from '../../contexts/CartContext';
 import { useRubyBalance } from '../../hooks/useRubyBalance';
 import RubyBalancePill from '../ui/RubyBalancePill';
 import RubyBundleModal from '../packs/RubyBundleModal';
@@ -16,6 +17,7 @@ interface AppTopnavProps {
 export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { setDrawerOpen, itemCount } = useCart();
   const { balance, refresh: refreshRubies } = useRubyBalance();
   const [q, setQ] = useState('');
   const [bundleModalOpen, setBundleModalOpen] = useState(false);
@@ -118,7 +120,7 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
       <Box
         component="button"
         type="button"
-        onClick={() => navigate('/cart')}
+        onClick={() => setDrawerOpen(true)}
         sx={{
           display: 'inline-flex', alignItems: 'center', gap: 0.75,
           bgcolor: inkstashColors.bgElev, border: `1px solid ${inkstashColors.border}`,
@@ -129,7 +131,23 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
           '&:active': { transform: 'scale(0.97)' },
         }}
       >
-        <ShoppingCart size={16} />
+        <Badge
+          badgeContent={itemCount}
+          color="error"
+          overlap="circular"
+          sx={{
+            '& .MuiBadge-badge': {
+              fontSize: 10,
+              height: 16,
+              minWidth: 16,
+              padding: '0 4px',
+              fontFamily: inkstashFonts.mono,
+              fontWeight: 800,
+            },
+          }}
+        >
+          <ShoppingCart size={16} />
+        </Badge>
         <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Cart</Box>
       </Box>
 
