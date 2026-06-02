@@ -408,6 +408,10 @@ async function openListingOrder(
       payment_intent_id: intent.id,
       amount_cents: intent.amount,
       application_fee_cents: intent.application_fee_amount ?? 0,
+      // When the buy was triggered by a drop, the create-drop-payment-intent
+      // edge fn stamps drop_id into the PI metadata. open-listing-order
+      // persists it onto the orders row for attribution.
+      drop_id: intent.metadata?.drop_id ?? null,
     }),
   })
 

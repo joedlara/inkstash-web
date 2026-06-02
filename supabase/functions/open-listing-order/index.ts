@@ -40,6 +40,9 @@ interface Payload {
   payment_intent_id: string
   amount_cents: number
   application_fee_cents: number
+  /** Set when the listing was bought via a scheduled drop. Persisted on
+   *  the orders row so we can report "X copies sold via the Friday drop". */
+  drop_id?: string | null
 }
 
 serve(async (req) => {
@@ -111,6 +114,7 @@ serve(async (req) => {
         purchase_type: 'listing',
         order_number: 'L-' + Date.now().toString(36).toUpperCase(),
         stripe_payment_intent_id: payload.payment_intent_id,
+        drop_id: payload.drop_id ?? null,
       })
       .select('id')
       .single()
