@@ -21,6 +21,7 @@
 // keeping the parent (ListItem.tsx) unchanged.
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export default function ListingStartPanel({ onPicked }: Props) {
+  const navigate = useNavigate();
   const [trending, setTrending] = useState<MarketplaceFeedCard[] | null>(null);
   const [searchSeed, setSearchSeed] = useState('');
   const [liveQuery, setLiveQuery] = useState('');
@@ -77,17 +79,6 @@ export default function ListingStartPanel({ onPicked }: Props) {
     });
   }
 
-  function pickFromTrending(card: MarketplaceFeedCard) {
-    onPicked({
-      comic_vine_id: null,
-      title: card.title,
-      issue_number: card.comic_issue_number,
-      cover_url: card.cover_url,
-      publisher: card.comic_publisher,
-      writer: card.comic_writer,
-      artist: card.comic_artist,
-    });
-  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
@@ -211,7 +202,7 @@ export default function ListingStartPanel({ onPicked }: Props) {
       {/* Trending */}
       {trending !== null && trending.length > 0 && (
         <Box sx={{ mt: { xs: 4, md: 5 } }}>
-          <SectionHeader subtitle="Click a recent listing to clone its comic info">
+          <SectionHeader subtitle="What other sellers are listing right now — for inspiration. Click to view.">
             <AutoAwesome sx={{ fontSize: 14, mr: 0.75, color: inkstashColors.gold, verticalAlign: 'middle' }} />
             Recent on InkStash
           </SectionHeader>
@@ -223,7 +214,7 @@ export default function ListingStartPanel({ onPicked }: Props) {
             }}
           >
             {trending.slice(0, 4).map((card) => (
-              <TrendingTile key={card.id} card={card} onClick={() => pickFromTrending(card)} />
+              <TrendingTile key={card.id} card={card} onClick={() => navigate(`/item/${card.id}`)} />
             ))}
           </Box>
         </Box>
@@ -400,11 +391,63 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
             WebkitBoxOrient: 'vertical',
             minHeight: 38,
             lineHeight: 1.3,
-            mb: card.comic_publisher ? 0.75 : 0,
+            mb: 0.75,
           }}
         >
           {card.title}
         </Typography>
+
+        {/* Price + source row — anchors the card visually so it doesn't look
+            empty under the title and matches buyer expectations on hover. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: card.comic_publisher ? 0.75 : 0 }}>
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 800,
+              fontSize: 16,
+              color: inkstashColors.ink,
+              lineHeight: 1,
+            }}
+          >
+            {card.display_price_label}
+          </Typography>
+          {card.source === 'auction' ? (
+            <Box
+              sx={{
+                px: 0.85,
+                py: 0.25,
+                bgcolor: inkstashColors.gold,
+                color: '#fff',
+                borderRadius: 999,
+                fontFamily: inkstashFonts.mono,
+                fontSize: 9.5,
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              Auction
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                px: 0.85,
+                py: 0.25,
+                border: `1px solid ${inkstashColors.border}`,
+                color: inkstashColors.muted,
+                borderRadius: 999,
+                fontFamily: inkstashFonts.mono,
+                fontSize: 9.5,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              Buy now
+            </Box>
+          )}
+        </Box>
+
         {card.comic_publisher && (
           <Box
             sx={{
