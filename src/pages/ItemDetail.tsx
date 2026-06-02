@@ -34,6 +34,7 @@ import {
 import { Vault } from 'lucide-react';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 import CheckoutListingModal from '../components/checkout/CheckoutListingModal';
+import PublisherBadge from '../components/listings/PublisherBadge';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../contexts/CartContext';
@@ -757,21 +758,7 @@ export default function ItemDetail() {
                 {/* Comic metadata rows + vault badge (listings only) */}
                 {(item.comic_publisher || item.comic_writer || item.comic_artist || item.source_inventory_id) && (
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
-                    {item.comic_publisher && (
-                      <Chip
-                        label={item.comic_publisher}
-                        size="small"
-                        sx={{
-                          bgcolor: inkstashColors.gold,
-                          color: '#fff',
-                          fontFamily: inkstashFonts.mono,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          textTransform: 'uppercase',
-                        }}
-                      />
-                    )}
+                    <PublisherBadge publisher={item.comic_publisher} size="md" />
                     {item.comic_writer && (
                       <Typography sx={{ fontSize: 12, color: inkstashColors.muted }}>
                         Writer: {item.comic_writer}

@@ -4,6 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Vault } from 'lucide-react';
 import type { MarketplaceFeedCard } from '../../api/marketplace';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
+import PublisherBadge from './PublisherBadge';
 
 interface Props {
   card: MarketplaceFeedCard;
@@ -88,21 +89,9 @@ export default function ListingFeedCard({ card }: Props) {
       {/* Body */}
       <Box sx={{ p: 1.5 }}>
         {card.comic_publisher && (
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: 10,
-              color: inkstashColors.gold,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              mb: 0.5,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {card.comic_publisher}
-          </Typography>
+          <Box sx={{ mb: 0.75 }}>
+            <PublisherBadge publisher={card.comic_publisher} />
+          </Box>
         )}
 
         <Typography

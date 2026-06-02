@@ -13,6 +13,7 @@ import type { Drop } from '../../api/drops';
 import DropCountdown from './DropCountdown';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
+import PublisherBadge from '../listings/PublisherBadge';
 
 interface Props {
   drop: Drop;
@@ -119,6 +120,11 @@ export default function DropCard({ drop }: Props) {
       </Box>
 
       <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+        {drop.linked_publisher && (
+          <Box sx={{ mb: 0.75 }}>
+            <PublisherBadge publisher={drop.linked_publisher} />
+          </Box>
+        )}
         <Typography
           sx={{
             fontFamily: inkstashFonts.display,

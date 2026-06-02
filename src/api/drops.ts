@@ -43,6 +43,9 @@ export interface Drop extends DropRow {
   ms_until_live: number;
   /** Derived: capacity remaining. */
   quantity_remaining: number;
+  /** Optional: publisher from the linked listing, hydrated by getDrops().
+   *  Used by DropCard to render the colored PublisherBadge. */
+  linked_publisher?: string | null;
 }
 
 export interface DropWithLinked extends Drop {
@@ -119,18 +122,30 @@ export const dropsAPI = {
       .filter((d) => d.kind === 'listing' && d.listing_id && (!d.title || !d.hero_image_url))
       .map((d) => d.listing_id as string);
 
-    if (listingIdsNeedingBackfill.length > 0) {
+    // Always fetch the publisher for listing-kind drops so the grid tile
+    // can render a colored PublisherBadge. (Title/cover backfill happens
+    // here too when the drop didn't set them.)
+    const listingIdsToHydrate = all
+      .filter((d) => d.kind === 'listing' && d.listing_id)
+      .map((d) => d.listing_id as string);
+
+    if (listingIdsToHydrate.length > 0) {
       const { data: listings } = await supabase
         .from('listings')
-        .select('id, title, photos')
-        .in('id', listingIdsNeedingBackfill);
-      const byId = new Map<string, { title: string; photos: Array<{ url?: string }> | null }>();
-      (listings ?? []).forEach((l: any) => byId.set(l.id, { title: l.title, photos: l.photos }));
+        .select('id, title, photos, comic_publisher')
+        .in('id', listingIdsToHydrate);
+      const byId = new Map<string, { title: string; photos: Array<{ url?: string }> | null; comic_publisher: string | null }>();
+      (listings ?? []).forEach((l: any) => byId.set(l.id, {
+        title: l.title,
+        photos: l.photos,
+        comic_publisher: l.comic_publisher,
+      }));
       for (const drop of all) {
         if (drop.listing_id && byId.has(drop.listing_id)) {
           const meta = byId.get(drop.listing_id)!;
           if (!drop.title) drop.title = meta.title;
           if (!drop.hero_image_url) drop.hero_image_url = meta.photos?.[0]?.url ?? null;
+          (drop as Drop & { linked_publisher?: string | null }).linked_publisher = meta.comic_publisher;
         }
       }
     }

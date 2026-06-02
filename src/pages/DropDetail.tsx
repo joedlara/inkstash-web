@@ -25,6 +25,7 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 import { dropsAPI, type DropWithLinked } from '../api/drops';
 import DropCountdown from '../components/drops/DropCountdown';
 import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
+import PublisherBadge from '../components/listings/PublisherBadge';
 import { getStripe } from '../config/stripe';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../theme/inkstashTokens';
 
@@ -252,6 +253,12 @@ export default function DropDetail() {
                 <Typography sx={{ fontSize: 14, color: inkstashColors.ink, lineHeight: 1.55 }}>
                   {description}
                 </Typography>
+              </Box>
+            )}
+
+            {drop.linked_listing?.comic_publisher && (
+              <Box sx={{ mb: 2 }}>
+                <PublisherBadge publisher={drop.linked_listing.comic_publisher} size="md" />
               </Box>
             )}
 
