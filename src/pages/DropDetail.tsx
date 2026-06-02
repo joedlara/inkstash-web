@@ -19,7 +19,7 @@ import {
   Box, Container, Typography, Paper, Button, CircularProgress, Alert,
   Dialog, IconButton, Chip, Stack,
 } from '@mui/material';
-import { ArrowBack, Close, Bolt, AccessTime } from '@mui/icons-material';
+import { ArrowBack, Close, Bolt, AccessTime, Remove, Add } from '@mui/icons-material';
 import AppShell from '../components/layout/AppShell';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { dropsAPI, type DropWithLinked } from '../api/drops';
@@ -303,34 +303,48 @@ interface CheckoutModalProps {
   drop: DropWithLinked;
 }
 
+const MAX_QTY = 5;
+
 function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
+  const [qty, setQty] = useState(1);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [confirmedQty, setConfirmedQty] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Hard ceiling: can't buy more than what's actually left or our per-buy cap.
+  const maxAllowedQty = Math.max(1, Math.min(MAX_QTY, drop.quantity_remaining));
+
+  // Reset qty when modal opens to avoid carrying state across visits.
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setClientSecret(null);
+    if (open) {
+      setQty(1);
+      setClientSecret(null);
+      setError(null);
+      setErrorCode(null);
+    }
+  }, [open]);
+
+  const unitPrice = Number(drop.price);
+  const total = unitPrice * qty;
+
+  async function handleProceed() {
+    setLoading(true);
     setError(null);
     setErrorCode(null);
-    setLoading(true);
-
-    dropsAPI.createPaymentIntent(drop.id)
-      .then((res) => {
-        if (cancelled) return;
-        setClientSecret(res.client_secret);
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        setErrorCode(err.name || 'unknown');
-        setError(err.message);
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [open, drop.id]);
+    try {
+      const res = await dropsAPI.createPaymentIntent(drop.id, qty);
+      setClientSecret(res.client_secret);
+      setConfirmedQty(res.qty ?? qty);
+    } catch (err) {
+      const e = err as Error;
+      setErrorCode(e.name || 'unknown');
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <Dialog
@@ -346,32 +360,100 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
         </IconButton>
 
         <Typography sx={{ fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22, textTransform: 'uppercase', mb: 2 }}>
-          Confirm purchase
+          {clientSecret ? 'Confirm payment' : 'Confirm purchase'}
         </Typography>
 
-        <Box sx={{ bgcolor: inkstashColors.bgSunken, p: 1.5, borderRadius: inkstashRadii.md, mb: 2.5, display: 'flex', justifyContent: 'space-between' }}>
-          <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{drop.title ?? drop.linked_listing?.title ?? drop.linked_pack?.name}</Typography>
-          <Typography sx={{ fontFamily: inkstashFonts.display, fontWeight: 900 }}>${Number(drop.price).toFixed(2)}</Typography>
+        <Box sx={{ bgcolor: inkstashColors.bgSunken, p: 1.5, borderRadius: inkstashRadii.md, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {drop.title ?? drop.linked_listing?.title ?? drop.linked_pack?.name}
+            </Typography>
+            <Typography sx={{ fontFamily: inkstashFonts.mono, fontSize: 10.5, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em', mt: 0.25 }}>
+              ${unitPrice.toFixed(2)} each · {drop.quantity_remaining} left
+            </Typography>
+          </Box>
+          <Typography sx={{ fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 20 }}>
+            ${total.toFixed(2)}
+          </Typography>
         </Box>
 
+        {/* Quantity stepper — only shown before PI is locked in */}
+        {!clientSecret && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, p: 1, border: `1px solid ${inkstashColors.border}`, borderRadius: inkstashRadii.md }}>
+            <Typography sx={{ fontFamily: inkstashFonts.mono, fontSize: 11, color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, pl: 1 }}>
+              Copies
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <IconButton
+                size="small"
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                disabled={qty <= 1 || loading}
+                sx={{ bgcolor: inkstashColors.bgElev, '&:hover': { bgcolor: inkstashColors.bgSunken } }}
+              >
+                <Remove fontSize="small" />
+              </IconButton>
+              <Typography sx={{ fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22, minWidth: 28, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                {qty}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setQty((q) => Math.min(maxAllowedQty, q + 1))}
+                disabled={qty >= maxAllowedQty || loading}
+                sx={{ bgcolor: inkstashColors.bgElev, '&:hover': { bgcolor: inkstashColors.bgSunken } }}
+              >
+                <Add fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+        )}
+
+        {/* Show locked qty after PI created so buyer can't change it mid-flow */}
+        {clientSecret && confirmedQty > 1 && (
+          <Box sx={{ bgcolor: inkstashColors.brandSoft, p: 1.25, borderRadius: inkstashRadii.md, mb: 2 }}>
+            <Typography sx={{ fontFamily: inkstashFonts.mono, fontSize: 11, color: inkstashColors.brand, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+              Buying {confirmedQty} copies
+            </Typography>
+          </Box>
+        )}
+
+        {errorCode === 'not_enough_copies' && (
+          <Alert severity="warning" sx={{ mb: 2 }}>Not enough copies left for that quantity. Lower the count or try again.</Alert>
+        )}
         {errorCode === 'sold_out' && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Sold out! Someone just grabbed the last copy. Browse other drops.
-          </Alert>
+          <Alert severity="warning" sx={{ mb: 2 }}>Sold out! Someone just grabbed the last copy.</Alert>
         )}
         {errorCode === 'not_yet_live' && (
-          <Alert severity="info" sx={{ mb: 2 }}>This drop isn't live yet. The page will refresh when it opens.</Alert>
+          <Alert severity="info" sx={{ mb: 2 }}>This drop isn't live yet.</Alert>
         )}
-        {error && !['sold_out', 'not_yet_live'].includes(errorCode ?? '') && (
+        {error && !['not_enough_copies', 'sold_out', 'not_yet_live'].includes(errorCode ?? '') && (
           <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         )}
 
         {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={28} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={28} sx={{ color: inkstashColors.brand }} />
           </Box>
         )}
 
+        {/* Pre-PI step: show big Continue button to lock capacity */}
+        {!clientSecret && !loading && (
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleProceed}
+            sx={{
+              mt: 1, py: 1.4, fontWeight: 800,
+              bgcolor: inkstashColors.brand, color: '#fff',
+              textTransform: 'uppercase', fontFamily: inkstashFonts.ui,
+              letterSpacing: '0.06em',
+              '&:hover': { bgcolor: inkstashColors.brandDeep },
+            }}
+          >
+            Continue · ${total.toFixed(2)}
+          </Button>
+        )}
+
+        {/* Post-PI step: Stripe element */}
         {clientSecret && (
           <Elements
             stripe={getStripe()}
@@ -389,7 +471,7 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
               },
             }}
           >
-            <DropPaymentForm dropId={drop.id} amountUsd={Number(drop.price)} />
+            <DropPaymentForm dropId={drop.id} amountUsd={unitPrice * confirmedQty} />
           </Elements>
         )}
       </Box>
