@@ -455,6 +455,18 @@ export default function ListItem() {
       return;
     }
 
+    // Validate required fields before submit so stale drafts cannot
+    // accidentally post a $0 listing.
+    if (!title.trim()) {
+      setSubmitError('Please enter a title for your listing.');
+      return;
+    }
+    const parsedPrice = buyNowPrice ? parseFloat(buyNowPrice) : NaN;
+    if (!isFinite(parsedPrice) || parsedPrice < 1) {
+      setSubmitError('Please set a price of at least $1 before listing.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -981,7 +993,13 @@ export default function ListItem() {
             size="large"
             fullWidth
             onClick={handleSubmitListing}
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              !title.trim() ||
+              !buyNowPrice ||
+              !isFinite(parseFloat(buyNowPrice)) ||
+              parseFloat(buyNowPrice) < 1
+            }
             sx={{ py: 1.5, textTransform: 'none', fontSize: '1.1rem' }}
           >
             {isSubmitting ? (
