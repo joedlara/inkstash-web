@@ -92,10 +92,10 @@ export const cartAPI = {
     if (rateIds.length > 0) {
       const { data: rateRows } = await supabase
         .from('shipping_rates')
-        .select('id, rate_amount')
+        .select('id, shipping_amount')
         .in('id', rateIds);
       if (rateRows) {
-        ratesById = new Map(rateRows.map((r) => [r.id as string, Number((r as { rate_amount: number }).rate_amount)]));
+        ratesById = new Map(rateRows.map((r) => [r.id as string, Number((r as { shipping_amount: number }).shipping_amount)]));
       }
     }
 
