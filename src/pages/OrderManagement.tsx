@@ -46,6 +46,8 @@ export default function OrderManagement() {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [purchasingLabel, setPurchasingLabel] = useState(false);
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   // Update form state
   const [newStatus, setNewStatus] = useState<Order['status']>('processing');
@@ -93,6 +95,25 @@ export default function OrderManagement() {
       setError('Failed to load order details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePurchaseLabel = async () => {
+    if (!order) return;
+    setPurchasingLabel(true);
+    setLabelError(null);
+    try {
+      const result = await ordersAPI.purchaseLabel(order.id);
+      // Reload the order so we pick up status='shipped' + the new fields.
+      // Cheaper + safer than mutating local state by hand.
+      await loadOrder();
+      // If a popup-blocker swallowed the auto-open, the seller can still
+      // click "Print label" on the now-rendered post-purchase view.
+      window.open(result.label_url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      setLabelError(err.message ?? 'Failed to purchase label');
+    } finally {
+      setPurchasingLabel(false);
     }
   };
 
@@ -321,6 +342,64 @@ export default function OrderManagement() {
                 )}
               </Stack>
             </Paper>
+
+            {/* Shipping label — seller-only. Pre-purchase shows a "Buy + print
+                label" CTA; post-purchase shows tracking + a print link. */}
+            {isSeller && (
+              <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Shipping label
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+
+                {order.label_url ? (
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">
+                        Tracking
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {order.tracking_number || '—'}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" color="text.secondary">
+                        Carrier
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {order.carrier || '—'}
+                      </Typography>
+                    </Stack>
+                    <Button
+                      variant="contained"
+                      startIcon={<LocalShipping />}
+                      onClick={() => window.open(order.label_url!, '_blank', 'noopener,noreferrer')}
+                      sx={{ mt: 1 }}
+                    >
+                      Print label
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2}>
+                    <Typography variant="body2" color="text.secondary">
+                      Buy the label the buyer chose at checkout. Cost is charged to the InkStash ShipEngine account; the label opens in a new tab for printing.
+                    </Typography>
+                    {labelError && (
+                      <Alert severity="error">{labelError}</Alert>
+                    )}
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handlePurchaseLabel}
+                      disabled={purchasingLabel}
+                      startIcon={purchasingLabel ? <CircularProgress size={18} /> : <LocalShipping />}
+                    >
+                      {purchasingLabel ? 'Buying label…' : 'Buy + print label'}
+                    </Button>
+                  </Stack>
+                )}
+              </Paper>
+            )}
 
             {/* Customer Details (seller view) / Shipping address (buyer view) */}
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}>

@@ -26,6 +26,8 @@ export interface Order {
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   tracking_number?: string;
   carrier?: string;
+  label_url?: string;
+  label_purchased_at?: string;
   shipped_at?: string;
   delivered_at?: string;
   created_at: string;
@@ -206,6 +208,30 @@ export const ordersAPI = {
     }
 
     return data as Order[];
+  },
+
+  /**
+   * Buy a ShipEngine label against the rate the buyer chose at checkout.
+   * Updates the order with label_url + tracking + flips status to 'shipped'.
+   * Idempotent: if the order already has a label, returns it without re-buying.
+   */
+  async purchaseLabel(orderId: string): Promise<{
+    label_url: string;
+    tracking_number: string;
+    carrier: string;
+    already_purchased?: boolean;
+  }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in.');
+
+    const { data, error } = await supabase.functions.invoke('purchase-shipping-label', {
+      body: { order_id: orderId },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    if (!data?.label_url) throw new Error('No label URL returned');
+    return data;
   },
 
   // Update order status
