@@ -17,7 +17,8 @@ import Marketplace from './pages/Marketplace';
 import Checkout from './pages/CheckoutNew';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderManagement from './pages/OrderManagement';
-import Cart from './pages/Cart';
+import CartCheckoutSuccess from './pages/CartCheckoutSuccess';
+import OrderGroupSummary from './pages/OrderGroupSummary';
 import MyBids from './pages/MyBids';
 import MyStash from './pages/MyStash';
 import Purchases from './pages/Purchases';
@@ -65,7 +66,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/order-success" element={<OrderSuccess />} />
                 <Route path="/order/:orderId" element={<OrderManagement />} />
-                <Route path="/cart" element={<Cart />} />
+                <Route path="/cart-checkout-success" element={<CartCheckoutSuccess />} />
+                <Route path="/order-group/:id" element={<OrderGroupSummary />} />
                 <Route path="/my-bids" element={<MyBids />} />
                 <Route path="/my-stash" element={<MyStash />} />
                 <Route path="/purchases" element={<Purchases />} />

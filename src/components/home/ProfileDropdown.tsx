@@ -29,10 +29,10 @@ interface ProfileDropdownProps {
 export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { getItemCount } = useCart();
+  const { itemCount } = useCart();
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
-  const cartItemCount = getItemCount();
+  const cartItemCount = itemCount;
 
   useEffect(() => {
     if (isOpen && user?.id) {

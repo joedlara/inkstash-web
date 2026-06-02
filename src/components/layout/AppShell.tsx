@@ -3,6 +3,7 @@ import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { Box } from '@mui/material';
 import AppSidebar from './AppSidebar';
 import AppTopnav from './AppTopnav';
+import CartDrawer from '../cart/CartDrawer';
 import { useSuppressMobileNav } from './MobileNavContext';
 import { inkstashColors, inkstashFonts, inkstashLayout } from '../../theme/inkstashTokens';
 
@@ -71,6 +72,7 @@ export default function AppShell({ children }: AppShellProps) {
           {children}
         </Box>
       </Box>
+      <CartDrawer />
     </Box>
   );
 }

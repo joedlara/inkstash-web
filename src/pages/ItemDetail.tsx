@@ -15,6 +15,8 @@ import {
   Stack,
   Divider,
   Grid,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Favorite,
@@ -27,6 +29,7 @@ import {
   CalendarMonth,
   Gavel,
   ShoppingCart,
+  ArrowBack,
 } from '@mui/icons-material';
 import { Vault } from 'lucide-react';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
@@ -80,7 +83,6 @@ export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { addItem, isInCart } = useCart();
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +100,29 @@ export default function ItemDetail() {
   const [pendingAction, setPendingAction] = useState<'bid' | 'buy' | null>(null);
   // M3-Task6: open CheckoutListingModal on Buy Now (modal built in Task 7)
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  // Cart add affordance
+  const { addItem, isInCart, setDrawerOpen } = useCart();
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartToast, setCartToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false, message: '', severity: 'success',
+  });
+
+  const handleAddToCart = async () => {
+    if (!item) return;
+    setAddingToCart(true);
+    try {
+      await addItem(item.id);
+      setCartToast({ open: true, message: 'Added to cart', severity: 'success' });
+    } catch (err) {
+      setCartToast({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to add to cart',
+        severity: 'error',
+      });
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   const fetchItemDetails = useCallback(async () => {
       if (!id) {
@@ -524,6 +549,32 @@ export default function ItemDetail() {
   return (
     <AppShell>
       <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Back navigation. window.history.back() returns to the previous
+            entry whether that was /marketplace, a publisher filter result,
+            or a profile page. Falls back to /marketplace if history is empty
+            (deep-link case). */}
+        <Box sx={{ mb: 2 }}>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/marketplace');
+              }
+            }}
+            sx={{
+              textTransform: 'none',
+              color: inkstashColors.muted,
+              fontFamily: inkstashFonts.ui,
+              fontWeight: 600,
+              fontSize: 13,
+              '&:hover': { bgcolor: 'transparent', color: inkstashColors.brand },
+            }}
+          >
+            Back
+          </Button>
+        </Box>
         <Grid container spacing={4}>
           {/* Left Side - Image and Stats */}
           <Grid size={{ xs: 12, md: 7 }}>
@@ -891,11 +942,24 @@ export default function ItemDetail() {
                         disabled={
                           item.status === 'sold' ||
                           item.seller_id === user?.id
-                          // Buy Now should always be available unless sold or you're the seller
-                          // Even if auction ended, buy now should still work
                         }
                       >
                         {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
+                      </Button>
+                    )}
+                    {/* Add to cart — listings only (item.end_date is empty for
+                        marketplace listings, populated for auctions). The cart
+                        only handles fixed-price listing purchases; auction wins
+                        go through the bid flow. */}
+                    {!item.end_date && item.buy_now_price && item.status !== 'sold' && item.seller_id !== user?.id && (
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        fullWidth
+                        onClick={handleAddToCart}
+                        disabled={addingToCart || isInCart(item.id)}
+                      >
+                        {isInCart(item.id) ? 'In cart' : addingToCart ? 'Adding…' : '+ Add to cart'}
                       </Button>
                     )}
                   </Stack>
@@ -1007,6 +1071,38 @@ export default function ItemDetail() {
           }}
         />
       )}
+
+      {/* Add-to-cart confirmation toast. Success variant offers an Open cart
+          action so the buyer can review the drawer without hunting for the
+          top-nav icon. */}
+      <Snackbar
+        open={cartToast.open}
+        autoHideDuration={4000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={() => setCartToast((t) => ({ ...t, open: false }))}
+      >
+        <Alert
+          severity={cartToast.severity}
+          variant="filled"
+          onClose={() => setCartToast((t) => ({ ...t, open: false }))}
+          action={
+            cartToast.severity === 'success' ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setCartToast((t) => ({ ...t, open: false }));
+                  setDrawerOpen(true);
+                }}
+              >
+                Open cart
+              </Button>
+            ) : undefined
+          }
+        >
+          {cartToast.message}
+        </Alert>
+      </Snackbar>
     </AppShell>
   );
 }

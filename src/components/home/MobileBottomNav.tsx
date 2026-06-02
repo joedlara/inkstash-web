@@ -10,10 +10,10 @@ export default function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { getItemCount } = useCart();
+  const { itemCount } = useCart();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
-  const cartItemCount = getItemCount();
+  const cartItemCount = itemCount;
 
   const isActive = (path: string) => {
     return location.pathname === path;
