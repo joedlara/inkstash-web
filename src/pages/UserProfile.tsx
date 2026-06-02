@@ -538,16 +538,16 @@ export default function UserProfile() {
                 >
                   {/* Placeholder product images */}
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src={PLACEHOLDER_IMAGE_URL} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src={PLACEHOLDER_IMAGE_URL} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src={PLACEHOLDER_IMAGE_URL} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src={PLACEHOLDER_IMAGE_URL} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                 </Box>
 
