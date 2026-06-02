@@ -36,6 +36,7 @@ import ApplePayButton from '../components/payments/ApplePayButton';
 import AddPaymentMethodForm from '../components/payments/AddPaymentMethodForm';
 import AddShippingAddressForm from '../components/payments/AddShippingAddressForm';
 import { getStripe } from '../config/stripe';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 interface CheckoutState {
   auctionId: string;
@@ -801,7 +802,7 @@ export default function CheckoutNew() {
             <Stack direction="row" spacing={2} sx={{ p: 2 }}>
               <CardMedia
                 component="img"
-                image={checkoutData.imageUrl || 'https://via.placeholder.com/100'}
+                image={checkoutData.imageUrl || PLACEHOLDER_IMAGE_URL}
                 alt={checkoutData.itemTitle}
                 sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1 }}
               />

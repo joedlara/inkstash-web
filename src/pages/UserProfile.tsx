@@ -32,6 +32,7 @@ import {
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { FollowersFollowingModal } from '../components/profile/FollowersFollowingModal';
 import { supabase } from '../api/supabase/supabaseClient';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 export default function UserProfile() {
   const { userId, username } = useParams<{ userId?: string; username?: string; '*'?: string }>();
@@ -389,7 +390,7 @@ export default function UserProfile() {
                   >
                     {listings.map((listing) => {
                       const firstPhoto = listing.photos?.[0];
-                      const photoUrl = firstPhoto?.url || 'https://via.placeholder.com/300';
+                      const photoUrl = firstPhoto?.url || PLACEHOLDER_IMAGE_URL;
 
                       return (
                         <Card
@@ -537,16 +538,16 @@ export default function UserProfile() {
                 >
                   {/* Placeholder product images */}
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src="https://via.placeholder.com/200" alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src="https://via.placeholder.com/200" alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src="https://via.placeholder.com/200" alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                   <Box sx={{ aspectRatio: '1', bgcolor: 'grey.200', borderRadius: 2 }}>
-                    <img src="https://via.placeholder.com/200" alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    <img src=PLACEHOLDER_IMAGE_URL alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                   </Box>
                 </Box>
 

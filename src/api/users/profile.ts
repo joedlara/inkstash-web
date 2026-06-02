@@ -161,7 +161,7 @@ export async function getStreamerProfile(userId: string): Promise<StreamerProfil
         first_stream_date
       `)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') {

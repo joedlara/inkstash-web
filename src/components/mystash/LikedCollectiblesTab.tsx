@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../api/supabase/supabaseClient'
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface LikedItem {
   id: string;
@@ -237,7 +238,7 @@ export default function LikedCollectiblesTab() {
                     <CardMedia
                       component="img"
                       height="200"
-                      image={auction.image_url || 'https://via.placeholder.com/300'}
+                      image={auction.image_url || PLACEHOLDER_IMAGE_URL}
                       alt={auction.title}
                       sx={{ objectFit: 'cover' }}
                     />

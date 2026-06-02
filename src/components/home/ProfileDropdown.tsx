@@ -135,7 +135,7 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
       >
         {/* Header: avatar + username + stats + back chevron */}
         <Box
-          onClick={() => handleNavigation(`/profile/${user?.id}`)}
+          onClick={() => handleNavigation(user?.username ? `/@${user.username}` : '/profile')}
           sx={{
             display: 'flex', alignItems: 'center', gap: 1.75,
             padding: '20px 22px',

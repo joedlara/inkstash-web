@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyActiveBids, type Bid } from '../../api/auctions/bids';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 export default function CurrentBidsTab() {
   const navigate = useNavigate();
@@ -207,7 +208,7 @@ export default function CurrentBidsTab() {
                     <CardMedia
                       component="img"
                       height="200"
-                      image={auction.image_url || 'https://via.placeholder.com/300'}
+                      image={auction.image_url || PLACEHOLDER_IMAGE_URL}
                       alt={auction.title}
                       sx={{ objectFit: 'cover' }}
                     />
