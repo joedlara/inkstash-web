@@ -120,6 +120,10 @@ async function handlePaymentIntentSucceeded(
     return await openListingOrder(intent, supabaseUrl, serviceRoleKey)
   }
 
+  if (effectiveType === 'cart') {
+    return await openCartOrderGroup(intent, stripe, serviceClient, supabaseUrl, serviceRoleKey)
+  }
+
   console.warn('[stripe-webhook] unknown payment_type:', effectiveType)
   return new Response('ok', { status: 200 })
 }
@@ -414,5 +418,230 @@ async function openListingOrder(
   }
 
   console.log('[stripe-webhook] listing order opened for intent', intent.id)
+  return new Response('ok', { status: 200 })
+}
+
+/**
+ * Multi-seller cart payment succeeded. Fans out:
+ *   1. Idempotency: bail if order_group already 'paid' or beyond.
+ *   2. Mark order_group paid, all child orders processing.
+ *   3. For each order: flip listing to sold, transfer vault inventory
+ *      (if applicable), create Stripe Transfer to seller's Connect
+ *      account (item_price * 0.9 + shipping_cost), persist transfer_id +
+ *      transfer_status. On failure: record failed_transfers row, mark
+ *      order transfer_status='failed'.
+ *   4. Roll up: if any transfer failed → group status='partial_payout_failed';
+ *      else 'fully_paid_out'.
+ *   5. Empty the buyer's cart_items.
+ *   6. Fire buyer cart summary email + per-seller emails (Task 8 implements
+ *      the templates; here we just invoke).
+ *
+ * The buyer never sees transfer failures — they paid InkStash, the
+ * money's ours, and we reconcile out-of-band.
+ */
+async function openCartOrderGroup(
+  intent: Stripe.PaymentIntent,
+  stripe: Stripe,
+  serviceClient: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<Response> {
+  const groupId = intent.metadata?.order_group_id
+  if (!groupId) {
+    console.error('[stripe-webhook] cart intent missing order_group_id metadata', intent.id)
+    return new Response('missing order_group_id', { status: 400 })
+  }
+
+  // 1. Idempotency. Stripe retries deliver this event up to 3+ times.
+  const { data: groupRow, error: groupErr } = await serviceClient
+    .from('order_groups')
+    .select('id, status, buyer_id, total_amount')
+    .eq('id', groupId)
+    .maybeSingle()
+
+  if (groupErr) {
+    console.error('[stripe-webhook] order_group fetch failed', groupErr)
+    return new Response('group fetch failed', { status: 500 })
+  }
+  if (!groupRow) {
+    console.error('[stripe-webhook] order_group not found', groupId)
+    return new Response('group not found', { status: 404 })
+  }
+  if (groupRow.status !== 'pending') {
+    console.log('[stripe-webhook] cart group already processed', groupId, groupRow.status)
+    return new Response('ok', { status: 200 })
+  }
+
+  // 2. Mark group paid + child orders processing.
+  await serviceClient
+    .from('order_groups')
+    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .eq('id', groupId)
+
+  const { data: orders, error: ordersErr } = await serviceClient
+    .from('orders')
+    .select(`
+      id, listing_id, seller_id, buyer_id, item_price, shipping_cost,
+      shipping_full_name, shipping_address_line1, shipping_address_line2,
+      shipping_city, shipping_state, shipping_postal_code, shipping_country,
+      shipping_phone, order_number
+    `)
+    .eq('order_group_id', groupId)
+
+  if (ordersErr || !orders) {
+    console.error('[stripe-webhook] orders fetch failed', ordersErr)
+    return new Response('orders fetch failed', { status: 500 })
+  }
+
+  await serviceClient
+    .from('orders')
+    .update({ status: 'processing' })
+    .eq('order_group_id', groupId)
+
+  // 3. Per-order processing.
+  let anyTransferFailed = false
+  for (const order of orders) {
+    const o = order as {
+      id: string
+      listing_id: string
+      seller_id: string
+      buyer_id: string
+      item_price: number
+      shipping_cost: number
+    }
+
+    // 3a. Flip listing to sold. Also pull source_inventory_id + comic title
+    //     so we can transfer vault inventory ownership and fire the email.
+    const { data: listingRow } = await serviceClient
+      .from('listings')
+      .select('id, title, source_inventory_id, photos')
+      .eq('id', o.listing_id)
+      .maybeSingle()
+
+    await serviceClient
+      .from('listings')
+      .update({ status: 'sold' })
+      .eq('id', o.listing_id)
+
+    // 3b. If vault item, transfer inventory ownership.
+    if (listingRow && (listingRow as { source_inventory_id?: string | null }).source_inventory_id) {
+      const invId = (listingRow as { source_inventory_id: string }).source_inventory_id
+      const { error: invErr } = await serviceClient
+        .from('user_inventory')
+        .update({ user_id: o.buyer_id, status: 'sold', sold_at: new Date().toISOString() })
+        .eq('id', invId)
+      if (invErr) {
+        console.error('[stripe-webhook] inventory transfer failed', o.id, invErr)
+      }
+    }
+
+    // 3c. Look up seller's Connect account.
+    const { data: sellerRow } = await serviceClient
+      .from('users')
+      .select('id, stripe_connect_account_id, email')
+      .eq('id', o.seller_id)
+      .maybeSingle()
+
+    const connectId = (sellerRow as { stripe_connect_account_id?: string } | null)?.stripe_connect_account_id
+
+    if (!connectId) {
+      // Should have been blocked at create-cart-payment-intent, but defensive.
+      console.error('[stripe-webhook] seller has no connect account', o.seller_id)
+      await serviceClient
+        .from('orders')
+        .update({ transfer_status: 'failed', transfer_last_error: 'no connect account' })
+        .eq('id', o.id)
+      await serviceClient
+        .from('failed_transfers')
+        .insert({ order_id: o.id, seller_id: o.seller_id, amount_cents: Math.round((o.item_price * 0.9 + o.shipping_cost) * 100), stripe_error: 'no connect account' })
+      anyTransferFailed = true
+      continue
+    }
+
+    // 3d. Stripe Transfer. Amount = (item_price * 0.9) + shipping_cost,
+    //     converted to cents. InkStash keeps 10% of item_price; full
+    //     shipping passes through (seller pays the label).
+    const transferAmountCents = Math.round((Number(o.item_price) * 0.9 + Number(o.shipping_cost)) * 100)
+    try {
+      const transfer = await stripe.transfers.create({
+        amount: transferAmountCents,
+        currency: 'usd',
+        destination: connectId,
+        transfer_group: groupId,
+        metadata: {
+          order_id: o.id,
+          order_group_id: groupId,
+        },
+      })
+      await serviceClient
+        .from('orders')
+        .update({
+          stripe_transfer_id: transfer.id,
+          transfer_status: 'succeeded',
+          transfer_attempts: 1,
+        })
+        .eq('id', o.id)
+    } catch (err) {
+      console.error('[stripe-webhook] transfer failed', o.id, err)
+      const errMsg = err instanceof Error ? err.message : 'transfer failed'
+      await serviceClient
+        .from('orders')
+        .update({
+          transfer_status: 'failed',
+          transfer_last_error: errMsg,
+          transfer_attempts: 1,
+        })
+        .eq('id', o.id)
+      await serviceClient
+        .from('failed_transfers')
+        .insert({ order_id: o.id, seller_id: o.seller_id, amount_cents: transferAmountCents, stripe_error: errMsg })
+      anyTransferFailed = true
+    }
+  }
+
+  // 4. Roll up group status.
+  const finalStatus = anyTransferFailed ? 'partial_payout_failed' : 'fully_paid_out'
+  const update: Record<string, unknown> = { status: finalStatus }
+  if (!anyTransferFailed) update.fully_paid_out_at = new Date().toISOString()
+  await serviceClient.from('order_groups').update(update).eq('id', groupId)
+
+  // 5. Empty the buyer's cart.
+  await serviceClient
+    .from('cart_items')
+    .delete()
+    .eq('user_id', groupRow.buyer_id)
+
+  // 6. Fire emails (best effort — failure here doesn't fail the webhook).
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-cart-checkout-buyer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ order_group_id: groupId }),
+    })
+  } catch (err) {
+    console.warn('[stripe-webhook] buyer cart email failed (non-fatal)', err)
+  }
+
+  // Per-seller emails. Reuse the existing send-listing-sold-seller fn.
+  for (const order of orders) {
+    const o = order as { id: string }
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-listing-sold-seller`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ order_id: o.id }),
+      })
+    } catch (err) {
+      console.warn('[stripe-webhook] seller email failed (non-fatal)', o.id, err)
+    }
+  }
+
+  console.log('[stripe-webhook] cart group processed', groupId, finalStatus)
   return new Response('ok', { status: 200 })
 }
