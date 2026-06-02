@@ -409,7 +409,7 @@ function TrendingTile({ card, onClick }: { card: MarketplaceFeedCard; onClick: (
               lineHeight: 1,
             }}
           >
-            {card.display_price_label}
+            ${Number(card.price).toFixed(2)}
           </Typography>
           <Box
             sx={{
