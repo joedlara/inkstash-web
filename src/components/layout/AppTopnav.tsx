@@ -99,57 +99,81 @@ export default function AppTopnav({ onOpenMobileNav }: AppTopnavProps) {
         <RubyBalancePill onClickTopUp={() => setBundleModalOpen(true)} />
       )}
 
-      <Box
-        component="button"
-        type="button"
-        aria-label="Notifications"
+      {/* Notifications — badge anchored to top-right of the whole pill,
+          not the bell icon. */}
+      <Badge
+        badgeContent={3}
+        color="error"
+        overlap="rectangular"
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         sx={{
-          display: 'inline-flex', alignItems: 'center', gap: 0.75,
-          bgcolor: inkstashColors.bgElev, border: `1px solid ${inkstashColors.border}`,
-          padding: '7px 10px', borderRadius: 999,
-          cursor: 'pointer', color: inkstashColors.ink,
-          fontFamily: inkstashFonts.ui, fontSize: 13,
-          '&:hover': { borderColor: inkstashColors.borderStrong },
-          '&:active': { transform: 'scale(0.97)' },
+          '& .MuiBadge-badge': {
+            fontSize: 10,
+            height: 18,
+            minWidth: 18,
+            padding: '0 5px',
+            fontFamily: inkstashFonts.mono,
+            fontWeight: 800,
+            border: `2px solid ${inkstashColors.bg}`,
+            transform: 'translate(40%, -40%)',
+          },
         }}
       >
-        <Bell size={16} />
-        <Badge badgeContent={3} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, minWidth: 16, height: 16, top: -2, right: -2 } }} />
-      </Box>
-
-      <Box
-        component="button"
-        type="button"
-        onClick={() => setDrawerOpen(true)}
-        sx={{
-          display: 'inline-flex', alignItems: 'center', gap: 0.75,
-          bgcolor: inkstashColors.bgElev, border: `1px solid ${inkstashColors.border}`,
-          padding: '7px 12px', borderRadius: 999,
-          cursor: 'pointer', color: inkstashColors.ink,
-          fontFamily: inkstashFonts.ui, fontSize: 13,
-          '&:hover': { borderColor: inkstashColors.borderStrong },
-          '&:active': { transform: 'scale(0.97)' },
-        }}
-      >
-        <Badge
-          badgeContent={itemCount}
-          color="error"
-          overlap="circular"
+        <Box
+          component="button"
+          type="button"
+          aria-label="Notifications"
           sx={{
-            '& .MuiBadge-badge': {
-              fontSize: 10,
-              height: 16,
-              minWidth: 16,
-              padding: '0 4px',
-              fontFamily: inkstashFonts.mono,
-              fontWeight: 800,
-            },
+            display: 'inline-flex', alignItems: 'center', gap: 0.75,
+            bgcolor: inkstashColors.bgElev, border: `1px solid ${inkstashColors.border}`,
+            padding: '7px 10px', borderRadius: 999,
+            cursor: 'pointer', color: inkstashColors.ink,
+            fontFamily: inkstashFonts.ui, fontSize: 13,
+            '&:hover': { borderColor: inkstashColors.borderStrong },
+            '&:active': { transform: 'scale(0.97)' },
+          }}
+        >
+          <Bell size={16} />
+        </Box>
+      </Badge>
+
+      {/* Cart — same pattern, badge anchored to the pill. */}
+      <Badge
+        badgeContent={itemCount}
+        color="error"
+        overlap="rectangular"
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          '& .MuiBadge-badge': {
+            fontSize: 10,
+            height: 18,
+            minWidth: 18,
+            padding: '0 5px',
+            fontFamily: inkstashFonts.mono,
+            fontWeight: 800,
+            border: `2px solid ${inkstashColors.bg}`,
+            transform: 'translate(40%, -40%)',
+          },
+        }}
+      >
+        <Box
+          component="button"
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          sx={{
+            display: 'inline-flex', alignItems: 'center', gap: 0.75,
+            bgcolor: inkstashColors.bgElev, border: `1px solid ${inkstashColors.border}`,
+            padding: '7px 12px', borderRadius: 999,
+            cursor: 'pointer', color: inkstashColors.ink,
+            fontFamily: inkstashFonts.ui, fontSize: 13,
+            '&:hover': { borderColor: inkstashColors.borderStrong },
+            '&:active': { transform: 'scale(0.97)' },
           }}
         >
           <ShoppingCart size={16} />
-        </Badge>
-        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Cart</Box>
-      </Box>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Cart</Box>
+        </Box>
+      </Badge>
 
       {!isAuthenticated && (
         <>

@@ -29,6 +29,7 @@ import {
   CalendarMonth,
   Gavel,
   ShoppingCart,
+  ArrowBack,
 } from '@mui/icons-material';
 import { Vault } from 'lucide-react';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
@@ -548,6 +549,32 @@ export default function ItemDetail() {
   return (
     <AppShell>
       <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Back navigation. window.history.back() returns to the previous
+            entry whether that was /marketplace, a publisher filter result,
+            or a profile page. Falls back to /marketplace if history is empty
+            (deep-link case). */}
+        <Box sx={{ mb: 2 }}>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/marketplace');
+              }
+            }}
+            sx={{
+              textTransform: 'none',
+              color: inkstashColors.muted,
+              fontFamily: inkstashFonts.ui,
+              fontWeight: 600,
+              fontSize: 13,
+              '&:hover': { bgcolor: 'transparent', color: inkstashColors.brand },
+            }}
+          >
+            Back
+          </Button>
+        </Box>
         <Grid container spacing={4}>
           {/* Left Side - Image and Stats */}
           <Grid size={{ xs: 12, md: 7 }}>
@@ -920,8 +947,11 @@ export default function ItemDetail() {
                         {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
                       </Button>
                     )}
-                    {/* Add to cart — buy-now listings only, not for the seller's own listing. */}
-                    {item.buy_now_price && item.status !== 'sold' && item.seller_id !== user?.id && (
+                    {/* Add to cart — listings only (item.end_date is empty for
+                        marketplace listings, populated for auctions). The cart
+                        only handles fixed-price listing purchases; auction wins
+                        go through the bid flow. */}
+                    {!item.end_date && item.buy_now_price && item.status !== 'sold' && item.seller_id !== user?.id && (
                       <Button
                         variant="outlined"
                         size="large"
