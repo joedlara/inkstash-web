@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { ordersAPI, type Order } from '../../api/orders';
 import { getMyWonBids, type Bid } from '../../api/auctions/bids';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 export default function PurchaseHistoryTab() {
   const navigate = useNavigate();
@@ -105,7 +106,7 @@ export default function PurchaseHistoryTab() {
     const itemImage =
       auction?.image_url ??
       listing?.photos?.[0]?.url ??
-      'https://via.placeholder.com/200x150';
+      PLACEHOLDER_IMAGE_URL;
     const itemHref = auction
       ? `/item/${auction.id}`
       : listing
@@ -234,7 +235,7 @@ export default function PurchaseHistoryTab() {
               height: { xs: 200, sm: 150 },
               objectFit: 'cover',
             }}
-            image={auction.image_url || 'https://via.placeholder.com/200x150'}
+            image={auction.image_url || PLACEHOLDER_IMAGE_URL}
             alt={auction.title}
           />
 

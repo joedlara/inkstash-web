@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UploadedPhoto } from '../utils/photoUpload';
 
 export interface ListingFormData {
-  step: 'search' | 'match' | 'details' | 'complete';
+  step: 'search' | 'complete';
   searchQuery: string;
   selectedCondition: string;
   selectedCategory: string;

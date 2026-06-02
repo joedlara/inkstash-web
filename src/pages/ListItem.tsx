@@ -13,11 +13,9 @@ import {
   IconButton,
   Chip,
   Divider,
-  Switch,
   InputAdornment,
   Alert,
-  ToggleButtonGroup,
-  ToggleButton,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -32,6 +30,7 @@ import {
   ArrowBack,
   HelpOutline,
   Add,
+  AutoAwesome,
   Image as ImageIcon,
   Restore,
 } from '@mui/icons-material';
@@ -61,10 +60,9 @@ import PhotoUploadSection from '../components/listing/PhotoUploadSection';
 import PackageDimensionsInput from '../components/listing/PackageDimensionsInput';
 import ShippingRatesDisplay from '../components/listing/ShippingRatesDisplay';
 import ShipFromAddressModal from '../components/listing/ShipFromAddressModal';
-import ComicSearchInput from '../components/listings/ComicSearchInput';
 import type { ComicSelection } from '../components/listings/ComicSearchInput';
+import ListingStartPanel from '../components/listings/ListingStartPanel';
 import SellerConnectGate from '../components/listings/SellerConnectGate';
-import ConnectOnboardingModal from '../components/listings/ConnectOnboardingModal';
 import { useListingPersistence } from '../hooks/useListingPersistence';
 import { uploadListingPhoto } from '../utils/photoUpload';
 import type { UploadedPhoto } from '../utils/photoUpload';
@@ -130,7 +128,6 @@ export default function ListItem() {
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedShipFromAddress, setSelectedShipFromAddress] = useState<SellerShipFromAddress | null>(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   // Seller verification gate
   const isSeller = user?.seller_status === 'active';
@@ -154,7 +151,8 @@ export default function ListItem() {
   const buyNowPrice = formData.buyNowPrice;
   const auctionDurationDays = formData.auctionDurationDays;
   const startingBid = formData.startingBid;
-  const deliveryMethod = formData.deliveryMethod;
+  // Marketplace v1 is shipping-only; force any stale 'pickup' draft back to 'shipping'.
+  const deliveryMethod = 'shipping';
   const isGraded = formData.isGraded;
   const professionalGrader = formData.professionalGrader;
   const grade = formData.grade;
@@ -177,8 +175,6 @@ export default function ListItem() {
   const setUploadedPhotos = (photos: UploadedPhoto[]) => updateFormData({ uploadedPhotos: photos });
   const setTitle = (newTitle: string) => updateFormData({ title: newTitle });
   const setDescription = (desc: string) => updateFormData({ description: desc });
-  const setIsAuction = (auction: boolean) => updateFormData({ isAuction: auction });
-  const setIsBuyNow = (buyNow: boolean) => updateFormData({ isBuyNow: buyNow });
   const setBuyNowPrice = (price: string) => {
     // Only allow numbers and decimal point
     const numericValue = price.replace(/[^0-9.]/g, '');
@@ -188,17 +184,6 @@ export default function ListItem() {
       ? `${parts[0]}.${parts.slice(1).join('')}`
       : numericValue;
     updateFormData({ buyNowPrice: sanitizedValue });
-  };
-  const setAuctionDurationDays = (days: number) => updateFormData({ auctionDurationDays: days });
-  const setStartingBid = (price: string) => {
-    // Only allow numbers and decimal point
-    const numericValue = price.replace(/[^0-9.]/g, '');
-    // Prevent multiple decimal points
-    const parts = numericValue.split('.');
-    const sanitizedValue = parts.length > 2
-      ? `${parts[0]}.${parts.slice(1).join('')}`
-      : numericValue;
-    updateFormData({ startingBid: sanitizedValue });
   };
   const setDeliveryMethod = (method: string) => updateFormData({ deliveryMethod: method });
   const setIsGraded = (graded: boolean) => updateFormData({ isGraded: graded });
@@ -331,11 +316,7 @@ export default function ListItem() {
 
   const handleBack = () => {
     if (step === 'complete') {
-      setStep('details');
-    } else if (step === 'match') {
       setStep('search');
-    } else if (step === 'details') {
-      setStep('match');
     } else {
       navigate('/seller-dashboard?tab=mystore');
     }
@@ -360,26 +341,6 @@ export default function ListItem() {
     }
   };
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setShowSuggestions(false);
-      setStep('match');
-    }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
-  };
-
-  const handleSearchFocus = () => {
-    setShowSuggestions(true);
-  };
-
-  const handleClickAway = () => {
-    setShowSuggestions(false);
-  };
-
   const handleRestoreDraft = () => {
     setShowDraftDialog(false);
     // Show reminder about photos if on complete step and no photos
@@ -402,7 +363,9 @@ export default function ListItem() {
       artist: sel.artist ?? '',
       coverImageUrl: sel.cover_url ?? '',
       comicVineId: sel.comic_vine_id,
-      step: 'match',
+      // Skip the deleted 'match' + 'details' confirm steps. Go straight
+      // to the listing form so the seller fills it out in one place.
+      step: 'complete',
     });
   };
 
@@ -446,6 +409,21 @@ export default function ListItem() {
           professional_grader: isGraded ? professionalGrader : null,
           grade: isGraded ? grade : null,
           certification_number: isGraded && certificationNumber.trim() ? certificationNumber.trim() : null,
+          // Shipping fields — preserve so resuming the draft does not reset them
+          package_weight_value: deliveryMethod === 'shipping' && packageWeightValue ? parseFloat(packageWeightValue) : null,
+          package_weight_unit: deliveryMethod === 'shipping' ? packageWeightUnit : null,
+          package_length: deliveryMethod === 'shipping' && packageLength ? parseFloat(packageLength) : null,
+          package_width: deliveryMethod === 'shipping' && packageWidth ? parseFloat(packageWidth) : null,
+          package_height: deliveryMethod === 'shipping' && packageHeight ? parseFloat(packageHeight) : null,
+          package_dimension_unit: deliveryMethod === 'shipping' ? packageDimensionUnit : null,
+          selected_shipping_rate_id: deliveryMethod === 'shipping' ? selectedShippingRateId : null,
+          // Comic metadata — preserve so a draft started from ComicVine search
+          // restores the matched comic instead of forcing the user to re-search
+          comic_vine_id: formData.comicVineId ?? null,
+          comic_publisher: formData.publisher || null,
+          comic_writer: formData.writer || null,
+          comic_artist: formData.artist || null,
+          comic_issue_number: formData.issueNumber || null,
           metadata: {
             detailFilters,
             searchQuery,
@@ -477,8 +455,31 @@ export default function ListItem() {
       return;
     }
 
+    // Validate required fields before submit so stale drafts cannot
+    // accidentally post a $0 listing.
+    if (!title.trim()) {
+      setSubmitError('Please enter a title for your listing.');
+      return;
+    }
+    const parsedPrice = buyNowPrice ? parseFloat(buyNowPrice) : NaN;
+    if (!isFinite(parsedPrice) || parsedPrice < 1) {
+      setSubmitError('Please set a price of at least $1 before listing.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError('');
+
+    // Belt-and-suspenders: if anything in the flow wedges (storage hang,
+    // unhandled promise, Supabase WebSocket stall), unlock the button after
+    // 90s so the user can retry instead of staring at a forever-spinner.
+    const watchdog = setTimeout(() => {
+      console.warn('[handleSubmitListing] watchdog tripped after 90s');
+      setSubmitError(
+        'Listing is taking longer than expected. Refresh the page and resume your draft to try again.',
+      );
+      setIsSubmitting(false);
+    }, 90_000);
 
     try {
       // Calculate auction end time if this is an auction
@@ -553,28 +554,44 @@ export default function ListItem() {
         }
       }
 
-      // Step 2: Upload all photos to S3 with the item ID
+      // Step 2: Upload all photos to S3 in parallel with a 30s timeout each.
+      // Sequential awaits used to wedge the whole flow if a single upload
+      // hung (no timeout on the storage client), giving sellers an infinite
+      // "Uploading photos..." spinner with no way to recover.
+      const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+        Promise.race([
+          p,
+          new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms),
+          ),
+        ]);
+
+      const uploadResults = await Promise.allSettled(
+        uploadedPhotos.map((photo) => {
+          if (photo.file) {
+            return withTimeout(
+              uploadListingPhoto(photo.file, user.id, itemId, photo.type),
+              60_000,
+              `Photo upload (${photo.file.name})`,
+            );
+          }
+          // Already uploaded - pass through.
+          if (photo.path) return Promise.resolve(photo);
+          return Promise.reject(new Error('Photo missing file and path'));
+        }),
+      );
+
       const finalUploadedPhotos: UploadedPhoto[] = [];
-
-      for (let i = 0; i < uploadedPhotos.length; i++) {
-        const photo = uploadedPhotos[i];
-
-        // Only upload if the photo has a file (local preview)
-        if (photo.file) {
-          const uploadedPhoto = await uploadListingPhoto(
-            photo.file,
-            user.id,
-            itemId,
-            photo.type
-          );
-          finalUploadedPhotos.push(uploadedPhoto);
-        } else if (photo.path) {
-          // Photo already uploaded (shouldn't happen with new flow, but keeping for safety)
-          finalUploadedPhotos.push(photo);
+      const uploadFailures: string[] = [];
+      uploadResults.forEach((res, i) => {
+        if (res.status === 'fulfilled') {
+          finalUploadedPhotos.push(res.value);
+        } else {
+          uploadFailures.push(`Photo ${i + 1}: ${res.reason.message || 'upload failed'}`);
         }
-      }
+      });
 
-      // Step 3: Update the listing with the uploaded photo URLs
+      // Step 3: Update the listing with whichever photo URLs succeeded.
       if (finalUploadedPhotos.length > 0) {
         const { error: updateError } = await supabase
           .from('listings')
@@ -585,355 +602,35 @@ export default function ListItem() {
 
         if (updateError) {
           console.error('Error updating photos:', updateError);
-          // Don't throw error - listing was created successfully, just without photos displayed
         }
       }
 
-      // Step 4: Clear the draft and navigate to success page
+      if (uploadFailures.length > 0) {
+        // Listing exists but some photos failed - tell the seller what
+        // happened instead of silently navigating. They can edit later.
+        setSubmitError(
+          `Listing created, but ${uploadFailures.length} photo(s) failed to upload: ${uploadFailures.join('; ')}. You can edit and re-upload from your seller dashboard.`,
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Step 4: Clear the draft and take the seller straight to their new listing.
       clearDraft();
-      navigate('/seller-dashboard?tab=mystore');
+      navigate(`/item/${itemId}`);
     } catch (error: any) {
       console.error('Error creating listing:', error);
       setSubmitError(error.message || 'Failed to create listing. Please try again.');
     } finally {
+      clearTimeout(watchdog);
       setIsSubmitting(false);
     }
   };
 
   const renderSearchStep = () => (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
-      <Box sx={{ textAlign: 'center', mb: 5 }}>
-        <Typography variant="h3" fontWeight={700} gutterBottom sx={{ fontFamily: inkstashFonts.display }}>
-          List a comic
-        </Typography>
-        <Typography variant="body1" sx={{ color: inkstashColors.muted }}>
-          Search the ComicVine catalog or enter your comic's details manually.
-        </Typography>
-      </Box>
-
-      <ComicSearchInput onSelect={(sel) => handleComicSelected(sel)} />
-    </Container>
+    <ListingStartPanel onPicked={(sel) => handleComicSelected(sel)} />
   );
 
-  const renderMatchStep = () => {
-    const handleFilterChange = (filterKey: keyof typeof detailFilters, value: string) => {
-      setDetailFilters({
-        ...detailFilters,
-        [filterKey]: value,
-      });
-    };
-
-    const renderFilterDropdown = (
-      label: string,
-      filterKey: keyof typeof detailFilters,
-      options: string[]
-    ) => (
-      <FormControl fullWidth size="small">
-        <InputLabel>{label}</InputLabel>
-        <Select
-          value={detailFilters[filterKey] || ''}
-          label={label}
-          onChange={(e) => handleFilterChange(filterKey, e.target.value)}
-          MenuProps={{
-            PaperProps: {
-              style: {
-                maxHeight: 200,
-              },
-            },
-          }}
-        >
-          <MenuItem value="">
-            <em>Select {label.toLowerCase()}</em>
-          </MenuItem>
-          {options.slice(0, 5).map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    );
-
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Find a match
-          </Typography>
-          <Typography variant="body1" color="text.secondary" gutterBottom>
-            for "{searchQuery}"
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-          {/* Left Sidebar - Filters */}
-          <Paper sx={{ p: 2, borderRadius: 2, width: { xs: '100%', md: 280 }, flexShrink: 0 }}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Add details to sharpen results
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <Stack spacing={2}>
-              {renderFilterDropdown('Type', 'type', DETAIL_FILTER_OPTIONS.type)}
-              {renderFilterDropdown('Brand', 'brand', DETAIL_FILTER_OPTIONS.brand)}
-              {renderFilterDropdown('Year', 'year', DETAIL_FILTER_OPTIONS.year)}
-              {renderFilterDropdown('Exclusive/Release', 'exclusiveEventRetailer', DETAIL_FILTER_OPTIONS.exclusiveEventRetailer)}
-              {renderFilterDropdown('Franchise', 'franchise', DETAIL_FILTER_OPTIONS.franchise)}
-              {renderFilterDropdown('Theme', 'theme', DETAIL_FILTER_OPTIONS.theme)}
-              {renderFilterDropdown('Features', 'features', DETAIL_FILTER_OPTIONS.features)}
-            </Stack>
-          </Paper>
-
-        {/* Right Side - Results */}
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-            Product library matches
-          </Typography>
-
-          {/* No matches message - TODO: This will be replaced when API is integrated */}
-          <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50', mb: 3 }}>
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              No matches found in our product library
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              You can continue without a match and manually enter your item details.
-            </Typography>
-          </Paper>
-
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{ py: 2 }}
-            onClick={() => setStep('details')}
-          >
-            Continue without match
-          </Button>
-        </Box>
-      </Box>
-    </Container>
-    );
-  };
-
-  const renderDetailsStep = () => (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper sx={{ p: 4, borderRadius: 2 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Confirm details
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-          The item details below will pre-fill your listing.
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <Box
-            sx={{
-              width: { xs: '100%', sm: 200 },
-              height: 200,
-              bgcolor: 'grey.100',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              Product Image
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              {searchQuery || 'Item from search'}
-            </Typography>
-            {Object.entries(detailFilters).map(([key, value]) =>
-              value ? (
-                <Typography key={key} variant="body2" color="text.secondary" gutterBottom>
-                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {value}
-                </Typography>
-              ) : null
-            )}
-            <Button variant="text" size="small" sx={{ mt: 1 }}>
-              Show more
-            </Button>
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* Is Graded Toggle */}
-        <Box sx={{ mb: 4 }}>
-          <Paper sx={{ p: 3, bgcolor: isGraded ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Is this item professionally graded?
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Items graded by PSA, BGS, CGC, or other professional grading companies
-                </Typography>
-              </Box>
-              <Switch
-                checked={isGraded}
-                onChange={(e) => setIsGraded(e.target.checked)}
-              />
-            </Stack>
-          </Paper>
-        </Box>
-
-        {/* Grading Details - Show only if item is graded */}
-        {isGraded && (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-              Enter grading details
-            </Typography>
-            <Stack spacing={3}>
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Professional Grader
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <FormControl fullWidth>
-                  <InputLabel id="grader-select-label">Select a grader</InputLabel>
-                  <Select
-                    labelId="grader-select-label"
-                    value={professionalGrader}
-                    label="Select a grader"
-                    onChange={(e) => setProfessionalGrader(e.target.value)}
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select a grader</em>
-                    </MenuItem>
-                    {GRADER_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Grade
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <FormControl fullWidth>
-                  <InputLabel id="grade-select-label">Select grade</InputLabel>
-                  <Select
-                    labelId="grade-select-label"
-                    value={grade}
-                    label="Select grade"
-                    onChange={(e) => setGrade(e.target.value)}
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select grade</em>
-                    </MenuItem>
-                    {GRADE_OPTIONS.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <Box>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Certification Number (optional)
-                  </Typography>
-                  <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-                </Stack>
-                <TextField
-                  fullWidth
-                  value={certificationNumber}
-                  onChange={(e) => setCertificationNumber(e.target.value)}
-                  placeholder="Enter certification number (optional)"
-                  helperText="You can add this later if you don't have it now"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                    },
-                  }}
-                />
-              </Box>
-            </Stack>
-          </Box>
-        )}
-
-        {/* Condition - Show only if NOT graded */}
-        {!isGraded && (
-          <Box sx={{ mb: 4 }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Select the condition of your item
-              </Typography>
-              <HelpOutline sx={{ fontSize: 18, color: 'text.secondary' }} />
-            </Stack>
-            <FormControl fullWidth>
-                <InputLabel id="condition-select-label">Condition</InputLabel>
-                <Select
-                  labelId="condition-select-label"
-                  value={selectedCondition}
-                  label="Condition"
-                  onChange={(e) => setSelectedCondition(e.target.value)}
-                  sx={{
-                    borderRadius: 2,
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderWidth: 2,
-                    },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Select a condition</em>
-                  </MenuItem>
-                  {CONDITION_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-          </Box>
-        )}
-
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          disabled={
-            isGraded
-              ? !professionalGrader || !grade
-              : !selectedCondition
-          }
-          onClick={handleContinueToListing}
-          sx={{
-            py: 2,
-            borderRadius: 2,
-            textTransform: 'none',
-            fontSize: '1.1rem',
-          }}
-        >
-          Continue to listing
-        </Button>
-      </Paper>
-    </Container>
-  );
 
   const renderCompleteListingStep = () => (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -983,27 +680,17 @@ export default function ListItem() {
 
       {/* TITLE Section */}
       <Box sx={{ mb: 4 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="h5" fontWeight={700}>
-            TITLE
-          </Typography>
-          <Button
-            variant="text"
-            size="small"
-            sx={{ textTransform: 'none' }}
-          >
-            See title options
-          </Button>
-        </Stack>
-
-        <Typography variant="body2" fontWeight={600} gutterBottom>
-          Item title
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
+          Title
         </Typography>
+
         <TextField
           fullWidth
+          required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter item title"
+          placeholder="e.g. Absolute Batman #1"
+          helperText="The comic's name and issue number, as buyers will see it."
           sx={{ mb: 1 }}
         />
       </Box>
@@ -1016,14 +703,6 @@ export default function ListItem() {
           <Typography variant="h5" fontWeight={700}>
             Item specifics
           </Typography>
-          <Button
-            variant="text"
-            size="small"
-            sx={{ textTransform: 'none', color: 'primary.main', textDecoration: 'underline' }}
-            onClick={() => setStep('details')}
-          >
-            Change
-          </Button>
         </Stack>
 
         <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -1171,9 +850,31 @@ export default function ListItem() {
 
       {/* DESCRIPTION Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" fontWeight={700} gutterBottom>
-          Description
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h5" fontWeight={700}>
+            Description
+          </Typography>
+          <Tooltip title="AI description coming soon. Upload photos first so we can generate from cover art.">
+            <span>
+              <Button
+                variant="outlined"
+                size="small"
+                disabled
+                startIcon={<AutoAwesome fontSize="small" />}
+                sx={{
+                  textTransform: 'none',
+                  borderRadius: 999,
+                  fontWeight: 600,
+                  fontFamily: inkstashFonts.ui,
+                  borderColor: inkstashColors.borderStrong,
+                  color: inkstashColors.muted,
+                }}
+              >
+                Generate from photos
+              </Button>
+            </span>
+          </Tooltip>
+        </Stack>
 
         <TextField
           fullWidth
@@ -1181,17 +882,9 @@ export default function ListItem() {
           rows={6}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Write a detailed description of your item, or save time and let AI draft it for you."
-          sx={{ mb: 2 }}
+          placeholder="Describe what makes this copy worth buying — issue, printing, condition notes, signed/sealed details, anything special."
+          sx={{ mb: 1 }}
         />
-
-        <Button
-          variant="outlined"
-          startIcon={<Add />}
-          sx={{ textTransform: 'none', borderRadius: 20 }}
-        >
-          Use AI description
-        </Button>
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -1202,198 +895,75 @@ export default function ListItem() {
           Pricing
         </Typography>
 
-        {/* Auction Toggle */}
-        <Paper sx={{ p: 3, mb: 2, bgcolor: isAuction ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: isAuction ? 2 : 0 }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Auction
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Set a starting amount and let buyers compete for your item.
-              </Typography>
-            </Box>
-            <Switch
-              checked={isAuction}
-              onChange={(e) => setIsAuction(e.target.checked)}
+        {/* Buy It Now price (auctions are Phase 6) */}
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'rgba(0, 120, 255, 0.05)' }}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Buy It Now
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Set the price buyers pay to purchase immediately.
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Price
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              Beat the online trending price to maximize your chance of selling.
+            </Typography>
+            <TextField
+              fullWidth
+              value={buyNowPrice}
+              onChange={(e) => setBuyNowPrice(e.target.value)}
+              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+              slotProps={{
+                input: {
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                },
+              }}
             />
-          </Stack>
-
-          {isAuction && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Starting Bid
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Set the minimum price to start the auction.
-              </Typography>
-              <TextField
-                fullWidth
-                value={startingBid}
-                onChange={(e) => setStartingBid(e.target.value)}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-                slotProps={{
-                  input: {
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  },
-                }}
-                sx={{ mb: 2 }}
-              />
-
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Auction Duration
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Choose how long your auction will run (1-14 days).
-              </Typography>
-              <FormControl fullWidth>
-                <Select
-                  value={auctionDurationDays}
-                  onChange={(e) => setAuctionDurationDays(Number(e.target.value))}
-                >
-                  <MenuItem value={1}>1 day</MenuItem>
-                  <MenuItem value={3}>3 days</MenuItem>
-                  <MenuItem value={5}>5 days</MenuItem>
-                  <MenuItem value={7}>7 days</MenuItem>
-                  <MenuItem value={10}>10 days</MenuItem>
-                  <MenuItem value={14}>14 days</MenuItem>
-                </Select>
-              </FormControl>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                Your auction will end on {new Date(Date.now() + auctionDurationDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit'
-                })}
-              </Typography>
-            </Box>
-          )}
+          </Box>
         </Paper>
-
-        {/* Buy It Now Toggle */}
-        <Paper sx={{ p: 3, mb: 3, bgcolor: isBuyNow ? 'rgba(0, 120, 255, 0.05)' : 'grey.50' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: isBuyNow ? 2 : 0 }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Buy It Now
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Buyers can purchase immediately at this price.
-              </Typography>
-            </Box>
-            <Switch
-              checked={isBuyNow}
-              onChange={(e) => setIsBuyNow(e.target.checked)}
-            />
-          </Stack>
-
-          {isBuyNow && (
-            <Box>
-              <Typography variant="body2" fontWeight={600} gutterBottom>
-                Price
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Beat the online trending price to maximize your chance of selling.
-              </Typography>
-              <TextField
-                fullWidth
-                value={buyNowPrice}
-                onChange={(e) => setBuyNowPrice(e.target.value)}
-                placeholder="0.00"
-                type="text"
-                inputMode="decimal"
-                slotProps={{
-                  input: {
-                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                  },
-                }}
-              />
-            </Box>
-          )}
-        </Paper>
-
-        <Button
-          variant="text"
-          sx={{ textTransform: 'none' }}
-        >
-          More options
-        </Button>
       </Box>
 
       <Divider sx={{ my: 4 }} />
 
-      {/* DELIVERY Section */}
+      {/* DELIVERY Section — shipping only in v1 */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" fontWeight={700} gutterBottom>
-          Delivery
+          Shipping
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Enter your package dimensions to fetch live carrier rates.
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <Button
-            variant={deliveryMethod === 'shipping' ? 'contained' : 'outlined'}
-            onClick={() => setDeliveryMethod('shipping')}
-            sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Shipping only
-            </Typography>
-            <Typography variant="caption">
-              Ship items directly to buyers with real-time rates.
-            </Typography>
-          </Button>
+        <PackageDimensionsInput
+          weightValue={packageWeightValue}
+          weightUnit={packageWeightUnit}
+          length={packageLength}
+          width={packageWidth}
+          height={packageHeight}
+          dimensionUnit={packageDimensionUnit}
+          onWeightValueChange={setPackageWeightValue}
+          onWeightUnitChange={setPackageWeightUnit}
+          onLengthChange={setPackageLength}
+          onWidthChange={setPackageWidth}
+          onHeightChange={setPackageHeight}
+          onDimensionUnitChange={setPackageDimensionUnit}
+          onGetRates={handleGetShippingRates}
+          isLoading={loadingRates}
+          error={submitError}
+        />
 
-          <Button
-            variant={deliveryMethod === 'pickup' ? 'contained' : 'outlined'}
-            onClick={() => setDeliveryMethod('pickup')}
-            sx={{ flex: 1, minWidth: 200, py: 2, textTransform: 'none', flexDirection: 'column', alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2" fontWeight={600}>
-              Pickup only
-            </Typography>
-            <Typography variant="caption">
-              Arrange local pickup without any shipping costs.
-            </Typography>
-          </Button>
-        </Box>
-
-        {deliveryMethod === 'shipping' && (
-          <>
-            <PackageDimensionsInput
-              weightValue={packageWeightValue}
-              weightUnit={packageWeightUnit}
-              length={packageLength}
-              width={packageWidth}
-              height={packageHeight}
-              dimensionUnit={packageDimensionUnit}
-              onWeightValueChange={setPackageWeightValue}
-              onWeightUnitChange={setPackageWeightUnit}
-              onLengthChange={setPackageLength}
-              onWidthChange={setPackageWidth}
-              onHeightChange={setPackageHeight}
-              onDimensionUnitChange={setPackageDimensionUnit}
-              onGetRates={handleGetShippingRates}
-              isLoading={loadingRates}
-              error={submitError}
-            />
-
-            <ShippingRatesDisplay
-              rates={shippingRates}
-              selectedRateId={selectedShippingRateId}
-              onSelectRate={setSelectedShippingRateId}
-            />
-          </>
-        )}
-
-        {deliveryMethod === 'pickup' && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Buyers will arrange to pick up the item from you directly. Make sure to specify pickup details in your item description.
-          </Alert>
-        )}
+        <ShippingRatesDisplay
+          rates={shippingRates}
+          selectedRateId={selectedShippingRateId}
+          onSelectRate={setSelectedShippingRateId}
+        />
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -1408,7 +978,7 @@ export default function ListItem() {
         </Typography>
 
         <Typography variant="caption" color="text.secondary" display="block" sx={{ my: 2 }}>
-          By selecting List it, you agree to accept the eBay User Agreement and Payments Terms of Use, acknowledge reading the User Privacy Notice, agree to offer products and services that comply with all applicable laws, and assume full responsibility for the item offered and the content of your listing.
+          By selecting List it, you agree to InkStash's seller terms, confirm the item is yours to sell, and assume responsibility for shipping it within 5 business days of sale.
         </Typography>
 
         {submitError && (
@@ -1423,7 +993,13 @@ export default function ListItem() {
             size="large"
             fullWidth
             onClick={handleSubmitListing}
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              !title.trim() ||
+              !buyNowPrice ||
+              !isFinite(parseFloat(buyNowPrice)) ||
+              parseFloat(buyNowPrice) < 1
+            }
             sx={{ py: 1.5, textTransform: 'none', fontSize: '1.1rem' }}
           >
             {isSubmitting ? (
@@ -1479,7 +1055,6 @@ export default function ListItem() {
               Start verification
             </Button>
           </SellerConnectGate>
-          <ConnectOnboardingModal open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
         </Container>
       </AppShell>
     );
@@ -1523,32 +1098,9 @@ export default function ListItem() {
         </DialogActions>
       </Dialog>
 
-      {/* Header with Back Button */}
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          borderBottom: 1,
-          borderColor: 'divider',
-          py: 2,
-        }}
-      >
-        <Container maxWidth="lg">
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <IconButton onClick={handleBack}>
-              <ArrowBack />
-            </IconButton>
-            <IconButton>
-              <HelpOutline />
-            </IconButton>
-          </Stack>
-        </Container>
-      </Box>
-
       {/* Main Content */}
       <Box sx={{ minHeight: 'calc(100vh - 200px)' }}>
         {step === 'search' && renderSearchStep()}
-        {step === 'match' && renderMatchStep()}
-        {step === 'details' && renderDetailsStep()}
         {step === 'complete' && renderCompleteListingStep()}
       </Box>
     </AppShell>

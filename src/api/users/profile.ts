@@ -161,7 +161,7 @@ export async function getStreamerProfile(userId: string): Promise<StreamerProfil
         first_stream_date
       `)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -238,14 +238,15 @@ export async function getUserProfileStats(userId: string): Promise<UserProfileSt
     // Get items sold count (same as total sales for now)
     const itemsSold = totalSales || 0;
 
-    // Get total purchases (won auctions as buyer) - with error handling
+    // Get total purchases (orders as buyer — covers both auction wins
+    // and marketplace listing buys). bids.is_winner never existed in this
+    // schema so the old query was returning 400.
     let totalPurchases = 0;
     try {
       const result = await supabase
-        .from('bids')
-        .select('auction_id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_winner', true);
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', userId);
       totalPurchases = result.count || 0;
     } catch (err) {
       console.error('Error fetching purchases count:', err);

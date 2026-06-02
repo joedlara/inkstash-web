@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { ordersAPI, type Order } from '../api/orders';
 import AppShell from '../components/layout/AppShell';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 interface OrderSuccessState {
   orderId?: string;
@@ -171,7 +172,7 @@ export default function OrderSuccess() {
               <CardMedia
                 component="img"
                 height="200"
-                image={auction.image_url || 'https://via.placeholder.com/400x200'}
+                image={auction.image_url || PLACEHOLDER_IMAGE_URL}
                 alt={auction.title}
                 sx={{ objectFit: 'cover' }}
               />

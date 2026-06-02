@@ -30,18 +30,26 @@ export async function uploadListingPhoto(
     throw new Error('File must be an image (JPEG, PNG, GIF, WebP) or video (MP4, MOV, WebM)');
   }
 
+  // Resize images >1MB down to 1600px wide JPEG (~300-500KB). Big iPhone
+  // shots used to take 10-20s each to upload over a regular connection,
+  // wedging the listing flow. Videos pass through untouched.
+  const uploadFile = isImage && file.size > 1024 * 1024
+    ? await resizeImage(file, 1600, 0.82)
+    : file;
+
   // Generate unique file path with itemId
   const timestamp = Date.now();
-  const fileExtension = file.name.split('.').pop();
+  const fileExtension = isImage && uploadFile !== file ? 'jpg' : (file.name.split('.').pop() ?? 'bin');
   const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
   const filePath = `listings/${userId}/${itemId}/${fileName}`;
 
   // Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from('user-uploads')
-    .upload(filePath, file, {
+    .upload(filePath, uploadFile, {
       cacheControl: '3600',
       upsert: false,
+      contentType: uploadFile.type || file.type,
     });
 
   if (uploadError) {
@@ -103,6 +111,38 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   }
 
   return { valid: true };
+}
+
+/**
+ * Resize an image File client-side using a canvas. Returns a new File (JPEG)
+ * scaled so the longest edge is `maxDim`. Quality is the JPEG quality (0–1).
+ * Falls back to the original file if canvas/encoding fails for any reason —
+ * the upload will still succeed, just slower.
+ */
+async function resizeImage(file: File, maxDim: number, quality: number): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', quality),
+    );
+    if (!blob) return file;
+    // Strip extension off the original name so the .jpg path is correct.
+    const baseName = file.name.replace(/\.[^/.]+$/, '');
+    return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  } catch (err) {
+    console.warn('[resizeImage] failed, uploading original:', err);
+    return file;
+  }
 }
 
 export function createImagePreview(file: File): Promise<string> {

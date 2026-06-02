@@ -34,6 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ordersAPI, type Order } from '../api/orders';
 import { sendShippingNotificationEmail } from '../api/email';
 import AppShell from '../components/layout/AppShell';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 export default function OrderManagement() {
   const navigate = useNavigate();
@@ -378,7 +379,7 @@ export default function OrderManagement() {
                   <CardMedia
                     component="img"
                     height="200"
-                    image={itemImage || 'https://via.placeholder.com/400x200'}
+                    image={itemImage || PLACEHOLDER_IMAGE_URL}
                     alt={itemTitle}
                     sx={{ objectFit: 'cover', cursor: 'pointer' }}
                     onClick={() => navigate(`/item/${auction?.id ?? listing?.id}`)}

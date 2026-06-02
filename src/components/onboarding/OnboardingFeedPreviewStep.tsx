@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { CheckCircle, Edit } from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface PreviewItem {
   id: string;
@@ -179,7 +180,7 @@ const OnboardingFeedPreviewStep: React.FC<OnboardingFeedPreviewStepProps> = ({
                 <CardMedia
                   component="img"
                   height="200"
-                  image={item.image_url || 'https://via.placeholder.com/200'}
+                  image={item.image_url || PLACEHOLDER_IMAGE_URL}
                   alt={item.title}
                   sx={{ objectFit: 'cover' }}
                 />

@@ -4,6 +4,7 @@ import { Trash2, ShoppingBag, ArrowLeft, Lock } from 'lucide-react';
 import AppShell from '../components/layout/AppShell';
 import { useCart } from '../contexts/CartContext';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../theme/inkstashTokens';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -177,7 +178,7 @@ export default function Cart() {
               >
                 <Box
                   component="img"
-                  src={item.imageUrl || 'https://via.placeholder.com/240'}
+                  src={item.imageUrl || PLACEHOLDER_IMAGE_URL}
                   alt={item.title}
                   onClick={() => navigate(`/item/${item.auctionId}`)}
                   sx={{
