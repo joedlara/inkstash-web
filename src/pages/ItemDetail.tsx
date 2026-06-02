@@ -15,6 +15,8 @@ import {
   Stack,
   Divider,
   Grid,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Favorite,
@@ -80,7 +82,6 @@ export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { addItem, isInCart } = useCart();
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,29 @@ export default function ItemDetail() {
   const [pendingAction, setPendingAction] = useState<'bid' | 'buy' | null>(null);
   // M3-Task6: open CheckoutListingModal on Buy Now (modal built in Task 7)
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  // Cart add affordance
+  const { addItem, isInCart, setDrawerOpen } = useCart();
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartToast, setCartToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false, message: '', severity: 'success',
+  });
+
+  const handleAddToCart = async () => {
+    if (!item) return;
+    setAddingToCart(true);
+    try {
+      await addItem(item.id);
+      setCartToast({ open: true, message: 'Added to cart', severity: 'success' });
+    } catch (err) {
+      setCartToast({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to add to cart',
+        severity: 'error',
+      });
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   const fetchItemDetails = useCallback(async () => {
       if (!id) {
@@ -891,11 +915,21 @@ export default function ItemDetail() {
                         disabled={
                           item.status === 'sold' ||
                           item.seller_id === user?.id
-                          // Buy Now should always be available unless sold or you're the seller
-                          // Even if auction ended, buy now should still work
                         }
                       >
                         {item.status === 'sold' ? 'Sold' : `Buy Now - $${item.buy_now_price}`}
+                      </Button>
+                    )}
+                    {/* Add to cart — buy-now listings only, not for the seller's own listing. */}
+                    {item.buy_now_price && item.status !== 'sold' && item.seller_id !== user?.id && (
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        fullWidth
+                        onClick={handleAddToCart}
+                        disabled={addingToCart || isInCart(item.id)}
+                      >
+                        {isInCart(item.id) ? 'In cart' : addingToCart ? 'Adding…' : '+ Add to cart'}
                       </Button>
                     )}
                   </Stack>
@@ -1007,6 +1041,38 @@ export default function ItemDetail() {
           }}
         />
       )}
+
+      {/* Add-to-cart confirmation toast. Success variant offers an Open cart
+          action so the buyer can review the drawer without hunting for the
+          top-nav icon. */}
+      <Snackbar
+        open={cartToast.open}
+        autoHideDuration={4000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={() => setCartToast((t) => ({ ...t, open: false }))}
+      >
+        <Alert
+          severity={cartToast.severity}
+          variant="filled"
+          onClose={() => setCartToast((t) => ({ ...t, open: false }))}
+          action={
+            cartToast.severity === 'success' ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setCartToast((t) => ({ ...t, open: false }));
+                  setDrawerOpen(true);
+                }}
+              >
+                Open cart
+              </Button>
+            ) : undefined
+          }
+        >
+          {cartToast.message}
+        </Alert>
+      </Snackbar>
     </AppShell>
   );
 }
