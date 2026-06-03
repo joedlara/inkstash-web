@@ -1,16 +1,19 @@
 // src/components/livestreams/LiveStreamCard.tsx
 //
-// Tile used by /live sections. Click navigates to /live/:id when live, or
-// to the same page for scheduled streams (where the page will show a
-// "starts in X" countdown until status flips to live). Scheduled tiles
-// render a gold "soon" badge with the relative start time instead of the
-// red "Live" pill.
+// Tile used by /live sections. Layout matches the home page Live Streams
+// widget: host row on top (avatar + @username), then rounded thumbnail
+// with a Live/scheduled pill, then title beneath. No card border or body
+// background — the thumbnail IS the card visually; everything else is
+// stacked typography.
+//
+// Click anywhere on the tile navigates to /live/:id. The host row alone
+// routes to the host's profile so people can follow direct from here.
 
 import { useEffect, useState } from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
-import { inkstashColors, inkstashRadii } from '../../theme/inkstashTokens';
+import { inkstashColors } from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface Props {
@@ -23,9 +26,7 @@ interface Props {
 }
 
 /** Compact start-time pill: 1d 4h, 2h 15m, 12m, 45s, or "starting" when
- *  the scheduled time has elapsed (cron will flip status soon). Live, not
- *  computed once — caller wraps in a 1s tick so the pill counts down on
- *  screen. */
+ *  the scheduled time has elapsed (cron will flip status soon). */
 function formatTimeUntil(iso: string | null): string {
   if (!iso) return 'soon';
   const ms = new Date(iso).getTime() - Date.now();
@@ -51,8 +52,8 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
   const navigate = useNavigate();
   const cover = stream.cover_image_url ?? PLACEHOLDER_IMAGE_URL;
 
-  // Re-render once per second when scheduled so the countdown pill ticks
-  // down live. Skipped for live streams (no countdown to update).
+  // 1s tick so the scheduled countdown updates live. Cheap — scoped to
+  // this single tile and only when it's actually a scheduled card.
   const [, setNow] = useState(Date.now());
   useEffect(() => {
     if (!scheduled) return;
@@ -62,85 +63,152 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
 
   const pill = scheduled
     ? { bg: inkstashColors.brand, text: '#fff', label: formatTimeUntil(stream.scheduled_start_at) }
-    : { bg: inkstashColors.live, text: '#fff', label: 'Live' };
+    : { bg: inkstashColors.live, text: '#fff', label: 'Live', dot: true as const };
 
   const isDark = variant === 'dark';
-  const bodyBg = isDark ? 'rgba(255,255,255,0.04)' : inkstashColors.bgElev;
   const titleColor = isDark ? '#fff' : inkstashColors.ink;
-  const hostColor = isDark ? 'rgba(255,255,255,0.6)' : inkstashColors.muted;
-  const borderColor = isDark ? 'rgba(255,255,255,0.1)' : inkstashColors.border;
+  const hostColor = isDark ? 'rgba(255,255,255,0.85)' : inkstashColors.ink;
+  const hostBorderColor = isDark ? 'rgba(255,255,255,0.18)' : inkstashColors.border;
+
+  const goToStream = () => navigate(`/live/${stream.id}`);
+  const goToHost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (stream.host?.username) navigate(`/@${stream.host.username}`);
+  };
 
   return (
-    <Box
-      component="button"
-      type="button"
-      onClick={() => navigate(`/live/${stream.id}`)}
-      sx={{
-        display: 'block', width: '100%', p: 0, textAlign: 'left',
-        border: `1px solid ${borderColor}`,
-        borderRadius: inkstashRadii.lg,
-        bgcolor: bodyBg,
-        overflow: 'hidden', cursor: 'pointer',
-        transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms ease, box-shadow 160ms ease',
-        '&:hover': {
-          transform: 'translateY(-3px)',
-          borderColor: inkstashColors.brand,
-          boxShadow: isDark
-            ? '0 8px 20px rgba(0,0,0,0.35)'
-            : '0 8px 20px rgba(22,17,14,0.12)',
-        },
-        '&:active': { transform: 'translateY(-1px)' },
-      }}
-    >
+    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      {/* Host row */}
       <Box
+        onClick={goToHost}
         sx={{
-          position: 'relative',
-          width: '100%', aspectRatio: '9 / 16',
-          backgroundImage: `url(${cover})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          bgcolor: inkstashColors.bgSunken,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mb: 1,
+          cursor: 'pointer',
+          transition: 'opacity 160ms ease',
+          '&:hover': { opacity: 0.7 },
         }}
       >
-        <Box sx={{
-          position: 'absolute', top: 8, left: 8,
-          px: 0.9, py: 0.35,
-          borderRadius: 999,
-          bgcolor: pill.bg, color: pill.text,
-          fontFamily: "'Outfit', sans-serif",
-          fontSize: 10, fontWeight: 800,
-          textTransform: 'uppercase', letterSpacing: '-0.005em',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-        }}>
+        <Box
+          component="img"
+          src={stream.host?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+          alt={stream.host?.username ?? 'host'}
+          sx={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: `2px solid ${hostBorderColor}`,
+            flexShrink: 0,
+          }}
+        />
+        <Typography
+          sx={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 13.5,
+            fontWeight: 700,
+            color: hostColor,
+            letterSpacing: '-0.005em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {stream.host?.username ?? 'host'}
+        </Typography>
+      </Box>
+
+      {/* Thumbnail (rounded card with badge) */}
+      <Box
+        onClick={goToStream}
+        sx={{
+          position: 'relative',
+          width: '100%',
+          paddingTop: '133.33%', // 3:4 ratio, matches home widget
+          overflow: 'hidden',
+          bgcolor: '#000',
+          borderRadius: 3,
+          cursor: 'pointer',
+        }}
+      >
+        <Box
+          component="img"
+          src={cover}
+          alt={stream.title}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'transform 300ms ease',
+            '.MuiBox-root:hover > &': { transform: 'scale(1.05)' },
+          }}
+        />
+
+        {/* Pill: red Live with pulsing dot, or crimson countdown for scheduled */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            px: 0.9,
+            py: 0.4,
+            borderRadius: 1,
+            bgcolor: pill.bg,
+            color: pill.text,
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 10.5,
+            fontWeight: 800,
+            letterSpacing: '-0.005em',
+            lineHeight: 1,
+            zIndex: 2,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+          }}
+        >
+          {pill.dot && (
+            <Box
+              sx={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                bgcolor: '#fff',
+                animation: 'pulse-live-dot 1.5s ease-in-out infinite',
+                '@keyframes pulse-live-dot': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.5 },
+                },
+              }}
+            />
+          )}
           {pill.label}
         </Box>
       </Box>
-      <Box sx={{ p: 1.25 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-          <Avatar src={stream.host?.avatar_url ?? undefined} sx={{ width: 20, height: 20, fontSize: 10 }}>
-            {(stream.host?.username ?? '?').charAt(0).toUpperCase()}
-          </Avatar>
-          <Typography
-            sx={{
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 12,
-              fontWeight: 600,
-              color: hostColor,
-              letterSpacing: '-0.005em',
-            }}
-          >
-            @{stream.host?.username ?? 'host'}
-          </Typography>
-        </Box>
-        <Typography sx={{
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 800,
-          fontSize: 13.5,
-          color: titleColor,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.25,
-          overflow: 'hidden', textOverflow: 'ellipsis',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-        }}>
+
+      {/* Title under thumbnail */}
+      <Box onClick={goToStream} sx={{ pt: 1.5, cursor: 'pointer' }}>
+        <Typography
+          sx={{
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: 14,
+            fontWeight: 700,
+            color: titleColor,
+            letterSpacing: '-0.005em',
+            lineHeight: 1.35,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            wordBreak: 'break-word',
+          }}
+        >
           {stream.title}
         </Typography>
       </Box>
