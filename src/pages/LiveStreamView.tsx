@@ -1,15 +1,20 @@
 // src/pages/LiveStreamView.tsx
 //
 // /live/:id — viewer surface. Mobile-first portrait video full-bleed with
-// chat docked at the bottom. Desktop centers the same layout at max-width
-// 480px (phone aspect) which matches the streamer's vertical camera.
+// chat docked at the bottom, host pill + viewer count up top, right-rail
+// action stack floating on the side. Desktop centers the same layout at
+// max-width 480px (phone aspect) which matches the streamer's vertical
+// camera.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, IconButton, Typography, Avatar, CircularProgress } from '@mui/material';
+import { Box, IconButton, Typography, CircularProgress } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
+import HostPill from '../components/livestreams/HostPill';
+import ViewerCountBadge from '../components/livestreams/ViewerCountBadge';
+import RightRailActions from '../components/livestreams/RightRailActions';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -24,6 +29,7 @@ export default function LiveStreamView() {
   const [stream, setStream] = useState<Livestream | null>(null);
   const [joinData, setJoinData] = useState<{ token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewerCount, setViewerCount] = useState(1);
 
   useEffect(() => {
     if (!id) return;
@@ -50,9 +56,7 @@ export default function LiveStreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Auto-eject viewers when the host ends the stream. Subscribes to the
-  // livestreams row for UPDATEs; on status='ended' or 'aborted', navigates
-  // back to /live so the viewer can pick another stream.
+  // Auto-eject viewers when the host ends the stream.
   useEffect(() => {
     if (!id) return;
     const channel = supabase
@@ -71,6 +75,11 @@ export default function LiveStreamView() {
     return () => { supabase.removeChannel(channel); };
   }, [id, navigate]);
 
+  // Stable ref so LiveStreamVideo's useEffect doesn't re-run on every render.
+  const handleParticipantCount = useCallback((count: number) => {
+    setViewerCount(count);
+  }, []);
+
   if (error) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -87,24 +96,16 @@ export default function LiveStreamView() {
     );
   }
 
-  // Truly full-bleed: 100dvh + 100vw, video underneath ignores all safe-area.
-  // Overlay controls (live badge, host pill, close button) and chat are
-  // padded inward by env(safe-area-inset-*) so they clear the dynamic
-  // island, notch, and Safari URL bar.
   return (
     <Box
       sx={{
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        // 100lvh = largest viewport height: includes the area BEHIND the
-        // iOS Safari URL bar so the camera extends all the way to the
-        // bottom of the physical screen. Falls back to 100vh on browsers
-        // without lvh support.
         height: ['100vh', '100lvh'],
         bgcolor: '#000',
         overflow: 'hidden',
-        touchAction: 'manipulation', // disables double-tap-to-zoom
+        touchAction: 'manipulation',
       }}
     >
       <Box
@@ -114,43 +115,78 @@ export default function LiveStreamView() {
           mx: 'auto',
         }}
       >
-        <LiveStreamVideo wsUrl={joinData.wsUrl} token={joinData.token} mode="viewer" />
+        <LiveStreamVideo
+          wsUrl={joinData.wsUrl}
+          token={joinData.token}
+          mode="viewer"
+          onParticipantCountChange={handleParticipantCount}
+        />
 
-        {/* Host avatar pill, top-left (offset right of the live badge).
-            Pad down by safe-area so it clears the dynamic island. */}
+        {/* Top header row: host pill on the left, viewer count + close on the right.
+            Both clusters padded by safe-area-inset-top so they clear the dynamic island. */}
         <Box
           sx={{
             position: 'absolute',
-            top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
-            left: 'calc(env(safe-area-inset-left, 0px) + 60px)',
-            display: 'flex', alignItems: 'center', gap: 1,
-            bgcolor: 'rgba(0,0,0,0.55)', px: 1.25, py: 0.5,
-            borderRadius: 999, backdropFilter: 'blur(8px)',
-            zIndex: 2,
+            top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+            right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 1,
+            zIndex: 3,
+            pointerEvents: 'none',
           }}
         >
-          <Avatar src={stream.host?.avatar_url ?? undefined} sx={{ width: 22, height: 22 }} />
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-            @{stream.host?.username ?? 'host'}
-          </Typography>
+          <Box sx={{ pointerEvents: 'auto' }}>
+            <HostPill
+              username={stream.host?.username ?? null}
+              avatarUrl={stream.host?.avatar_url}
+            />
+          </Box>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
+            <ViewerCountBadge count={viewerCount} />
+            <IconButton
+              onClick={() => navigate('/live')}
+              size="small"
+              sx={{
+                color: '#fff',
+                bgcolor: 'rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(8px)',
+                width: 32,
+                height: 32,
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+              }}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
 
-        {/* Close button, top-right (safe-area padded) */}
-        <IconButton
-          onClick={() => navigate('/live')}
+        {/* Right-rail action stack (Share / Wallet / Shop / More) */}
+        <RightRailActions
+          streamTitle={stream.title}
+          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+
+        {/* Winner banner slot — empty in this pass. When L4 raffles ship the
+            celebration banner ("Giveaway Winner 🎉 @user") slots in here
+            without forcing a layout reshuffle. */}
+        <Box
+          id="livestream-winner-slot"
           sx={{
             position: 'absolute',
-            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-            right: 'calc(env(safe-area-inset-right, 0px) + 8px)',
-            color: '#fff', bgcolor: 'rgba(0,0,0,0.4)',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
-            zIndex: 3,
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 280px)',
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 2,
           }}
-        >
-          <Close />
-        </IconButton>
+        />
 
-        {/* Chat overlay (handles its own safe-area-inset-bottom) */}
+        {/* Chat overlay */}
         <LiveStreamChat
           livestreamId={stream.id}
           initialMessages={joinData.chat}

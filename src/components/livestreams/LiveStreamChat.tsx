@@ -174,7 +174,7 @@ export default function LiveStreamChat({
                 <Typography
                   component="span"
                   sx={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: 800,
                     color: m.is_mod_action ? inkstashColors.gold : '#fff',
                     whiteSpace: 'nowrap',
@@ -185,7 +185,7 @@ export default function LiveStreamChat({
                 <Typography
                   component="span"
                   sx={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: '#fff',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
