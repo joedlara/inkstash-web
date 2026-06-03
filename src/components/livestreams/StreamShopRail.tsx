@@ -1,9 +1,8 @@
 // src/components/livestreams/StreamShopRail.tsx
 //
 // Desktop-only left rail on /live/:id. Lists the host's active marketplace
-// listings so viewers can shop while watching the stream. Renders nothing on
-// mobile (mobile gets the right-rail Shop button instead, which opens a
-// drawer in L2 alongside the auction queue).
+// listings so viewers can shop while watching. Light theme to match the
+// rest of the app (cream bg, ink text, brand accents).
 //
 // In this visual pass:
 //   - Search input + filter chips (purely visual, not wired)
@@ -65,18 +64,20 @@ export default function StreamShopRail({ hostUserId }: Props) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#0f0f0f',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: inkstashColors.bgElev,
+        border: `1px solid ${inkstashColors.border}`,
+        borderRadius: inkstashRadii.lg,
+        overflow: 'hidden',
       }}
     >
       {/* Header: Shop title + search + filter chips */}
-      <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <Box sx={{ p: 2, borderBottom: `1px solid ${inkstashColors.border}` }}>
         <Typography
           sx={{
             fontFamily: inkstashFonts.display,
             fontWeight: 900,
             fontSize: 16,
-            color: '#fff',
+            color: inkstashColors.ink,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
             mb: 1.5,
@@ -93,7 +94,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
           placeholder="Search shop..."
           InputProps={{
             startAdornment: (
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, color: 'rgba(255,255,255,0.5)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, color: inkstashColors.muted }}>
                 <Search size={16} />
               </Box>
             ),
@@ -101,14 +102,14 @@ export default function StreamShopRail({ hostUserId }: Props) {
           sx={{
             mb: 1.5,
             '& .MuiInputBase-root': {
-              bgcolor: 'rgba(255,255,255,0.06)',
-              color: '#fff',
+              bgcolor: inkstashColors.bgSunken,
+              color: inkstashColors.ink,
               fontSize: 13,
               borderRadius: 999,
               px: 1.5,
             },
             '& fieldset': { border: 'none' },
-            '& input::placeholder': { color: 'rgba(255,255,255,0.5)', opacity: 1 },
+            '& input::placeholder': { color: inkstashColors.muted, opacity: 1 },
           }}
         />
 
@@ -119,15 +120,15 @@ export default function StreamShopRail({ hostUserId }: Props) {
               label={c}
               size="small"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.08)',
-                color: '#fff',
+                bgcolor: inkstashColors.bgSunken,
+                color: inkstashColors.ink,
                 fontFamily: inkstashFonts.mono,
                 fontSize: 10.5,
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
                 height: 24,
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
+                '&:hover': { bgcolor: inkstashColors.border },
               }}
             />
           ))}
@@ -139,7 +140,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
             fontFamily: inkstashFonts.mono,
             fontSize: 10.5,
             fontWeight: 700,
-            color: 'rgba(255,255,255,0.5)',
+            color: inkstashColors.muted,
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
           }}
@@ -155,7 +156,6 @@ export default function StreamShopRail({ hostUserId }: Props) {
           overflowY: 'auto',
           p: 1.5,
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.15) transparent',
         }}
       >
         {filtered.length === 0 && (
@@ -163,7 +163,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
             sx={{
               p: 3,
               textAlign: 'center',
-              color: 'rgba(255,255,255,0.5)',
+              color: inkstashColors.muted,
               fontSize: 12,
             }}
           >
@@ -185,12 +185,12 @@ export default function StreamShopRail({ hostUserId }: Props) {
                 p: 1,
                 mb: 1,
                 borderRadius: inkstashRadii.md,
-                bgcolor: 'rgba(255,255,255,0.04)',
-                color: '#fff',
+                bgcolor: inkstashColors.bgSunken,
+                color: inkstashColors.ink,
                 textAlign: 'left',
                 alignItems: 'flex-start',
                 transition: 'background-color 120ms ease',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:hover': { bgcolor: inkstashColors.border },
               }}
             >
               <Box
@@ -212,7 +212,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
                       fontFamily: inkstashFonts.display,
                       fontWeight: 800,
                       fontSize: 13,
-                      color: '#fff',
+                      color: inkstashColors.ink,
                       lineHeight: 1,
                     }}
                   >
@@ -224,7 +224,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
                     fontFamily: inkstashFonts.ui,
                     fontWeight: 600,
                     fontSize: 12,
-                    color: 'rgba(255,255,255,0.85)',
+                    color: inkstashColors.ink2,
                     mt: 0.5,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -242,7 +242,7 @@ export default function StreamShopRail({ hostUserId }: Props) {
                       fontFamily: inkstashFonts.mono,
                       fontSize: 9.5,
                       fontWeight: 700,
-                      color: 'rgba(255,255,255,0.5)',
+                      color: inkstashColors.muted,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
                       mt: 0.25,

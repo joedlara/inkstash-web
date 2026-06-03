@@ -1,7 +1,7 @@
 // src/components/livestreams/StreamChatRail.tsx
 //
 // Desktop-only right rail. Wraps the existing LiveStreamChat in a dedicated
-// dark panel with a Chat/Watching tab strip at the top. Watching tab is
+// light panel with a Chat/Watching tab strip at the top. Watching tab is
 // disabled in this pass; ships when L4 ports the participant list over.
 //
 // Mobile keeps the overlay-style LiveStreamChat (rendered directly on top
@@ -10,7 +10,7 @@
 import { Box, Typography } from '@mui/material';
 import LiveStreamChat from './LiveStreamChat';
 import type { ChatMessage } from '../../api/livestreams';
-import { inkstashFonts } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
   livestreamId: string;
@@ -25,8 +25,10 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#0f0f0f',
-        borderLeft: '1px solid rgba(255,255,255,0.08)',
+        bgcolor: inkstashColors.bgElev,
+        border: `1px solid ${inkstashColors.border}`,
+        borderRadius: inkstashRadii.lg,
+        overflow: 'hidden',
       }}
     >
       {/* Tab strip */}
@@ -37,7 +39,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
           px: 2,
           pt: 1.5,
           pb: 1,
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: `1px solid ${inkstashColors.border}`,
         }}
       >
         <Tab label="Chat" active />
@@ -48,7 +50,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
           absolutely positioned for the overlay use case; wrapping it in a
           relative container of explicit height makes it behave like a normal
           flex child here. */}
-      <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
+      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, bgcolor: inkstashColors.bg }}>
         <LiveStreamChat
           livestreamId={livestreamId}
           initialMessages={initialMessages}
@@ -74,7 +76,7 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
           fontFamily: inkstashFonts.ui,
           fontSize: 13,
           fontWeight: 700,
-          color: active ? '#fff' : 'rgba(255,255,255,0.7)',
+          color: active ? inkstashColors.ink : inkstashColors.muted,
         }}
       >
         {label}
@@ -86,10 +88,10 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
               fontFamily: inkstashFonts.mono,
               fontSize: 9,
               fontWeight: 700,
-              color: 'rgba(255,255,255,0.5)',
+              color: inkstashColors.muted,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
-              bgcolor: 'rgba(255,255,255,0.08)',
+              bgcolor: inkstashColors.bgSunken,
               px: 0.6,
               py: 0.2,
               borderRadius: 4,
@@ -107,7 +109,7 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
             left: 0,
             right: 0,
             height: 2,
-            bgcolor: '#fff',
+            bgcolor: inkstashColors.brand,
             borderRadius: 1,
           }}
         />

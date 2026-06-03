@@ -1,20 +1,22 @@
 // src/pages/LiveStreamView.tsx
 //
-// /live/:id — viewer surface.
+// /live/:id — viewer surface. Three layouts based on viewport:
 //
-// Mobile-first portrait video full-bleed with chat docked at the bottom,
-// host pill + viewer count up top, right-rail action stack floating on
-// the side.
-//
-// Desktop (md+) switches to a three-column layout:
-//   - Left rail: Shop (host's marketplace listings)
-//   - Center: Video in a phone-aspect column, with overlays
-//   - Right rail: Chat in a dedicated dark panel (no overlay)
+//   Mobile (< sm):     Single-column overlay. Video full-bleed background;
+//                      host pill, chat, right rail all overlay the video.
+//   Tablet (sm-md):    Centered black video card with breathing room. Chat
+//                      overlays the video. Right rail along the video edge.
+//                      Side rails (shop/chat panels) hidden.
+//   Desktop (md+):     Three-column layout. Shop rail (left, light theme),
+//                      centered black video card (middle), chat rail (right,
+//                      light theme). All inside the standard AppShell so the
+//                      global sidebar + cream app bg are preserved.
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, IconButton, Typography, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import HostPill from '../components/livestreams/HostPill';
@@ -26,13 +28,19 @@ import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livest
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
 import { supabase } from '../api/supabase/supabaseClient';
-import { inkstashColors } from '../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii } from '../theme/inkstashTokens';
 
 export default function LiveStreamView() {
-  useSuppressMobileNav();
-  useFullBleedBlackBackground();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+
+  // Only force black backgrounds on the pure-mobile layout (full-bleed
+  // overlay). Tablet + desktop render inside AppShell with the normal cream
+  // app background, so suppressing nav + tinting body is incorrect there.
+  useSuppressMobileNav();
+  useFullBleedBlackBackgroundIf(isMobile);
+
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [stream, setStream] = useState<Livestream | null>(null);
@@ -65,6 +73,7 @@ export default function LiveStreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Auto-eject viewers when the host ends the stream.
   useEffect(() => {
     if (!id) return;
     const channel = supabase
@@ -103,17 +112,19 @@ export default function LiveStreamView() {
     );
   }
 
-  // ─── Center column (video + overlays) — shared between mobile & desktop ──
-  const centerColumn = (
+  // ─── The video "stage" card — black rounded box with all overlays inside ──
+  // Used in all three layouts. Sized to phone aspect (9:16). On desktop /
+  // tablet the parent gives it a max width so it doesn't stretch.
+  const videoStage = (
     <Box
       sx={{
         position: 'relative',
         width: '100%',
         height: '100%',
-        maxWidth: { xs: '100%', md: 480 },
-        mx: 'auto',
-        overflow: 'hidden',
         bgcolor: '#000',
+        borderRadius: isMobile ? 0 : inkstashRadii.lg,
+        overflow: 'hidden',
+        boxShadow: isMobile ? 'none' : '0 12px 32px rgba(22,17,14,0.25)',
       }}
     >
       <LiveStreamVideo
@@ -127,9 +138,9 @@ export default function LiveStreamView() {
       <Box
         sx={{
           position: 'absolute',
-          top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
-          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
-          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          top: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 10px)' : 10,
+          left: isMobile ? 'calc(env(safe-area-inset-left, 0px) + 10px)' : 10,
+          right: isMobile ? 'calc(env(safe-area-inset-right, 0px) + 10px)' : 10,
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
@@ -146,27 +157,28 @@ export default function LiveStreamView() {
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />
-          <IconButton
-            onClick={() => navigate('/live')}
-            size="small"
-            sx={{
-              color: '#fff',
-              bgcolor: 'rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(8px)',
-              width: 32,
-              height: 32,
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
-            }}
-          >
-            <Close fontSize="small" />
-          </IconButton>
+          {isMobile && (
+            <IconButton
+              onClick={() => navigate('/live')}
+              size="small"
+              sx={{
+                color: '#fff',
+                bgcolor: 'rgba(0,0,0,0.4)',
+                backdropFilter: 'blur(8px)',
+                width: 32,
+                height: 32,
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+              }}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       </Box>
 
       {/* Right-rail action stack (Share / Wallet / Shop / More).
-          Mobile: shown so viewers can share / open wallet / etc. without
-          a dedicated rail. Desktop: hidden because the shop + chat rails
-          replace these affordances. */}
+          Shown on mobile + tablet (anywhere the side panels aren't
+          rendered). Desktop replaces these with the dedicated rails. */}
       {!isDesktop && (
         <RightRailActions
           streamTitle={stream.title}
@@ -174,12 +186,12 @@ export default function LiveStreamView() {
         />
       )}
 
-      {/* Winner banner slot (empty in this pass) */}
+      {/* Winner banner slot (L4) */}
       <Box
         id="livestream-winner-slot"
         sx={{
           position: 'absolute',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 280px)',
+          bottom: isMobile ? 'calc(env(safe-area-inset-bottom, 0px) + 280px)' : 280,
           left: 0,
           right: 0,
           display: 'flex',
@@ -189,8 +201,8 @@ export default function LiveStreamView() {
         }}
       />
 
-      {/* Chat overlay — mobile only. On desktop the chat moves to the
-          right rail (StreamChatRail) for a cleaner watching surface. */}
+      {/* Chat overlay — mobile + tablet only. Desktop moves chat to the
+          right rail. */}
       {!isDesktop && (
         <LiveStreamChat
           livestreamId={stream.id}
@@ -201,44 +213,87 @@ export default function LiveStreamView() {
     </Box>
   );
 
+  // ─── Layout branch ────────────────────────────────────────────────────────
+  // Mobile: keep the previous full-bleed overlay treatment.
+  if (isMobile) {
+    return (
+      <Box
+        sx={{
+          position: 'fixed',
+          inset: 0,
+          width: '100vw',
+          height: ['100vh', '100lvh'],
+          bgcolor: '#000',
+          overflow: 'hidden',
+          touchAction: 'manipulation',
+        }}
+      >
+        {videoStage}
+      </Box>
+    );
+  }
+
+  // Tablet + desktop: render inside AppShell so the global sidebar + cream
+  // app background stay visible. Stream is a centered card layout.
   return (
-    <Box
-      sx={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: ['100vh', '100lvh'],
-        bgcolor: '#000',
-        overflow: 'hidden',
-        touchAction: 'manipulation',
-      }}
-    >
-      {isDesktop ? (
-        // Three-column desktop layout: shop | video | chat
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: '280px minmax(0, 1fr) 320px',
-            width: '100%',
-            height: '100%',
-          }}
-        >
-          <StreamShopRail hostUserId={stream.host_user_id} />
-          <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-            {centerColumn}
+    <AppShell>
+      <Box
+        sx={{
+          p: { xs: 1.5, md: 3 },
+          minHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+        }}
+      >
+        {isDesktop ? (
+          // Desktop: three-column layout with light-themed rails flanking
+          // the black video card.
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: '260px 380px 320px',
+              gap: 2,
+              alignItems: 'stretch',
+              // Phone-aspect height for the video; rails match it.
+              height: 'min(82vh, 720px)',
+            }}
+          >
+            <StreamShopRail hostUserId={stream.host_user_id} />
+            {videoStage}
+            <StreamChatRail
+              livestreamId={stream.id}
+              initialMessages={joinData.chat}
+              isBanned={joinData.isBanned}
+            />
           </Box>
-          <StreamChatRail
-            livestreamId={stream.id}
-            initialMessages={joinData.chat}
-            isBanned={joinData.isBanned}
-          />
-        </Box>
-      ) : (
-        // Mobile: single-column overlay layout (everything stacks on the video)
-        <Box sx={{ position: 'absolute', inset: 0 }}>
-          {centerColumn}
-        </Box>
-      )}
-    </Box>
+        ) : (
+          // Tablet: rails hidden. Centered video card at phone aspect with
+          // overlays + right-rail action buttons floating on the card edge.
+          <Box
+            sx={{
+              width: 'min(420px, 90vw)',
+              height: 'min(82vh, 760px)',
+            }}
+          >
+            {videoStage}
+          </Box>
+        )}
+      </Box>
+    </AppShell>
   );
+}
+
+/**
+ * Conditionally apply the full-bleed black html/body treatment. The hook
+ * itself unconditionally registers a useEffect, so we can't call it inline
+ * behind a ternary — this thin wrapper hides the rules-of-hooks gymnastics.
+ */
+function useFullBleedBlackBackgroundIf(active: boolean) {
+  // Always call the hook to keep call order stable; the no-op branch handles
+  // the "don't black out" case by short-circuiting before any mutations.
+  if (active) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useFullBleedBlackBackground();
+  }
 }
