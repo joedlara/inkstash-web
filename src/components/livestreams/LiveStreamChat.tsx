@@ -149,6 +149,8 @@ export default function LiveStreamChat({
           p: 1,
           bgcolor: 'rgba(0,0,0,0.6)',
           backdropFilter: 'blur(8px)',
+          position: 'relative',
+          zIndex: 2, // Ensure the composer sits above the video for click events
         }}
       >
         <TextField
