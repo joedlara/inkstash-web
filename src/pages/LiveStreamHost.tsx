@@ -10,7 +10,7 @@
 // and let them start a fresh one — we can't re-issue a token against the
 // previous LiveKit participant identity.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, TextField, Typography, CircularProgress, Alert, IconButton,
@@ -19,7 +19,7 @@ import { CallEnd } from '@mui/icons-material';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
-import PreLiveCameraPreview from '../components/livestreams/host/PreLiveCameraPreview';
+import PreLiveCameraPreview, { type PreLiveCameraPreviewHandle } from '../components/livestreams/host/PreLiveCameraPreview';
 import ThumbnailUploader from '../components/livestreams/host/ThumbnailUploader';
 import SchedulePicker from '../components/livestreams/host/SchedulePicker';
 import PreStreamQueue from '../components/livestreams/host/PreStreamQueue';
@@ -91,6 +91,7 @@ export default function LiveStreamHost() {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [orphanCheck, setOrphanCheck] = useState<'checking' | 'clean' | 'cleaned'>('checking');
+  const cameraPreviewRef = useRef<PreLiveCameraPreviewHandle>(null);
 
   const isActiveSeller = (user as { seller_status?: string } | null)?.seller_status === 'active';
   useEffect(() => {
@@ -125,6 +126,11 @@ export default function LiveStreamHost() {
   async function handleGoLive() {
     setStarting(true);
     setError(null);
+    // CRITICAL: free the preview camera BEFORE LiveKit tries to publish.
+    // iOS Safari throws NotReadableError when two getUserMedia calls
+    // overlap on the same device. We release the preview tracks here so
+    // the camera is available when LiveStreamVideo mounts.
+    cameraPreviewRef.current?.releaseCamera();
     try {
       const res = await livestreamsAPI.start({
         title: title.trim(),
@@ -204,7 +210,7 @@ export default function LiveStreamHost() {
           {/* Camera preview */}
           <Box sx={{ mb: 3 }}>
             <SectionLabel>Camera preview</SectionLabel>
-            <PreLiveCameraPreview />
+            <PreLiveCameraPreview ref={cameraPreviewRef} />
           </Box>
 
           {/* Title */}

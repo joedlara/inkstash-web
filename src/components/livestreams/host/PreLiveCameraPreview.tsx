@@ -8,21 +8,46 @@
 // Default facing mode is 'environment' (back camera) to match the actual
 // live stream default. Flip button toggles between front and back.
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import { FlipCameraIos } from '@mui/icons-material';
 import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
 
 type Facing = 'user' | 'environment';
 
-export default function PreLiveCameraPreview() {
+/** Imperative handle parents can call to free the camera before triggering
+ *  another getUserMedia (LiveKit publish, page nav). iOS Safari fails the
+ *  second concurrent grab with NotReadableError, so the preview MUST
+ *  release first. */
+export interface PreLiveCameraPreviewHandle {
+  releaseCamera: () => void;
+}
+
+const PreLiveCameraPreview = forwardRef<PreLiveCameraPreviewHandle>(function PreLiveCameraPreview(_, ref) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [facing, setFacing] = useState<Facing>('environment');
   const [error, setError] = useState<string | null>(null);
   const [flipping, setFlipping] = useState(false);
+  const [released, setReleased] = useState(false);
+
+  // Expose a release method so LiveStreamHost can free the camera right
+  // before kicking off the LiveKit publish.
+  useImperativeHandle(ref, () => ({
+    releaseCamera() {
+      if (streamRef.current) {
+        for (const t of streamRef.current.getTracks()) t.stop();
+        streamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setReleased(true);
+    },
+  }), []);
 
   useEffect(() => {
+    // If a parent has released us, don't re-acquire the camera on
+    // re-renders. The preview is effectively done.
+    if (released) return;
     let cancelled = false;
 
     async function start() {
@@ -70,7 +95,7 @@ export default function PreLiveCameraPreview() {
         streamRef.current = null;
       }
     };
-  }, [facing]);
+  }, [facing, released]);
 
   async function handleFlip() {
     if (flipping) return;
@@ -127,7 +152,7 @@ export default function PreLiveCameraPreview() {
           </Typography>
         </Box>
       )}
-      {!error && (
+      {!error && !released && (
         <IconButton
           onClick={handleFlip}
           disabled={flipping}
@@ -148,4 +173,6 @@ export default function PreLiveCameraPreview() {
       )}
     </Box>
   );
-}
+});
+
+export default PreLiveCameraPreview;
