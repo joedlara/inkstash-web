@@ -62,7 +62,8 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
         display: 'flex',
         flexDirection: 'column',
         bgcolor: inkstashColors.bgElev,
-        borderRight: `1px solid ${inkstashColors.border}`,
+        border: `1px solid ${inkstashColors.border}`,
+        borderRadius: 'inherit',
       }}
     >
       {/* Stream-title tab pinned to the top — like a folder tab indicating

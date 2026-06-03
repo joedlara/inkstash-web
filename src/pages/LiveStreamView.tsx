@@ -165,24 +165,27 @@ function LiveDesktopStage({
     <Box
       sx={{
         // Cancel out AppShell's main padding so we stretch the live grid
-        // edge-to-edge inside the content area.
+        // edge-to-edge inside the content area, then add our own
+        // breathing-room padding inside.
         mx: { md: -3 },
         mt: { md: -3 },
         mb: { md: -3 },
         height: 'calc(100dvh - 64px)', // 64 = topnav height
-        bgcolor: '#000',
+        bgcolor: inkstashColors.bg,
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
           sm: '0 1fr 0',
-          md: '280px 1fr 320px',
-          lg: '320px 1fr 360px',
+          md: '300px 1fr 340px',
+          lg: '340px 1fr 380px',
         },
+        gap: { md: 2 },
+        p: { md: 2 },
         overflow: 'hidden',
       }}
     >
       {/* Left: Shop */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden' }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
         <StreamShopRail hostUserId={stream.host_user_id} streamTitle={stream.title} />
       </Box>
 
@@ -192,8 +195,6 @@ function LiveDesktopStage({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: '#000',
-          p: { xs: 0, md: 2 },
           position: 'relative',
           minWidth: 0,
         }}
@@ -207,7 +208,7 @@ function LiveDesktopStage({
             bgcolor: '#0A0A0A',
             borderRadius: inkstashRadii.lg,
             overflow: 'hidden',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
           }}
         >
           <LiveStreamVideo
@@ -283,7 +284,7 @@ function LiveDesktopStage({
       </Box>
 
       {/* Right: Chat */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden' }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
         <StreamChatRail
           livestreamId={stream.id}
           initialMessages={joinData.chat}

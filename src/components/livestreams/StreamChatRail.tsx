@@ -55,7 +55,8 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
         display: 'flex',
         flexDirection: 'column',
         bgcolor: inkstashColors.bgElev,
-        borderLeft: `1px solid ${inkstashColors.border}`,
+        border: `1px solid ${inkstashColors.border}`,
+        borderRadius: 'inherit',
       }}
     >
       {/* Giveaway banner */}

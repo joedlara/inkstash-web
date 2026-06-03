@@ -1,8 +1,8 @@
 // src/components/livestreams/HostPill.tsx
 //
-// Top-left of the video card. Light pill containing avatar + username, with
-// a stacked Follow button beneath the username. Crimson Follow chip ties
-// the cluster to the rest of the app's brand language.
+// Top-left of the video card. Avatar sits OUTSIDE the white pill so the
+// pill background doesn't extend behind it as a "white bar". The pill
+// holds the username stacked above the Follow chip.
 
 import { useState } from 'react';
 import { Box, Avatar, Typography, ButtonBase } from '@mui/material';
@@ -15,31 +15,45 @@ interface Props {
 
 export default function HostPill({ username, avatarUrl }: Props) {
   const [followed, setFollowed] = useState(false);
+  const displayName = username ?? 'host';
 
   return (
-    <Box
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 1,
-        bgcolor: 'rgba(255,255,255,0.96)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: 999,
-        pl: 0.5,
-        pr: 1.25,
-        py: 0.5,
-        maxWidth: 'calc(100% - 100px)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-      }}
-    >
-      <Avatar src={avatarUrl ?? undefined} sx={{ width: 32, height: 32, fontSize: 13 }}>
-        {(username ?? '?').charAt(0).toUpperCase()}
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+      <Avatar
+        src={avatarUrl ?? undefined}
+        sx={{
+          width: 40,
+          height: 40,
+          fontSize: 16,
+          fontFamily: "'Outfit', sans-serif",
+          fontWeight: 800,
+          bgcolor: inkstashColors.brand,
+          color: '#fff',
+          border: '2px solid rgba(255,255,255,0.95)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+        }}
+      >
+        {displayName.charAt(0).toUpperCase()}
       </Avatar>
-      <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 0.3 }}>
+      <Box
+        sx={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: 0.4,
+          bgcolor: 'rgba(255,255,255,0.96)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: 2,
+          px: 1.25,
+          py: 0.65,
+          maxWidth: 'calc(100% - 60px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+        }}
+      >
         <Typography
           sx={{
             fontFamily: "'Outfit', sans-serif",
-            fontSize: 13.5,
+            fontSize: 13,
             fontWeight: 800,
             color: inkstashColors.ink,
             letterSpacing: '-0.01em',
@@ -49,13 +63,12 @@ export default function HostPill({ username, avatarUrl }: Props) {
             lineHeight: 1,
           }}
         >
-          {username ?? 'host'}
+          {displayName}
         </Typography>
         <ButtonBase
           onClick={() => setFollowed((v) => !v)}
           sx={{
-            alignSelf: 'flex-start',
-            px: 1.25,
+            px: 1.1,
             py: 0.3,
             borderRadius: 999,
             bgcolor: followed ? inkstashColors.bgSunken : inkstashColors.brand,
