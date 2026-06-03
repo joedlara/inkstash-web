@@ -71,6 +71,47 @@ serve(async (req) => {
 
     const requestedQty = Math.max(1, Math.min(MAX_QTY_PER_BUY, Math.floor(body.qty ?? 1)))
 
+    // Find-or-create a Stripe Customer for this user. Reused across all
+    // buy surfaces (rubies / vendor packs / listings / drops) so saved cards
+    // are visible everywhere. Mirrors the pattern in create-payment-intent.
+    let stripeCustomerId: string | null = null
+    const { data: userRow } = await serviceClient
+      .from('users')
+      .select('stripe_customer_id, email')
+      .eq('id', user.id)
+      .maybeSingle()
+    stripeCustomerId = (userRow as { stripe_customer_id?: string } | null)?.stripe_customer_id ?? null
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: (userRow as { email?: string } | null)?.email ?? user.email,
+        metadata: { user_id: user.id },
+      })
+      stripeCustomerId = customer.id
+      await serviceClient
+        .from('users')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', user.id)
+    }
+
+    // Customer Session unlocks the saved-card list inside the Payment Element.
+    // Without this, Stripe forces "card details" entry every time even when
+    // the customer has saved cards. Components are configured to enable the
+    // payment_element with the payment_method_save_usage feature.
+    const customerSession = await stripe.customerSessions.create({
+      customer: stripeCustomerId,
+      components: {
+        payment_element: {
+          enabled: true,
+          features: {
+            payment_method_redisplay: 'enabled',
+            payment_method_save: 'enabled',
+            payment_method_save_usage: 'off_session',
+            payment_method_remove: 'enabled',
+          },
+        },
+      },
+    })
+
     // Load drop so we know what we're charging for.
     const { data: dropRow, error: dropErr } = await serviceClient
       .from('drops')
@@ -153,6 +194,8 @@ serve(async (req) => {
         const pi = await stripe.paymentIntents.create({
           amount: amountCents,
           currency: 'usd',
+          customer: stripeCustomerId,
+          setup_future_usage: 'off_session',
           ...(isPlaceholderConnect
             ? {}
             : {
@@ -173,6 +216,8 @@ serve(async (req) => {
 
         return json({
           client_secret: pi.client_secret,
+          payment_intent_id: pi.id,
+          customer_session_client_secret: customerSession.client_secret,
           drop_id: drop.id,
           qty: requestedQty,
           payment_type: 'listing',
@@ -191,6 +236,8 @@ serve(async (req) => {
         const pi = await stripe.paymentIntents.create({
           amount: amountCents,
           currency: 'usd',
+          customer: stripeCustomerId,
+          setup_future_usage: 'off_session',
           automatic_payment_methods: { enabled: true },
           metadata: {
             payment_type: 'vendor_pack',
@@ -203,6 +250,8 @@ serve(async (req) => {
 
         return json({
           client_secret: pi.client_secret,
+          payment_intent_id: pi.id,
+          customer_session_client_secret: customerSession.client_secret,
           drop_id: drop.id,
           qty: requestedQty,
           payment_type: 'vendor_pack',

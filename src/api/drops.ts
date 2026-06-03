@@ -229,7 +229,13 @@ export const dropsAPI = {
    *   sold_out     — capacity exhausted
    *   drop_not_found
    */
-  async createPaymentIntent(dropId: string, qty: number = 1): Promise<{ client_secret: string; drop_id: string; qty: number }> {
+  async createPaymentIntent(dropId: string, qty: number = 1): Promise<{
+    client_secret: string;
+    payment_intent_id: string;
+    customer_session_client_secret: string | null;
+    drop_id: string;
+    qty: number;
+  }> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('You must be logged in to buy a drop.');
 
@@ -245,5 +251,23 @@ export const dropsAPI = {
     }
     if (!data?.client_secret) throw new Error('No client_secret returned');
     return data;
+  },
+
+  /**
+   * Release a provisional drop reservation when the buyer abandons the
+   * checkout modal before confirming payment. Best-effort: failures are
+   * logged but don't surface to the user (the modal already closed).
+   */
+  async releaseCapacity(dropId: string, paymentIntentId: string, qty: number = 1): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    try {
+      await supabase.functions.invoke('release-drop-capacity', {
+        body: { drop_id: dropId, payment_intent_id: paymentIntentId, qty },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+    } catch (err) {
+      console.warn('[dropsAPI.releaseCapacity] best-effort release failed', err);
+    }
   },
 };

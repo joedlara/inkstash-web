@@ -315,7 +315,10 @@ const MAX_QTY = 5;
 function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
   const [qty, setQty] = useState(1);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerSessionSecret, setCustomerSessionSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [confirmedQty, setConfirmedQty] = useState(1);
+  const [paymentSubmitted, setPaymentSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -323,18 +326,33 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
   // Hard ceiling: can't buy more than what's actually left or our per-buy cap.
   const maxAllowedQty = Math.max(1, Math.min(MAX_QTY, drop.quantity_remaining));
 
-  // Reset qty when modal opens to avoid carrying state across visits.
+  const unitPrice = Number(drop.price);
+  const total = unitPrice * qty;
+
+  // Best-effort release on close. If the buyer reserved capacity (PI created)
+  // but never confirmed payment, free the spot so the counter doesn't drift.
+  // If they already clicked Pay, the webhook will handle it — skip release.
+  function handleCloseWithRelease() {
+    if (paymentIntentId && !paymentSubmitted) {
+      void dropsAPI.releaseCapacity(drop.id, paymentIntentId, confirmedQty);
+    }
+    onClose();
+  }
+
+  // Reset state when modal opens. Releasing here would race with the user
+  // reopening the same modal mid-async — release only happens on close.
   useEffect(() => {
     if (open) {
       setQty(1);
       setClientSecret(null);
+      setCustomerSessionSecret(null);
+      setPaymentIntentId(null);
+      setConfirmedQty(1);
+      setPaymentSubmitted(false);
       setError(null);
       setErrorCode(null);
     }
   }, [open]);
-
-  const unitPrice = Number(drop.price);
-  const total = unitPrice * qty;
 
   async function handleProceed() {
     setLoading(true);
@@ -343,6 +361,8 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
     try {
       const res = await dropsAPI.createPaymentIntent(drop.id, qty);
       setClientSecret(res.client_secret);
+      setCustomerSessionSecret(res.customer_session_client_secret);
+      setPaymentIntentId(res.payment_intent_id);
       setConfirmedQty(res.qty ?? qty);
     } catch (err) {
       const e = err as Error;
@@ -356,13 +376,13 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : onClose}
+      onClose={loading ? undefined : handleCloseWithRelease}
       maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { borderRadius: inkstashRadii.lg, bgcolor: inkstashColors.bgElev } }}
     >
       <Box sx={{ p: 3, position: 'relative' }}>
-        <IconButton onClick={onClose} disabled={loading} sx={{ position: 'absolute', right: 10, top: 10 }}>
+        <IconButton onClick={handleCloseWithRelease} disabled={loading} sx={{ position: 'absolute', right: 10, top: 10 }}>
           <Close fontSize="small" />
         </IconButton>
 
@@ -460,12 +480,14 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
           </Button>
         )}
 
-        {/* Post-PI step: Stripe element */}
+        {/* Post-PI step: Stripe element. Pass customer session so saved cards
+            appear automatically and the buyer can skip re-entering details. */}
         {clientSecret && (
           <Elements
             stripe={getStripe()}
             options={{
               clientSecret,
+              ...(customerSessionSecret ? { customerSessionClientSecret: customerSessionSecret } : {}),
               appearance: {
                 theme: 'flat',
                 variables: {
@@ -478,7 +500,11 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
               },
             }}
           >
-            <DropPaymentForm dropId={drop.id} amountUsd={unitPrice * confirmedQty} />
+            <DropPaymentForm
+              dropId={drop.id}
+              amountUsd={unitPrice * confirmedQty}
+              onSubmitting={() => setPaymentSubmitted(true)}
+            />
           </Elements>
         )}
       </Box>
@@ -486,7 +512,15 @@ function DropCheckoutModal({ open, onClose, drop }: CheckoutModalProps) {
   );
 }
 
-function DropPaymentForm({ dropId, amountUsd }: { dropId: string; amountUsd: number }) {
+function DropPaymentForm({
+  dropId,
+  amountUsd,
+  onSubmitting,
+}: {
+  dropId: string;
+  amountUsd: number;
+  onSubmitting?: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -497,6 +531,9 @@ function DropPaymentForm({ dropId, amountUsd }: { dropId: string; amountUsd: num
     if (!stripe || !elements) return;
     setSubmitting(true);
     setErr(null);
+    // Tell the parent the buyer committed — close handlers will skip the
+    // release call so we don't refund a capacity slot mid-payment.
+    onSubmitting?.();
     const returnUrl = `${window.location.origin}/drop/${dropId}?purchase=success`;
     const res = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnUrl } });
     if (res.error) {
@@ -507,7 +544,7 @@ function DropPaymentForm({ dropId, amountUsd }: { dropId: string; amountUsd: num
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      <PaymentElement />
+      <PaymentElement options={{ layout: 'accordion' }} />
       {err && <Alert severity="error" sx={{ mt: 2 }}>{err}</Alert>}
       <Button
         type="submit"
