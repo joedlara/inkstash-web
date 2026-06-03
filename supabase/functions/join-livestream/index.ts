@@ -35,7 +35,7 @@ serve(async (req) => {
     // @ts-expect-error Deno env
     const livekitApiSecret = Deno.env.get('LIVEKIT_API_SECRET')!
     // @ts-expect-error Deno env
-    const livekitWsUrl = Deno.env.get('LIVEKIT_WS_URL')!
+    const livekitWsUrl = Deno.env.get('LIVEKIT_URL')!
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },

@@ -11,9 +11,11 @@ import { Close } from '@mui/icons-material';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
+import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { inkstashColors } from '../theme/inkstashTokens';
 
 export default function LiveStreamView() {
+  useSuppressMobileNav();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [stream, setStream] = useState<Livestream | null>(null);

@@ -23,9 +23,11 @@ import HostControlPanel from '../components/livestreams/HostControlPanel';
 import { livestreamsAPI } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
+import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 
 export default function LiveStreamHost() {
+  useSuppressMobileNav();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
