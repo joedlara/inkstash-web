@@ -244,6 +244,15 @@ function LiveDesktopStage({
             </Box>
           </Box>
 
+          {/* Floating right-rail actions (Share / Wallet / Shop / More)
+              on top of the video card on desktop too. RightRailActions is
+              internally absolutely positioned, so dropping it here anchors
+              it to the card's right edge. */}
+          <RightRailActions
+            streamTitle={stream.title}
+            streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          />
+
           {/* Winner banner slot (L4) */}
           <Box
             id="livestream-winner-slot"
