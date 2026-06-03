@@ -44,7 +44,6 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/pack-reveal',
     '/live',
     '/drops',
-    '/raffles',
     '/marketplace',
     '/sell',
     '/item',

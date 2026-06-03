@@ -13,7 +13,6 @@ import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
 import Drops from './pages/Drops';
 import DropDetail from './pages/DropDetail';
-import Raffles from './pages/Raffles';
 import Marketplace from './pages/Marketplace';
 import Checkout from './pages/CheckoutNew';
 import OrderSuccess from './pages/OrderSuccess';
@@ -57,7 +56,6 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/live" element={<Live />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drop/:id" element={<DropDetail />} />
-                <Route path="/raffles" element={<Raffles />} />
                 <Route path="/marketplace" element={<Marketplace />} />
                 {/* Redirects for removed routes */}
                 <Route path="/browse-featured" element={<Navigate to="/packs" replace />} />
