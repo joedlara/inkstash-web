@@ -25,45 +25,56 @@ interface Props {
   variant?: 'light' | 'dark';
 }
 
-/** Compact start-time pill: 1d 4h, 2h 15m, 12m, 45s, or "starting" when
- *  the scheduled time has elapsed (cron will flip status soon). */
+/** Scheduled-start countdown formatted as Xd Xh Xm. Units below 1m are
+ *  rounded up to "1m" since the card text is too small for live seconds
+ *  to read cleanly. "starting" once the scheduled time has elapsed (the
+ *  cron flips the row to 'live' shortly after). */
 function formatTimeUntil(iso: string | null): string {
   if (!iso) return 'soon';
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return 'starting';
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) {
-    const rs = s % 60;
-    return rs === 0 ? `${m}m` : `${m}m ${rs}s`;
-  }
-  const h = Math.floor(m / 60);
-  if (h < 24) {
-    const rm = m % 60;
-    return rm === 0 ? `${h}h` : `${h}h ${rm}m`;
-  }
-  const d = Math.floor(h / 24);
-  const rh = h % 24;
-  return rh === 0 ? `${d}d` : `${d}d ${rh}h`;
+  const totalMin = Math.max(1, Math.floor(ms / 60000));
+  const d = Math.floor(totalMin / (60 * 24));
+  const h = Math.floor((totalMin % (60 * 24)) / 60);
+  const m = totalMin % 60;
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+  return parts.join(' ');
 }
 
 export default function LiveStreamCard({ stream, scheduled = false, variant = 'light' }: Props) {
   const navigate = useNavigate();
   const cover = stream.cover_image_url ?? PLACEHOLDER_IMAGE_URL;
 
-  // 1s tick so the scheduled countdown updates live. Cheap — scoped to
-  // this single tile and only when it's actually a scheduled card.
+  // Tick every 30s so the Xd Xh Xm countdown stays in sync without
+  // re-rendering more than necessary. Scoped to scheduled tiles only.
   const [, setNow] = useState(Date.now());
   useEffect(() => {
     if (!scheduled) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, [scheduled]);
 
+  // Scheduled pill sits TOP-RIGHT with a glassmorphic dark backdrop so the
+  // count reads cleanly against any thumbnail. Live pill stays TOP-LEFT
+  // because that's where viewers expect the "Live" marker (Twitch/Whatnot
+  // convention).
   const pill = scheduled
-    ? { bg: inkstashColors.brand, text: '#fff', label: formatTimeUntil(stream.scheduled_start_at) }
-    : { bg: inkstashColors.live, text: '#fff', label: 'Live', dot: true as const };
+    ? {
+        bg: 'rgba(10,10,10,0.65)',
+        text: '#fff',
+        label: formatTimeUntil(stream.scheduled_start_at),
+        align: 'right' as const,
+      }
+    : {
+        bg: inkstashColors.live,
+        text: '#fff',
+        label: 'Live',
+        dot: true as const,
+        align: 'left' as const,
+      };
 
   const isDark = variant === 'dark';
   const titleColor = isDark ? '#fff' : inkstashColors.ink;
@@ -149,12 +160,12 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
           }}
         />
 
-        {/* Pill: red Live with pulsing dot, or crimson countdown for scheduled */}
+        {/* Pill: red Live (top-left) or glass countdown (top-right). */}
         <Box
           sx={{
             position: 'absolute',
             top: 10,
-            left: 10,
+            ...(pill.align === 'right' ? { right: 10 } : { left: 10 }),
             display: 'inline-flex',
             alignItems: 'center',
             gap: 0.5,
@@ -163,6 +174,8 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
             borderRadius: 1,
             bgcolor: pill.bg,
             color: pill.text,
+            backdropFilter: scheduled ? 'blur(10px)' : undefined,
+            border: scheduled ? '1px solid rgba(255,255,255,0.18)' : undefined,
             fontFamily: "'Outfit', sans-serif",
             fontSize: 10.5,
             fontWeight: 800,
@@ -170,6 +183,7 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
             lineHeight: 1,
             zIndex: 2,
             boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {pill.dot && (
