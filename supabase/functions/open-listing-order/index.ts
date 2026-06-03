@@ -40,6 +40,13 @@ interface Payload {
   payment_intent_id: string
   amount_cents: number
   application_fee_cents: number
+  /** Set when the listing was bought via a scheduled drop. Persisted on
+   *  the orders row so we can report "X copies sold via the Friday drop". */
+  drop_id?: string | null
+  /** When the buy came from a drop, the number of copies the buyer paid for.
+   *  drop_qty > 1 means insert N orders for one PI and skip "mark listing
+   *  sold" (the underlying listing is a drop template, not a single-copy). */
+  drop_qty?: number | null
 }
 
 serve(async (req) => {
@@ -90,37 +97,49 @@ serve(async (req) => {
     // address is recorded via shipping_address_id FK when they actually request
     // shipping (Phase 7). The total is derived from the Stripe intent amount so
     // it exactly matches what was charged.
-    const itemCents = Math.round(Number(listing.buy_now_price) * 100)
-    const shippingCents = Math.max(0, payload.amount_cents - itemCents)
-    const sellerNetCents = payload.amount_cents - payload.application_fee_cents
+    const dropQty = payload.drop_qty && payload.drop_qty > 0 ? payload.drop_qty : 1
+    const isDropMultiCopy = !!payload.drop_id && dropQty >= 1
 
-    const { data: order, error: orderErr } = await supabase
+    const itemCents = Math.round(Number(listing.buy_now_price) * 100)
+    // For drop buys, the amount is unit_price * drop_qty. Shipping isn't
+    // collected on drops in v1, so any extra is treated as shipping for the
+    // non-drop path only.
+    const shippingCents = isDropMultiCopy ? 0 : Math.max(0, payload.amount_cents - itemCents)
+    const sellerNetCents = payload.amount_cents - payload.application_fee_cents
+    const unitTotal = isDropMultiCopy ? payload.amount_cents / dropQty / 100 : payload.amount_cents / 100
+
+    // Build N order rows. For single buys (drop or marketplace) this is one
+    // row; for multi-copy drops it's N. The PI is the same, but each row gets
+    // its own order_number so emails / dashboards can reference individual copies.
+    const baseTs = Date.now().toString(36).toUpperCase()
+    const orderRows = Array.from({ length: dropQty }, (_, i) => ({
+      buyer_id: payload.buyer_id,
+      seller_id: payload.seller_id,
+      listing_id: payload.listing_id,
+      auction_id: null,
+      status: 'processing',
+      item_price: listing.buy_now_price,
+      shipping_cost: shippingCents / 100,
+      tax: 0,
+      total: unitTotal,
+      purchase_type: 'listing',
+      order_number: dropQty > 1 ? `L-${baseTs}-${i + 1}` : `L-${baseTs}`,
+      stripe_payment_intent_id: payload.payment_intent_id,
+      drop_id: payload.drop_id ?? null,
+    }))
+
+    const { data: insertedOrders, error: orderErr } = await supabase
       .from('orders')
-      .insert({
-        buyer_id: payload.buyer_id,
-        seller_id: payload.seller_id,
-        listing_id: payload.listing_id,
-        // auction_id is nullable after migration 20260512000001
-        auction_id: null,
-        status: 'processing',
-        item_price: listing.buy_now_price,
-        shipping_cost: shippingCents / 100,
-        tax: 0,
-        total: payload.amount_cents / 100,
-        // 'listing' is allowed after migration 20260602010000 drops the old check constraint
-        purchase_type: 'listing',
-        order_number: 'L-' + Date.now().toString(36).toUpperCase(),
-        stripe_payment_intent_id: payload.payment_intent_id,
-      })
+      .insert(orderRows)
       .select('id')
-      .single()
-    if (orderErr || !order) {
+    if (orderErr || !insertedOrders || insertedOrders.length === 0) {
       console.error('[open-listing-order] order INSERT failed', orderErr)
       return new Response(JSON.stringify({ error: 'order_insert_failed' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    const order = insertedOrders[0]
 
     // ── 4. Vault flow: transfer inventory ownership ───────────────────────────
     // Correct sequencing: SELECT first to capture lineage data, THEN UPDATE
@@ -169,13 +188,20 @@ serve(async (req) => {
     // ── 5. Mark listing as sold ───────────────────────────────────────────────
     // Done AFTER inventory transfer so inventory never points to a "sold" listing
     // while the buyer's row is still being created.
-    const { error: listingUpdateErr } = await supabase
-      .from('listings')
-      .update({ status: 'sold' })
-      .eq('id', payload.listing_id)
-    if (listingUpdateErr) {
-      console.error('[open-listing-order] listing UPDATE to sold failed', listingUpdateErr)
-      // Continue — payout must still be recorded.
+    //
+    // Drop buys skip this: the underlying listing is a drop template. Its
+    // "sold" state is governed by drop.quantity_sold reaching drop.quantity_total,
+    // not by a single order. Marking it sold here would orphan the rest of
+    // the drop's copies.
+    if (!payload.drop_id) {
+      const { error: listingUpdateErr } = await supabase
+        .from('listings')
+        .update({ status: 'sold' })
+        .eq('id', payload.listing_id)
+      if (listingUpdateErr) {
+        console.error('[open-listing-order] listing UPDATE to sold failed', listingUpdateErr)
+        // Continue — payout must still be recorded.
+      }
     }
 
     // ── 6. INSERT seller_payouts ───────────────────────────────────────────────

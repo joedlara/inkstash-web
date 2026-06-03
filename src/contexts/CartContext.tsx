@@ -40,57 +40,81 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'inkstash_cart_v2';
+// Per-user localStorage key. Previously we used a single shared key, which
+// leaked one user's cart to the next user on the same browser. Namespacing
+// by user_id (or 'guest' for signed-out) keeps carts isolated.
+const cartStorageKey = (userId: string | null) => `inkstash_cart_v2:${userId ?? 'guest'}`;
+// Legacy single-key cart from before the namespacing fix. Cleared on first load.
+const LEGACY_KEY = 'inkstash_cart_v2';
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem(CART_STORAGE_KEY);
-    if (!saved) return [];
-    try {
-      return JSON.parse(saved) as CartItem[];
-    } catch {
-      return [];
-    }
-  });
+  // Start empty — hydration effect populates from the per-user localStorage
+  // key once we know who's signed in.
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const lastSyncedUserId = useRef<string | null>(null);
 
-  // Persist to localStorage on every change. This is the optimistic UI store;
-  // the server is the source of truth when signed in.
+  // One-time: clear the legacy shared-cart key so old data can't bleed
+  // through anymore.
+  useEffect(() => {
+    try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
+  }, []);
+
+  // Persist to the CURRENT user's localStorage key on every change. Skip
+  // until we know the user (currentUserId === undefined isn't possible
+  // here since useState gives null) so we don't write 'guest' for items
+  // that came from a signed-in user.
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(cartStorageKey(currentUserId), JSON.stringify(items));
     } catch (err) {
-      // Quota-exceeded etc — drop silently. The server cart is authoritative.
       console.warn('[CartContext] localStorage write failed', err);
     }
-  }, [items]);
+  }, [items, currentUserId]);
 
-  // Hydrate from server on sign-in. Server wins on conflict — if the buyer
-  // signed in on a different device and added items there, those show up.
+  // Hydrate on mount + auth changes. Three cases:
+  //   1. No user (signed out) — read guest cart from localStorage, no server fetch.
+  //   2. User signed in, first time this session — read their localStorage
+  //      cart, then server-sync (server wins on conflict for items present
+  //      on both; local-only items get pushed up).
+  //   3. User switched — wipe in-memory items, then hydrate the new user's cart.
   useEffect(() => {
     let cancelled = false;
+
     const sync = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // Signed out — keep localStorage cart (for guests who later sign in)
-        // but mark that we have no server cart.
+      const userId = user?.id ?? null;
+
+      // User switched (sign-in, sign-out, or different user). Wipe in-memory
+      // state immediately so the previous user's cart never flashes for the
+      // new user.
+      if (userId !== currentUserId) {
+        setCurrentUserId(userId);
+        const localRaw = localStorage.getItem(cartStorageKey(userId));
+        let local: CartItem[] = [];
+        if (localRaw) {
+          try { local = JSON.parse(localRaw) as CartItem[]; } catch { /* ignore */ }
+        }
+        if (!cancelled) setItems(local);
+      }
+
+      if (!userId) {
+        // Guest — no server cart to fetch. Done.
         lastSyncedUserId.current = null;
         return;
       }
-      if (lastSyncedUserId.current === user.id) return;
-      lastSyncedUserId.current = user.id;
+      if (lastSyncedUserId.current === userId) return;
+      lastSyncedUserId.current = userId;
 
       try {
         const serverItems = await cartAPI.getCart();
         if (cancelled) return;
 
-        // Merge: anything in local that isn't on server, push up. Then
-        // refetch authoritative state. Most users won't have anything to
-        // merge — this is just the "signed in on new device with stuff
-        // already in their browser" case.
         const serverIds = new Set(serverItems.map((i) => i.listing_id));
-        const toUpload = items.filter((i) => !serverIds.has(i.listing_id));
+        const localRaw = localStorage.getItem(cartStorageKey(userId));
+        const localItems: CartItem[] = localRaw ? (JSON.parse(localRaw) as CartItem[]) : [];
+        const toUpload = localItems.filter((i) => !serverIds.has(i.listing_id));
         for (const local of toUpload) {
           try {
             await cartAPI.addItem(local.listing_id);
@@ -112,8 +136,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-    // We intentionally do NOT include `items` in deps — this is the hydration
-    // effect, not a sync effect. Local edits go up via addItem/removeItem.
+    // Re-runs when currentUserId changes so the cart loads correctly across
+    // sign-in / sign-out / user-switch transitions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

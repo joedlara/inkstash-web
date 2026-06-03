@@ -731,6 +731,27 @@ export default function ListItem() {
 
       <Divider sx={{ my: 4 }} />
 
+      {/* TITLE Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+          Title
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          The first thing buyers see. We pre-fill from your search; tweak for grading, signed/sealed, or variant notes.
+        </Typography>
+        <TextField
+          fullWidth
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. The Amazing Spider-Man #300 — CGC 9.8, white pages"
+          inputProps={{ maxLength: 120 }}
+          helperText={`${title.length} / 120`}
+          sx={{ mt: 1 }}
+        />
+      </Box>
+
+      <Divider sx={{ my: 4 }} />
+
       {/* DESCRIPTION Section */}
       <Box sx={{ mb: 4 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>

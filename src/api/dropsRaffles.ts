@@ -99,31 +99,10 @@ export const FALLBACK_RAFFLES: Raffle[] = [
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-export const dropsAPI = {
-  async list(): Promise<Drop[]> {
-    const { data, error } = await supabase
-      .from('drops')
-      .select('*')
-      .in('status', ['upcoming', 'live'])
-      .order('drop_at', { ascending: true });
-
-    if (error || !data || data.length === 0) return FALLBACK_DROPS;
-    return data as Drop[];
-  },
-
-  async getNextUpcoming(): Promise<Drop | null> {
-    const { data, error } = await supabase
-      .from('drops')
-      .select('*')
-      .in('status', ['upcoming', 'live'])
-      .order('drop_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (error || !data) return FALLBACK_DROPS[0];
-    return data as Drop;
-  },
-};
+// dropsAPI removed — the new drops table has a different schema. Use
+// `import { dropsAPI } from '../api/drops'` instead. The old Drop
+// interface + FALLBACK_DROPS export below stays unused for now; safe to
+// purge once raffles get their own dedicated file.
 
 export const rafflesAPI = {
   async list(): Promise<Raffle[]> {
