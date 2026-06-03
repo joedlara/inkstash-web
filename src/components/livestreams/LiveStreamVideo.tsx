@@ -2,38 +2,51 @@
 //
 // Wraps a LiveKit Room and renders the host's video track full-bleed.
 // Two modes:
-//   - host: publishes camera + mic to the room
+//   - host: publishes camera + mic to the room. Defaults to the back-facing
+//     ("environment") camera since the stream is meant for showing comics,
+//     not the host's face. Flip button swaps to front camera if the host
+//     wants to talk to camera.
 //   - viewer: subscribe-only (audio + video)
 //
 // Cleanup on unmount: leave room, stop tracks. Critical to prevent zombie
 // cameras (browser tab keeps streaming if we don't tear down properly).
 
 import { useEffect, useRef, useState } from 'react';
-import { Room, Track, RoomEvent, createLocalTracks, type RemoteTrack, type LocalTrack } from 'livekit-client';
-import { Box, Typography } from '@mui/material';
+import {
+  Room, Track, RoomEvent, createLocalTracks,
+  type RemoteTrack, type LocalTrack, type LocalVideoTrack,
+} from 'livekit-client';
+import { Box, Typography, IconButton } from '@mui/material';
+import { FlipCameraIos } from '@mui/icons-material';
 import { inkstashColors } from '../../theme/inkstashTokens';
 
 interface Props {
   wsUrl: string;
   token: string;
   mode: 'host' | 'viewer';
-  /** Called once the room is connected. Useful for switching the UI from
-   *  "preparing" to "live". */
+  /** Called once the room is connected. */
   onConnected?: () => void;
 }
 
+type Facing = 'user' | 'environment';
+
 export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  // Hold tracks across re-renders so we can re-attach if the videoRef changes
-  // (StrictMode double-effects, conditional parent renders, etc.).
+  const roomRef = useRef<Room | null>(null);
+  // Hold tracks across re-renders so we can re-attach if the videoRef changes.
   const tracksRef = useRef<Array<LocalTrack | RemoteTrack>>([]);
+  // Held separately so the flip button can replace it without touching audio.
+  const localVideoRef = useRef<LocalVideoTrack | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [facing, setFacing] = useState<Facing>('environment');
+  const [flipping, setFlipping] = useState(false);
 
   useEffect(() => {
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
     });
+    roomRef.current = room;
 
     let cancelled = false;
 
@@ -46,9 +59,6 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
 
     async function connect() {
       try {
-        // Subscribe to track events BEFORE connecting so we don't race the
-        // first published track from a fast host. Viewer-only — host
-        // publishes its own tracks below.
         if (mode === 'viewer') {
           room.on(RoomEvent.TrackSubscribed, (track) => {
             if (cancelled) return;
@@ -70,12 +80,19 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
         }
 
         if (mode === 'host') {
-          // This call triggers the browser's camera + mic permission prompt.
-          // If the user denies, it rejects with a NotAllowedError.
-          const tracks = await createLocalTracks({ audio: true, video: true });
+          const tracks = await createLocalTracks({
+            audio: true,
+            // Default to back camera so the host can show comics. Prefer
+            // exact match but fall back if the device only has a front
+            // camera (laptops, iPads without ultra-wide).
+            video: { facingMode: { ideal: 'environment' } },
+          });
           for (const track of tracks) {
             await room.localParticipant.publishTrack(track);
             attachVideoTrack(track);
+            if (track.kind === Track.Kind.Video) {
+              localVideoRef.current = track as LocalVideoTrack;
+            }
           }
         }
 
@@ -84,8 +101,6 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
         const e = err as Error;
         console.error('[LiveStreamVideo] connect failed', e);
         if (cancelled) return;
-        // Surface common errors to the user so they aren't staring at a
-        // black screen wondering what happened.
         if (e.name === 'NotAllowedError') {
           setError('Camera/microphone access denied. Reload the page and click "Allow" when your browser prompts.');
         } else if (e.name === 'NotFoundError') {
@@ -102,18 +117,17 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
 
     return () => {
       cancelled = true;
-      // Detach the tracks before disconnecting so the video tag doesn't
-      // freeze on the last frame.
       for (const track of tracksRef.current) {
         try { track.detach(); } catch { /* ignore */ }
       }
       tracksRef.current = [];
+      localVideoRef.current = null;
+      roomRef.current = null;
       room.disconnect();
     };
   }, [wsUrl, token, mode, onConnected]);
 
   // Re-attach any pending video track when the videoRef becomes available.
-  // Handles the race where the video element isn't mounted yet at connect time.
   useEffect(() => {
     if (!videoRef.current) return;
     const videoEl = videoRef.current;
@@ -124,6 +138,46 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
     }
   });
 
+  // Flip between front + back camera. Replace the published video track in
+  // place so subscribers see the swap without reconnecting.
+  async function handleFlipCamera() {
+    if (flipping || !roomRef.current || !localVideoRef.current) return;
+    setFlipping(true);
+    const next: Facing = facing === 'environment' ? 'user' : 'environment';
+    try {
+      const newTracks = await createLocalTracks({
+        audio: false,
+        video: { facingMode: { ideal: next } },
+      });
+      const newVideo = newTracks.find((t) => t.kind === Track.Kind.Video) as LocalVideoTrack | undefined;
+      if (!newVideo) return;
+
+      const old = localVideoRef.current;
+      const lp = roomRef.current.localParticipant;
+      // Replace the published track. LiveKit handles the SDP renegotiation.
+      const pub = lp.getTrackPublication(Track.Source.Camera);
+      if (pub?.track) {
+        await lp.unpublishTrack(pub.track, true);
+      }
+      await lp.publishTrack(newVideo);
+
+      // Swap the ref + attach the new track to the existing video element.
+      tracksRef.current = tracksRef.current.filter((t) => t !== old);
+      tracksRef.current.push(newVideo);
+      localVideoRef.current = newVideo;
+      if (videoRef.current) newVideo.attach(videoRef.current);
+
+      try { old.detach(); } catch { /* ignore */ }
+      try { old.stop(); } catch { /* ignore */ }
+
+      setFacing(next);
+    } catch (err) {
+      console.warn('[LiveStreamVideo] flip camera failed', err);
+    } finally {
+      setFlipping(false);
+    }
+  }
+
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', bgcolor: '#000' }}>
       <Box
@@ -131,7 +185,7 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
         ref={videoRef}
         autoPlay
         playsInline
-        muted={mode === 'host'} // host doesn't hear themselves
+        muted={mode === 'host'}
         sx={{
           width: '100%',
           height: '100%',
@@ -181,11 +235,32 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
             display: 'flex',
             alignItems: 'center',
             gap: 0.5,
+            zIndex: 2,
           }}
         >
           <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff' }} />
           Live
         </Box>
+      )}
+      {/* Flip-camera button (host only). Positioned next to the live badge. */}
+      {mode === 'host' && !error && (
+        <IconButton
+          onClick={handleFlipCamera}
+          disabled={flipping}
+          aria-label="Flip camera"
+          sx={{
+            position: 'absolute',
+            top: 8,
+            left: 90,
+            bgcolor: 'rgba(0,0,0,0.55)',
+            color: '#fff',
+            backdropFilter: 'blur(8px)',
+            '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' },
+            zIndex: 2,
+          }}
+        >
+          <FlipCameraIos fontSize="small" />
+        </IconButton>
       )}
     </Box>
   );

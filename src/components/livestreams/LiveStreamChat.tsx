@@ -1,8 +1,13 @@
 // src/components/livestreams/LiveStreamChat.tsx
 //
-// Bottom-docked chat with sticky composer. Uses Supabase Realtime channel
-// on the livestream_chat table for incoming messages and the post-chat-message
-// edge fn for sending.
+// WhatNot-style overlay chat. The video sits underneath full-bleed; chat
+// floats in the lower-third with no opaque panel:
+//   - Messages render as pill bubbles with avatar + username + body
+//   - A short gradient mask fades the bottom so video shows through behind chat
+//   - Composer is a transparent rounded input pinned to the very bottom
+//
+// In-chat ban link is removed in v1; moderation moves to a click-username
+// modal in a later milestone.
 
 import { useEffect, useRef, useState, FormEvent } from 'react';
 import { Box, TextField, IconButton, Avatar, Typography } from '@mui/material';
@@ -15,13 +20,10 @@ interface Props {
   livestreamId: string;
   initialMessages: ChatMessage[];
   isBanned: boolean;
-  /** When true, render a tiny ban link next to each message so the host can tap to ban. */
-  hostMode?: boolean;
-  onBanUser?: (userId: string) => void;
 }
 
 export default function LiveStreamChat({
-  livestreamId, initialMessages, isBanned, hostMode = false, onBanUser,
+  livestreamId, initialMessages, isBanned,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
@@ -44,8 +46,7 @@ export default function LiveStreamChat({
     return () => { supabase.removeChannel(channel); };
   }, [livestreamId]);
 
-  // Backfill usernames for messages we don't yet have names for. One batched call
-  // when the list of unknown user_ids grows.
+  // Backfill usernames for messages we don't yet have names for.
   useEffect(() => {
     const unknown = [...new Set(messages.map((m) => m.user_id))].filter((id) => !usernames[id]);
     if (unknown.length === 0) return;
@@ -85,72 +86,100 @@ export default function LiveStreamChat({
       const e = err as Error;
       if (e.name === 'profanity_blocked') {
         setDraft(body);
-        // TODO: surface a toast saying "watch your language"
       }
     } finally {
       setSending(false);
     }
   }
 
+  // Tail the last 8 messages so the overlay never grows past the lower-third.
+  const visible = messages.slice(-8);
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box
+      sx={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        pointerEvents: 'none', // let video receive clicks except where we explicitly opt in
+      }}
+    >
+      {/* Message stack — pill bubbles floating on the video */}
       <Box
         ref={listRef}
         sx={{
-          flex: 1,
+          maxHeight: '40vh',
           overflowY: 'auto',
-          p: 1.5,
-          // Semi-transparent dark gradient so video shows through
-          background: 'linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0))',
+          px: 1.5,
+          pb: 1,
+          pointerEvents: 'auto',
+          // Hide the scrollbar; WhatNot's chat scrolls without a visible bar.
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+          // Soft top fade so messages dissolve into the video as they scroll up.
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 18%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 18%)',
         }}
       >
-        {messages.map((m) => (
-          <Box key={m.id} sx={{ display: 'flex', gap: 1, mb: 0.75, alignItems: 'flex-start' }}>
-            <Avatar sx={{ width: 22, height: 22, fontSize: 11 }}>
-              {(usernames[m.user_id] ?? '?').charAt(0).toUpperCase()}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+        {visible.map((m) => (
+          <Box key={m.id} sx={{ display: 'block', mb: 0.6 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                maxWidth: '100%',
+                bgcolor: 'rgba(0,0,0,0.55)',
+                backdropFilter: 'blur(6px)',
+                px: 1.1,
+                py: 0.5,
+                borderRadius: 999,
+              }}
+            >
+              <Avatar sx={{ width: 18, height: 18, fontSize: 10 }}>
+                {(usernames[m.user_id] ?? '?').charAt(0).toUpperCase()}
+              </Avatar>
               <Typography
                 component="span"
                 sx={{
-                  fontSize: 12,
-                  fontWeight: 700,
+                  fontSize: 12.5,
+                  fontWeight: 800,
                   color: m.is_mod_action ? inkstashColors.gold : '#fff',
-                  mr: 0.5,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {m.is_mod_action ? 'MOD' : (usernames[m.user_id] ?? '...')}
               </Typography>
-              <Typography component="span" sx={{ fontSize: 12, color: '#eee' }}>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: 12.5,
+                  color: '#fff',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  minWidth: 0,
+                }}
+              >
                 {m.body}
               </Typography>
-              {hostMode && !m.is_mod_action && (
-                <Typography
-                  component="button"
-                  onClick={() => onBanUser?.(m.user_id)}
-                  sx={{
-                    ml: 1, fontSize: 10, color: '#ff7676', bgcolor: 'transparent',
-                    border: 'none', cursor: 'pointer', textTransform: 'uppercase',
-                  }}
-                >
-                  Ban
-                </Typography>
-              )}
             </Box>
           </Box>
         ))}
       </Box>
+
+      {/* Composer — pill input, transparent, pinned to the bottom */}
       <Box
         component="form"
         onSubmit={send}
         sx={{
           display: 'flex',
           gap: 1,
-          p: 1,
-          bgcolor: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(8px)',
-          position: 'relative',
-          zIndex: 2, // Ensure the composer sits above the video for click events
+          px: 1.5,
+          pb: 'max(env(safe-area-inset-bottom), 12px)',
+          pointerEvents: 'auto',
         }}
       >
         <TextField
@@ -163,15 +192,30 @@ export default function LiveStreamChat({
           inputProps={{ maxLength: 280 }}
           sx={{
             '& .MuiInputBase-root': {
-              bgcolor: 'rgba(255,255,255,0.1)',
+              bgcolor: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(8px)',
               color: '#fff',
               fontSize: 13,
               borderRadius: 999,
+              px: 1.5,
             },
             '& fieldset': { border: 'none' },
+            '& input::placeholder': { color: 'rgba(255,255,255,0.7)', opacity: 1 },
           }}
         />
-        <IconButton type="submit" disabled={!draft.trim() || sending || isBanned} sx={{ color: inkstashColors.brand }}>
+        <IconButton
+          type="submit"
+          disabled={!draft.trim() || sending || isBanned}
+          sx={{
+            bgcolor: inkstashColors.brand,
+            color: '#fff',
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            '&:hover': { bgcolor: inkstashColors.brandDeep },
+            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)' },
+          }}
+        >
           <Send fontSize="small" />
         </IconButton>
       </Box>

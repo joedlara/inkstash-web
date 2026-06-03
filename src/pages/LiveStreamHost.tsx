@@ -147,9 +147,9 @@ export default function LiveStreamHost() {
   }
 
   if (!streamId || !livekit) return null;
-  // Live phase: camera fills the viewport, chat + end-stream overlay on top.
-  // Same layout as the viewer page so the host sees roughly what their
-  // audience sees, plus a host-only End button + ban controls in chat.
+  // Live phase: full-bleed video with chat overlaid on top (WhatNot-style).
+  // Centered to a phone-aspect column on desktop so we don't stretch the
+  // host's vertical camera to a 16:9 letterbox.
   return (
     <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#000', overflow: 'hidden' }}>
       <Box
@@ -157,40 +157,33 @@ export default function LiveStreamHost() {
           position: 'absolute', inset: 0,
           maxWidth: { xs: '100%', md: 480 },
           mx: 'auto',
-          display: 'grid',
-          gridTemplateRows: '1fr 280px',
+          // Video and chat share the same stacking context; chat positions
+          // itself absolutely in the lower-third on top of the video.
         }}
       >
-        {/* Video */}
-        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-          <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
+        <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
 
-          {/* End-stream button, top-right. Brand-red, unmistakable. */}
-          <IconButton
-            onClick={handleEnd}
-            sx={{
-              position: 'absolute', top: 8, right: 8,
-              bgcolor: inkstashColors.live, color: '#fff',
-              '&:hover': { bgcolor: '#B91C1C' },
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-              zIndex: 3,
-            }}
-            aria-label="End stream"
-          >
-            <CallEnd />
-          </IconButton>
-        </Box>
+        {/* End-stream button, top-right. Brand-red, unmistakable. */}
+        <IconButton
+          onClick={handleEnd}
+          sx={{
+            position: 'absolute', top: 8, right: 8,
+            bgcolor: inkstashColors.live, color: '#fff',
+            '&:hover': { bgcolor: '#B91C1C' },
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            zIndex: 3,
+          }}
+          aria-label="End stream"
+        >
+          <CallEnd />
+        </IconButton>
 
-        {/* Chat (host mode = ban buttons on each message) */}
-        <Box sx={{ position: 'relative' }}>
-          <LiveStreamChat
-            livestreamId={streamId}
-            initialMessages={[]}
-            isBanned={false}
-            hostMode
-            onBanUser={handleBan}
-          />
-        </Box>
+        {/* Chat overlay */}
+        <LiveStreamChat
+          livestreamId={streamId}
+          initialMessages={[]}
+          isBanned={false}
+        />
       </Box>
     </Box>
   );

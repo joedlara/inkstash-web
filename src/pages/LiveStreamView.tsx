@@ -70,46 +70,45 @@ export default function LiveStreamView() {
           position: 'absolute', inset: 0,
           maxWidth: { xs: '100%', md: 480 },
           mx: 'auto',
-          display: 'grid',
-          gridTemplateRows: '1fr 280px',
         }}
       >
-        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-          <LiveStreamVideo wsUrl={joinData.wsUrl} token={joinData.token} mode="viewer" />
+        <LiveStreamVideo wsUrl={joinData.wsUrl} token={joinData.token} mode="viewer" />
 
-          <Box
-            sx={{
-              position: 'absolute', top: 12, left: 60,
-              display: 'flex', alignItems: 'center', gap: 1,
-              bgcolor: 'rgba(0,0,0,0.55)', px: 1.25, py: 0.5,
-              borderRadius: 999, backdropFilter: 'blur(8px)',
-            }}
-          >
-            <Avatar src={stream.host?.avatar_url ?? undefined} sx={{ width: 22, height: 22 }} />
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-              @{stream.host?.username ?? 'host'}
-            </Typography>
-          </Box>
-
-          <IconButton
-            onClick={() => navigate('/live')}
-            sx={{
-              position: 'absolute', top: 8, right: 8,
-              color: '#fff', bgcolor: 'rgba(0,0,0,0.4)',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
-            }}
-          >
-            <Close />
-          </IconButton>
+        {/* Host avatar pill, top-left (offset right of the live badge) */}
+        <Box
+          sx={{
+            position: 'absolute', top: 12, left: 60,
+            display: 'flex', alignItems: 'center', gap: 1,
+            bgcolor: 'rgba(0,0,0,0.55)', px: 1.25, py: 0.5,
+            borderRadius: 999, backdropFilter: 'blur(8px)',
+            zIndex: 2,
+          }}
+        >
+          <Avatar src={stream.host?.avatar_url ?? undefined} sx={{ width: 22, height: 22 }} />
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+            @{stream.host?.username ?? 'host'}
+          </Typography>
         </Box>
 
-        <Box sx={{ position: 'relative' }}>
-          <LiveStreamChat
-            livestreamId={stream.id}
-            initialMessages={joinData.chat}
-            isBanned={joinData.isBanned}
-          />
-        </Box>
+        {/* Close button, top-right */}
+        <IconButton
+          onClick={() => navigate('/live')}
+          sx={{
+            position: 'absolute', top: 8, right: 8,
+            color: '#fff', bgcolor: 'rgba(0,0,0,0.4)',
+            '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+            zIndex: 3,
+          }}
+        >
+          <Close />
+        </IconButton>
+
+        {/* Chat overlay */}
+        <LiveStreamChat
+          livestreamId={stream.id}
+          initialMessages={joinData.chat}
+          isBanned={joinData.isBanned}
+        />
       </Box>
     </Box>
   );
