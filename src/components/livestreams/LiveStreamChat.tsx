@@ -28,7 +28,7 @@ export default function LiveStreamChat({
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [profiles, setProfiles] = useState<Record<string, { username: string; avatar_url: string | null }>>({});
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Subscribe to new chat messages via Supabase Realtime
@@ -46,25 +46,25 @@ export default function LiveStreamChat({
     return () => { supabase.removeChannel(channel); };
   }, [livestreamId]);
 
-  // Backfill usernames for messages we don't yet have names for.
+  // Backfill profiles (username + avatar) for any author we haven't seen yet.
   useEffect(() => {
-    const unknown = [...new Set(messages.map((m) => m.user_id))].filter((id) => !usernames[id]);
+    const unknown = [...new Set(messages.map((m) => m.user_id))].filter((id) => !profiles[id]);
     if (unknown.length === 0) return;
     let cancelled = false;
     supabase
       .from('users')
-      .select('id, username')
+      .select('id, username, avatar_url')
       .in('id', unknown)
       .then(({ data }) => {
         if (cancelled) return;
-        const next: Record<string, string> = {};
-        (data ?? []).forEach((u: { id: string; username: string | null }) => {
-          next[u.id] = u.username ?? 'anon';
+        const next: Record<string, { username: string; avatar_url: string | null }> = {};
+        (data ?? []).forEach((u: { id: string; username: string | null; avatar_url: string | null }) => {
+          next[u.id] = { username: u.username ?? 'anon', avatar_url: u.avatar_url };
         });
-        setUsernames((prev) => ({ ...prev, ...next }));
+        setProfiles((prev) => ({ ...prev, ...next }));
       });
     return () => { cancelled = true; };
-  }, [messages, usernames]);
+  }, [messages, profiles]);
 
   // Auto-scroll to bottom on new messages (only if user is near the bottom).
   useEffect(() => {
@@ -147,51 +147,58 @@ export default function LiveStreamChat({
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 18%)',
         }}
       >
-        {visible.map((m) => (
-          <Box key={m.id} sx={{ display: 'block', mb: 0.6 }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.75,
-                maxWidth: '100%',
-                bgcolor: 'rgba(0,0,0,0.55)',
-                backdropFilter: 'blur(6px)',
-                px: 1.1,
-                py: 0.5,
-                borderRadius: 999,
-              }}
-            >
-              <Avatar sx={{ width: 18, height: 18, fontSize: 10 }}>
-                {(usernames[m.user_id] ?? '?').charAt(0).toUpperCase()}
-              </Avatar>
-              <Typography
-                component="span"
+        {visible.map((m) => {
+          const profile = profiles[m.user_id];
+          const username = profile?.username ?? '...';
+          return (
+            <Box key={m.id} sx={{ display: 'block', mb: 0.6 }}>
+              <Box
                 sx={{
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  color: m.is_mod_action ? inkstashColors.gold : '#fff',
-                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  maxWidth: '100%',
+                  bgcolor: 'rgba(0,0,0,0.55)',
+                  backdropFilter: 'blur(6px)',
+                  px: 1.1,
+                  py: 0.5,
+                  borderRadius: 999,
                 }}
               >
-                {m.is_mod_action ? 'MOD' : (usernames[m.user_id] ?? '...')}
-              </Typography>
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: 12.5,
-                  color: '#fff',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0,
-                }}
-              >
-                {m.body}
-              </Typography>
+                <Avatar
+                  src={profile?.avatar_url ?? undefined}
+                  sx={{ width: 18, height: 18, fontSize: 10 }}
+                >
+                  {username.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography
+                  component="span"
+                  sx={{
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    color: m.is_mod_action ? inkstashColors.gold : '#fff',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {m.is_mod_action ? 'MOD' : username}
+                </Typography>
+                <Typography
+                  component="span"
+                  sx={{
+                    fontSize: 12.5,
+                    color: '#fff',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
+                  {m.body}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        ))}
+          );
+        })}
       </Box>
 
       {/* Composer — pill input, transparent. Pinned to the bottom safe-area
