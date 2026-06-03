@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, IconButton, Typography, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import { Close } from '@mui/icons-material';
+import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import HostPill from '../components/livestreams/HostPill';
@@ -25,12 +26,30 @@ import { useFullBleedBlackBackground } from '../components/livestreams/useFullBl
 import { supabase } from '../api/supabase/supabaseClient';
 import { inkstashColors, inkstashRadii } from '../theme/inkstashTokens';
 
+// Collapse the global sidebar by default on the live page so the immersive
+// stream surface gets the maximum horizontal real estate while keeping the
+// top nav (cart / bell / rubies / logo) visible. We write the localStorage
+// key AppShell reads on mount so the collapse is in place before AppShell
+// renders.
+function useCollapseSidebarForLive() {
+  useEffect(() => {
+    const KEY = 'inkstash.sidebar.collapsed';
+    const prev = localStorage.getItem(KEY);
+    if (prev !== 'true') localStorage.setItem(KEY, 'true');
+    return () => {
+      // Restore the user's previous preference on unmount so other pages
+      // don't suddenly find their sidebar collapsed without consent.
+      if (prev === null) localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, prev);
+    };
+  }, []);
+}
+
 export default function LiveStreamView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  useSuppressMobileNav();
-  useFullBleedBlackBackground(); // tint html/body black for true edge-to-edge
+  useCollapseSidebarForLive();
 
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -102,45 +121,62 @@ export default function LiveStreamView() {
     );
   }
 
-  // ─── Mobile: full-bleed overlay layout ────────────────────────────────────
+  // ─── Mobile: full-bleed overlay layout (unchanged) ────────────────────────
   if (isMobile) {
     return (
-      <Box
-        sx={{
-          position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: ['100vh', '100lvh'],
-          bgcolor: '#000',
-          overflow: 'hidden',
-          touchAction: 'manipulation',
-        }}
-      >
-        <MobileVideoStage
-          stream={stream}
-          joinData={joinData}
-          viewerCount={viewerCount}
-          onParticipantCountChange={handleParticipantCount}
-          onClose={() => navigate('/live')}
-        />
-      </Box>
+      <MobileLiveSurface
+        stream={stream}
+        joinData={joinData}
+        viewerCount={viewerCount}
+        onParticipantCountChange={handleParticipantCount}
+        onClose={() => navigate('/live')}
+      />
     );
   }
 
-  // ─── Tablet/Desktop: immersive three-column edge-to-edge ─────────────────
+  // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
+  // sidebar stay visible. The shop/video/chat occupy the main content area
+  // edge-to-edge.
+  return (
+    <AppShell>
+      <LiveDesktopStage
+        stream={stream}
+        joinData={joinData}
+        viewerCount={viewerCount}
+        onParticipantCountChange={handleParticipantCount}
+      />
+    </AppShell>
+  );
+}
+
+// ─── Tablet/Desktop stage ───────────────────────────────────────────────────
+function LiveDesktopStage({
+  stream, joinData, viewerCount, onParticipantCountChange,
+}: {
+  stream: Livestream;
+  joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
+  viewerCount: number;
+  onParticipantCountChange: (n: number) => void;
+}) {
+  // Negative margins escape the AppShell main padding so the live surface
+  // can run flush to the edges of the content area for the immersive feel
+  // while AppShell handles the top nav + collapsed sidebar above/beside.
   return (
     <Box
       sx={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
+        // Cancel out AppShell's main padding so we stretch the live grid
+        // edge-to-edge inside the content area.
+        mx: { md: -3 },
+        mt: { md: -3 },
+        mb: { md: -3 },
+        height: 'calc(100dvh - 64px)', // 64 = topnav height
         bgcolor: '#000',
         display: 'grid',
         gridTemplateColumns: {
-          sm: '0 1fr 0',          // tablet: shop+chat collapse, video gets it all
-          md: '280px 1fr 320px',  // small desktop
-          lg: '320px 1fr 360px',  // full desktop
+          xs: '1fr',
+          sm: '0 1fr 0',
+          md: '280px 1fr 320px',
+          lg: '320px 1fr 360px',
         },
         overflow: 'hidden',
       }}
@@ -165,9 +201,7 @@ export default function LiveStreamView() {
         <Box
           sx={{
             position: 'relative',
-            // Phone aspect ratio (9:16). Constrain height so it fits the
-            // viewport with margin; width follows from aspect.
-            height: 'min(94vh, 880px)',
+            height: 'min(calc(100dvh - 96px), 880px)',
             aspectRatio: '9 / 16',
             maxWidth: '100%',
             bgcolor: '#0A0A0A',
@@ -180,7 +214,7 @@ export default function LiveStreamView() {
             wsUrl={joinData.wsUrl}
             token={joinData.token}
             mode="viewer"
-            onParticipantCountChange={handleParticipantCount}
+            onParticipantCountChange={onParticipantCountChange}
           />
 
           {/* Top header row inside the video card */}
@@ -224,8 +258,7 @@ export default function LiveStreamView() {
             }}
           />
 
-          {/* L2 auction strip — stub for now: "Awaiting next item" placeholder
-              pinned to the bottom of the video card */}
+          {/* L2 auction-strip stub. Crimson to match brand. */}
           <Box
             sx={{
               position: 'absolute',
@@ -233,8 +266,8 @@ export default function LiveStreamView() {
               left: 12,
               right: 12,
               borderRadius: inkstashRadii.md,
-              bgcolor: inkstashColors.gold,
-              color: '#16110E',
+              bgcolor: inkstashColors.brand,
+              color: '#fff',
               py: 1.25,
               textAlign: 'center',
               fontFamily: "'Outfit', sans-serif",
@@ -257,25 +290,42 @@ export default function LiveStreamView() {
           isBanned={joinData.isBanned}
         />
       </Box>
+    </Box>
+  );
+}
 
-      {/* Floating close button (top-right of entire viewport on tablet/desktop) */}
-      <IconButton
-        onClick={() => navigate('/live')}
-        sx={{
-          position: 'fixed',
-          top: 16,
-          right: 16,
-          color: '#fff',
-          bgcolor: 'rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(8px)',
-          width: 36,
-          height: 36,
-          zIndex: 10,
-          '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
-        }}
-      >
-        <Close />
-      </IconButton>
+// ─── Mobile (unchanged) ─────────────────────────────────────────────────────
+function MobileLiveSurface({
+  stream, joinData, viewerCount, onParticipantCountChange, onClose,
+}: {
+  stream: Livestream;
+  joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
+  viewerCount: number;
+  onParticipantCountChange: (n: number) => void;
+  onClose: () => void;
+}) {
+  // Mobile keeps its own full-bleed black treatment.
+  useFullBleedBlackBackground();
+  useSuppressMobileNav();
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: ['100vh', '100lvh'],
+        bgcolor: '#000',
+        overflow: 'hidden',
+        touchAction: 'manipulation',
+      }}
+    >
+      <MobileVideoStage
+        stream={stream}
+        joinData={joinData}
+        viewerCount={viewerCount}
+        onParticipantCountChange={onParticipantCountChange}
+        onClose={onClose}
+      />
     </Box>
   );
 }

@@ -235,7 +235,11 @@ export default function LiveStreamVideo({
           </Typography>
         </Box>
       )}
-      {!error && (
+      {/* The previous baked-in "LIVE" badge has been removed — HostPill is
+          the authoritative top-left treatment now and the badge was
+          overlapping it. Viewer state is conveyed by the ViewerCountBadge
+          and the host-pill cluster instead. */}
+      {false && !error && (
         <Box
           sx={{
             position: 'absolute',
