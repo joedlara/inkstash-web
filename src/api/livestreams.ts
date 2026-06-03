@@ -114,8 +114,13 @@ export const livestreamsAPI = {
     return row;
   },
 
-  start: (body: { title: string; description?: string; cover_image_url?: string }) =>
-    callFn<StartResponse>('start-livestream', body),
+  start: (body: {
+    title: string;
+    description?: string;
+    cover_image_url?: string;
+    scheduled_start_at?: string | null;
+    queue?: string[];
+  }) => callFn<StartResponse>('start-livestream', body),
 
   join: (livestream_id: string) =>
     callFn<JoinResponse>('join-livestream', { livestream_id }),
