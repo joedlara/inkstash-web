@@ -1,22 +1,17 @@
 // src/pages/LiveStreamView.tsx
 //
-// /live/:id — viewer surface. Three layouts based on viewport:
+// /live/:id — viewer surface.
 //
-//   Mobile (< sm):     Single-column overlay. Video full-bleed background;
-//                      host pill, chat, right rail all overlay the video.
-//   Tablet (sm-md):    Centered black video card with breathing room. Chat
-//                      overlays the video. Right rail along the video edge.
-//                      Side rails (shop/chat panels) hidden.
-//   Desktop (md+):     Three-column layout. Shop rail (left, light theme),
-//                      centered black video card (middle), chat rail (right,
-//                      light theme). All inside the standard AppShell so the
-//                      global sidebar + cream app bg are preserved.
+// Mobile (< sm):     Full-bleed video, overlays + chat docked bottom.
+// Tablet+ (sm+):     Immersive edge-to-edge three-region layout. No
+//                    AppShell, no global sidebar — the stream is a focused
+//                    surface that fills the entire viewport.
+//                    Shop column | video column | chat column.
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, IconButton, Typography, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import HostPill from '../components/livestreams/HostPill';
@@ -33,13 +28,9 @@ import { inkstashColors, inkstashRadii } from '../theme/inkstashTokens';
 export default function LiveStreamView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
-  // Only force black backgrounds on the pure-mobile layout (full-bleed
-  // overlay). Tablet + desktop render inside AppShell with the normal cream
-  // app background, so suppressing nav + tinting body is incorrect there.
   useSuppressMobileNav();
-  useFullBleedBlackBackgroundIf(isMobile);
+  useFullBleedBlackBackground(); // tint html/body black for true edge-to-edge
 
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -73,7 +64,6 @@ export default function LiveStreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Auto-eject viewers when the host ends the stream.
   useEffect(() => {
     if (!id) return;
     const channel = supabase
@@ -98,7 +88,7 @@ export default function LiveStreamView() {
 
   if (error) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
+      <Box sx={{ p: 4, textAlign: 'center', color: '#fff' }}>
         <Typography>{error}</Typography>
       </Box>
     );
@@ -106,42 +96,215 @@ export default function LiveStreamView() {
 
   if (!stream || !joinData) {
     return (
-      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#000' }}>
         <CircularProgress sx={{ color: inkstashColors.brand }} />
       </Box>
     );
   }
 
-  // ─── The video "stage" card — black box with all overlays inside ──
-  // Editorial treatment: 1.5px ink border + offset ink "shelf" shadow that
-  // makes the card read as a printed plate sitting on the cream page.
-  const videoStage = (
+  // ─── Mobile: full-bleed overlay layout ────────────────────────────────────
+  if (isMobile) {
+    return (
+      <Box
+        sx={{
+          position: 'fixed',
+          inset: 0,
+          width: '100vw',
+          height: ['100vh', '100lvh'],
+          bgcolor: '#000',
+          overflow: 'hidden',
+          touchAction: 'manipulation',
+        }}
+      >
+        <MobileVideoStage
+          stream={stream}
+          joinData={joinData}
+          viewerCount={viewerCount}
+          onParticipantCountChange={handleParticipantCount}
+          onClose={() => navigate('/live')}
+        />
+      </Box>
+    );
+  }
+
+  // ─── Tablet/Desktop: immersive three-column edge-to-edge ─────────────────
+  return (
     <Box
       sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        bgcolor: '#0A0A0A',
-        borderRadius: isMobile ? 0 : inkstashRadii.md,
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100vh',
+        bgcolor: '#000',
+        display: 'grid',
+        gridTemplateColumns: {
+          sm: '0 1fr 0',          // tablet: shop+chat collapse, video gets it all
+          md: '280px 1fr 320px',  // small desktop
+          lg: '320px 1fr 360px',  // full desktop
+        },
         overflow: 'hidden',
-        border: isMobile ? 'none' : `1.5px solid ${inkstashColors.ink}`,
-        boxShadow: isMobile ? 'none' : `0 6px 0 ${inkstashColors.ink}`,
       }}
     >
+      {/* Left: Shop */}
+      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden' }}>
+        <StreamShopRail hostUserId={stream.host_user_id} streamTitle={stream.title} />
+      </Box>
+
+      {/* Center: Video card, vertically centered with breathing room */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: '#000',
+          p: { xs: 0, md: 2 },
+          position: 'relative',
+          minWidth: 0,
+        }}
+      >
+        <Box
+          sx={{
+            position: 'relative',
+            // Phone aspect ratio (9:16). Constrain height so it fits the
+            // viewport with margin; width follows from aspect.
+            height: 'min(94vh, 880px)',
+            aspectRatio: '9 / 16',
+            maxWidth: '100%',
+            bgcolor: '#0A0A0A',
+            borderRadius: inkstashRadii.lg,
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          }}
+        >
+          <LiveStreamVideo
+            wsUrl={joinData.wsUrl}
+            token={joinData.token}
+            mode="viewer"
+            onParticipantCountChange={handleParticipantCount}
+          />
+
+          {/* Top header row inside the video card */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              right: 12,
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 1,
+              zIndex: 3,
+              pointerEvents: 'none',
+            }}
+          >
+            <Box sx={{ pointerEvents: 'auto' }}>
+              <HostPill
+                username={stream.host?.username ?? null}
+                avatarUrl={stream.host?.avatar_url}
+              />
+            </Box>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
+              <ViewerCountBadge count={viewerCount} />
+            </Box>
+          </Box>
+
+          {/* Winner banner slot (L4) */}
+          <Box
+            id="livestream-winner-slot"
+            sx={{
+              position: 'absolute',
+              bottom: 200,
+              left: 0,
+              right: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+
+          {/* L2 auction strip — stub for now: "Awaiting next item" placeholder
+              pinned to the bottom of the video card */}
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 12,
+              left: 12,
+              right: 12,
+              borderRadius: inkstashRadii.md,
+              bgcolor: inkstashColors.gold,
+              color: '#16110E',
+              py: 1.25,
+              textAlign: 'center',
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 800,
+              fontSize: 13,
+              letterSpacing: '-0.005em',
+              zIndex: 2,
+            }}
+          >
+            Awaiting next item
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Right: Chat */}
+      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden' }}>
+        <StreamChatRail
+          livestreamId={stream.id}
+          initialMessages={joinData.chat}
+          isBanned={joinData.isBanned}
+        />
+      </Box>
+
+      {/* Floating close button (top-right of entire viewport on tablet/desktop) */}
+      <IconButton
+        onClick={() => navigate('/live')}
+        sx={{
+          position: 'fixed',
+          top: 16,
+          right: 16,
+          color: '#fff',
+          bgcolor: 'rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(8px)',
+          width: 36,
+          height: 36,
+          zIndex: 10,
+          '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+        }}
+      >
+        <Close />
+      </IconButton>
+    </Box>
+  );
+}
+
+// ─── Mobile video stage (full-bleed overlay) ────────────────────────────────
+function MobileVideoStage({
+  stream, joinData, viewerCount, onParticipantCountChange, onClose,
+}: {
+  stream: Livestream;
+  joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
+  viewerCount: number;
+  onParticipantCountChange: (n: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Box sx={{ position: 'absolute', inset: 0 }}>
       <LiveStreamVideo
         wsUrl={joinData.wsUrl}
         token={joinData.token}
         mode="viewer"
-        onParticipantCountChange={handleParticipantCount}
+        onParticipantCountChange={onParticipantCountChange}
       />
 
-      {/* Top header row */}
       <Box
         sx={{
           position: 'absolute',
-          top: isMobile ? 'calc(env(safe-area-inset-top, 0px) + 10px)' : 10,
-          left: isMobile ? 'calc(env(safe-area-inset-left, 0px) + 10px)' : 10,
-          right: isMobile ? 'calc(env(safe-area-inset-right, 0px) + 10px)' : 10,
+          top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
@@ -158,154 +321,33 @@ export default function LiveStreamView() {
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />
-          {isMobile && (
-            <IconButton
-              onClick={() => navigate('/live')}
-              size="small"
-              sx={{
-                color: '#fff',
-                bgcolor: 'rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(8px)',
-                width: 32,
-                height: 32,
-                '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
-              }}
-            >
-              <Close fontSize="small" />
-            </IconButton>
-          )}
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              color: '#fff',
+              bgcolor: 'rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(8px)',
+              width: 32,
+              height: 32,
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+            }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
         </Box>
       </Box>
 
-      {/* Right-rail action stack (Share / Wallet / Shop / More).
-          Shown on mobile + tablet (anywhere the side panels aren't
-          rendered). Desktop replaces these with the dedicated rails. */}
-      {!isDesktop && (
-        <RightRailActions
-          streamTitle={stream.title}
-          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-      )}
-
-      {/* Winner banner slot (L4) */}
-      <Box
-        id="livestream-winner-slot"
-        sx={{
-          position: 'absolute',
-          bottom: isMobile ? 'calc(env(safe-area-inset-bottom, 0px) + 280px)' : 280,
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
+      <RightRailActions
+        streamTitle={stream.title}
+        streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
       />
 
-      {/* Chat overlay — mobile + tablet only. Desktop moves chat to the
-          right rail. */}
-      {!isDesktop && (
-        <LiveStreamChat
-          livestreamId={stream.id}
-          initialMessages={joinData.chat}
-          isBanned={joinData.isBanned}
-        />
-      )}
+      <LiveStreamChat
+        livestreamId={stream.id}
+        initialMessages={joinData.chat}
+        isBanned={joinData.isBanned}
+      />
     </Box>
   );
-
-  // ─── Layout branch ────────────────────────────────────────────────────────
-  // Mobile: keep the previous full-bleed overlay treatment.
-  if (isMobile) {
-    return (
-      <Box
-        sx={{
-          position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: ['100vh', '100lvh'],
-          bgcolor: '#000',
-          overflow: 'hidden',
-          touchAction: 'manipulation',
-        }}
-      >
-        {videoStage}
-      </Box>
-    );
-  }
-
-  // Tablet + desktop: render inside AppShell so the global sidebar + cream
-  // app background stay visible. Stream is a centered card layout.
-  return (
-    <AppShell>
-      <Box
-        sx={{
-          p: { xs: 1.5, md: 3 },
-          minHeight: 'calc(100vh - 64px)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-        }}
-      >
-        {isDesktop ? (
-          // Desktop: asymmetric three-column. Tight gutter between shop and
-          // video (the shop is "presented by" the stream), wider gutter
-          // between video and chat (chat is the audience commentary,
-          // separate beat). Video gets the most generous width allocation.
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '260px 400px 340px',
-              columnGap: { md: '14px', lg: '20px' },
-              gridTemplateAreas: '"shop video chat"',
-              alignItems: 'stretch',
-              // Phone-aspect height for the video; rails match it.
-              height: 'min(82vh, 760px)',
-              // Tighten the shop->video gap relative to video->chat
-              '& > :nth-of-type(2)': {
-                marginLeft: { md: '-4px', lg: '-6px' },
-              },
-            }}
-          >
-            <Box sx={{ gridArea: 'shop' }}>
-              <StreamShopRail hostUserId={stream.host_user_id} />
-            </Box>
-            <Box sx={{ gridArea: 'video' }}>{videoStage}</Box>
-            <Box sx={{ gridArea: 'chat' }}>
-              <StreamChatRail
-                livestreamId={stream.id}
-                initialMessages={joinData.chat}
-                isBanned={joinData.isBanned}
-              />
-            </Box>
-          </Box>
-        ) : (
-          // Tablet: rails hidden. Centered video card at phone aspect with
-          // overlays + right-rail action buttons floating on the card edge.
-          <Box
-            sx={{
-              width: 'min(420px, 90vw)',
-              height: 'min(82vh, 760px)',
-            }}
-          >
-            {videoStage}
-          </Box>
-        )}
-      </Box>
-    </AppShell>
-  );
-}
-
-/**
- * Conditionally apply the full-bleed black html/body treatment. The hook
- * itself unconditionally registers a useEffect, so we can't call it inline
- * behind a ternary — this thin wrapper hides the rules-of-hooks gymnastics.
- */
-function useFullBleedBlackBackgroundIf(active: boolean) {
-  // Always call the hook to keep call order stable; the no-op branch handles
-  // the "don't black out" case by short-circuiting before any mutations.
-  if (active) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useFullBleedBlackBackground();
-  }
 }

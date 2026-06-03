@@ -1,13 +1,14 @@
 // src/components/livestreams/StreamChatRail.tsx
 //
-// Desktop-only right rail. Wraps LiveStreamChat in an editorial card:
-// magazine-style table-of-contents tab strip, kicker + display header,
-// ink shelf shadow matching the shop rail.
+// Desktop right rail. Modern light theme matching the homepage. "Giveaway
+// with N entries" banner pinned to the top (stub until L4), Chat/Watching
+// tab strip beneath it, then the chat panel.
 
 import { Box, Typography } from '@mui/material';
+import { ChevronDown } from 'lucide-react';
 import LiveStreamChat from './LiveStreamChat';
 import type { ChatMessage } from '../../api/livestreams';
-import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
+import { inkstashColors } from '../../theme/inkstashTokens';
 
 interface Props {
   livestreamId: string;
@@ -19,55 +20,77 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
   return (
     <Box
       sx={{
+        position: 'relative',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: inkstashColors.bgElev,
-        boxShadow: `0 6px 0 ${inkstashColors.ink}`,
-        border: `1.5px solid ${inkstashColors.ink}`,
-        borderRadius: inkstashRadii.md,
-        overflow: 'hidden',
+        borderLeft: `1px solid ${inkstashColors.border}`,
       }}
     >
-      {/* Header: kicker + header + tabs */}
-      <Box sx={{ px: 2, pt: 2, pb: 0, borderBottom: `1.5px solid ${inkstashColors.ink}` }}>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.mono,
-            fontSize: 9,
-            fontWeight: 700,
-            color: inkstashColors.brand,
-            textTransform: 'uppercase',
-            letterSpacing: '0.16em',
-            mb: 0.5,
-          }}
-        >
-          The floor
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.display,
-            fontWeight: 900,
-            fontSize: 26,
-            color: inkstashColors.ink,
-            textTransform: 'uppercase',
-            letterSpacing: '0.005em',
-            lineHeight: 1,
-            mb: 1.5,
-          }}
-        >
-          Chat
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 0 }}>
-          <Tab label="Chat" active />
-          <Tab label="Watching" disabled />
+      {/* Giveaway banner (stub — L4 raffles fill this with real entry counts) */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+          px: 1.5,
+          py: 1,
+          bgcolor: inkstashColors.bgSunken,
+          borderBottom: `1px solid ${inkstashColors.border}`,
+        }}
+      >
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+          <Box
+            sx={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              bgcolor: inkstashColors.gold,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#16110E',
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 900,
+              fontSize: 10,
+            }}
+          >
+            🎁
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+              color: inkstashColors.ink,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            Giveaway with 0 entries
+          </Typography>
         </Box>
+        <ChevronDown size={16} color={inkstashColors.muted} />
       </Box>
 
-      {/* Chat panel — slight cream sunken bg so the dark chat bubbles still
-          read against it (they keep their existing rgba(0,0,0,0.55) backdrop). */}
-      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, bgcolor: inkstashColors.bgSunken }}>
+      {/* Tab strip */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2.5,
+          px: 1.75,
+          pt: 1.25,
+          pb: 0.5,
+          borderBottom: `1px solid ${inkstashColors.border}`,
+        }}
+      >
+        <Tab label="Chat" active />
+        <Tab label="Watching" disabled />
+      </Box>
+
+      {/* Chat panel */}
+      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, bgcolor: inkstashColors.bg }}>
         <LiveStreamChat
           livestreamId={livestreamId}
           initialMessages={initialMessages}
@@ -83,49 +106,33 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
     <Box
       sx={{
         position: 'relative',
-        px: 1,
-        py: 0.85,
+        pb: 0.75,
         cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
+        opacity: disabled ? 0.4 : 1,
       }}
     >
       <Typography
         component="span"
         sx={{
-          fontFamily: inkstashFonts.mono,
-          fontSize: 10.5,
-          fontWeight: 800,
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: 14,
+          fontWeight: 700,
           color: active ? inkstashColors.ink : inkstashColors.muted,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          letterSpacing: '-0.005em',
         }}
       >
         {label}
-        {disabled && (
-          <Box
-            component="span"
-            sx={{
-              ml: 0.6,
-              fontFamily: inkstashFonts.mono,
-              fontSize: 8,
-              fontWeight: 700,
-              color: inkstashColors.muted,
-              letterSpacing: '0.1em',
-            }}
-          >
-            · SOON
-          </Box>
-        )}
       </Typography>
       {active && (
         <Box
           sx={{
             position: 'absolute',
             bottom: -1,
-            left: 4,
-            right: 4,
+            left: 0,
+            right: 0,
             height: 2,
-            bgcolor: inkstashColors.brand,
+            bgcolor: inkstashColors.ink,
+            borderRadius: 1,
           }}
         />
       )}
