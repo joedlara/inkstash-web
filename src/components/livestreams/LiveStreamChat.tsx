@@ -217,6 +217,12 @@ export default function LiveStreamChat({
           disabled={isBanned}
           placeholder={isBanned ? 'You were banned from this stream.' : 'Say something…'}
           inputProps={{ maxLength: 280 }}
+          onFocus={() => {
+            // iOS Safari sometimes scrolls the document up to "reveal" a
+            // focused input even when it's already in view. Snap back to
+            // the top after a tick so the camera stays anchored.
+            requestAnimationFrame(() => window.scrollTo(0, 0));
+          }}
           sx={{
             '& .MuiInputBase-root': {
               bgcolor: 'rgba(0,0,0,0.55)',

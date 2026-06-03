@@ -12,11 +12,13 @@ import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
+import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
 import { supabase } from '../api/supabase/supabaseClient';
 import { inkstashColors } from '../theme/inkstashTokens';
 
 export default function LiveStreamView() {
   useSuppressMobileNav();
+  useFullBleedBlackBackground();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [stream, setStream] = useState<Livestream | null>(null);
@@ -95,9 +97,11 @@ export default function LiveStreamView() {
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        // 100dvh keeps the layout pinned to the dynamic viewport height so the
-        // camera doesn't get scrunched when the iOS keyboard opens.
-        height: '100dvh',
+        // 100lvh = largest viewport height: includes the area BEHIND the
+        // iOS Safari URL bar so the camera extends all the way to the
+        // bottom of the physical screen. Falls back to 100vh on browsers
+        // without lvh support.
+        height: ['100vh', '100lvh'],
         bgcolor: '#000',
         overflow: 'hidden',
         touchAction: 'manipulation', // disables double-tap-to-zoom

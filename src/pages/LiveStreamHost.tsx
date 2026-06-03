@@ -23,10 +23,12 @@ import { livestreamsAPI } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
+import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 
 export default function LiveStreamHost() {
   useSuppressMobileNav();
+  useFullBleedBlackBackground();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
@@ -156,7 +158,11 @@ export default function LiveStreamHost() {
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        height: '100dvh',
+        // 100lvh = largest viewport height: includes the area BEHIND the
+        // iOS Safari URL bar so the camera extends all the way to the
+        // bottom of the physical screen, not just to the URL bar. Falls
+        // back to 100vh on browsers that don't support lvh.
+        height: ['100vh', '100lvh'],
         bgcolor: '#000',
         overflow: 'hidden',
         touchAction: 'manipulation',
