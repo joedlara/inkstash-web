@@ -22,6 +22,12 @@ body {
   background-color: #f8fafc;
   color: #1e293b;
   min-height: 100vh;
+  /* Block pinch-zoom and double-tap-zoom across the app. The viewport meta
+   * tag's maximum-scale=1.0 covers most browsers but iOS Safari historically
+   * ignores it; touch-action:manipulation kills the double-tap zoom gesture
+   * (`pan-x pan-y` would do the same but `manipulation` reads as more
+   * explicit about intent). */
+  touch-action: manipulation;
 }
 
 #root {

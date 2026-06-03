@@ -4,111 +4,91 @@ import { supabase } from '../../api/supabase/supabaseClient';
 import { cache } from '../../utils/cache';
 import '../../styles/home/LiveStreams.css';
 
+// Home-page Live Streams widget. Refactored onto the Livestreams L1 schema
+// (livestreams.host_user_id + status='live'). The old prototype's category
+// and current_viewers columns are gone — those return in L3 (categories)
+// and L5 (live viewer counts via LiveKit presence).
+
 interface LiveStream {
   id: string;
   title: string;
-  description?: string;
-  thumbnail_url: string;
-  seller_id: string;
-  is_live: boolean;
-  category: string;
-  current_viewers: number;
+  cover_image_url: string | null;
+  host_user_id: string;
 }
 
-interface Seller {
+interface Host {
   id: string;
   username: string;
   avatar_url: string | null;
-  is_verified?: boolean;
 }
 
 export default function LiveStreams() {
   const [streams, setStreams] = useState<LiveStream[]>([]);
-  const [sellers, setSellers] = useState<Record<string, Seller>>({});
+  const [hosts, setHosts] = useState<Record<string, Host>>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const hasFetched = useRef(false);
 
   useEffect(() => {
     async function fetchLiveStreams() {
-      // Check cache first
       const streamsCacheKey = 'live-streams';
-      const sellersCacheKey = 'live-streams-sellers';
+      const hostsCacheKey = 'live-streams-hosts';
       const cachedStreams = cache.get<LiveStream[]>(streamsCacheKey);
-      const cachedSellers = cache.get<Record<string, Seller>>(sellersCacheKey);
+      const cachedHosts = cache.get<Record<string, Host>>(hostsCacheKey);
 
-      if (cachedStreams && cachedSellers) {
+      if (cachedStreams && cachedHosts) {
         setStreams(cachedStreams);
-        setSellers(cachedSellers);
+        setHosts(cachedHosts);
         setLoading(false);
         return;
       }
 
-      // Prevent multiple fetches
-      if (hasFetched.current) {
-        return;
-      }
-
+      if (hasFetched.current) return;
       hasFetched.current = true;
 
       try {
-        // Fetch live streams from database
         const { data: livestreamData, error } = await supabase
           .from('livestreams')
-          .select('id, title, description, thumbnail_url, seller_id, is_live, category, current_viewers')
-          .eq('is_live', true)
-          .order('current_viewers', { ascending: false })
+          .select('id, title, cover_image_url, host_user_id')
+          .eq('status', 'live')
+          .order('started_at', { ascending: false })
           .limit(15);
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        // If we have data, use it
         if (livestreamData && livestreamData.length > 0) {
-          const streams: LiveStream[] = livestreamData.map((stream) => ({
-            id: stream.id,
-            title: stream.title || 'Untitled',
-            description: stream.description,
-            thumbnail_url: stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png',
-            seller_id: stream.seller_id,
-            is_live: stream.is_live,
-            category: stream.category || 'General',
-            current_viewers: stream.current_viewers || 0,
+          const rows: LiveStream[] = livestreamData.map((s: { id: string; title: string; cover_image_url: string | null; host_user_id: string }) => ({
+            id: s.id,
+            title: s.title || 'Untitled',
+            cover_image_url: s.cover_image_url,
+            host_user_id: s.host_user_id,
           }));
 
-          // Fetch seller data for each stream
-          const sellerIds = [...new Set(streams.map(s => s.seller_id))];
-          const { data: sellersData } = await supabase
+          const hostIds = [...new Set(rows.map((s) => s.host_user_id))];
+          const { data: hostsData } = await supabase
             .from('users')
-            .select('*')
-            .in('id', sellerIds);
+            .select('id, username, avatar_url, email')
+            .in('id', hostIds);
 
-          const sellersMap: Record<string, Seller> = {};
-          if (sellersData) {
-            sellersData.forEach((seller) => {
-              sellersMap[seller.id] = {
-                id: seller.id,
-                username: seller.username || seller.email?.split('@')[0] || 'Unknown',
-                avatar_url: seller.avatar_url || null,
-                is_verified: seller.is_verified || seller.verified || false,
-              };
-            });
-          }
+          const hostsMap: Record<string, Host> = {};
+          (hostsData ?? []).forEach((u: { id: string; username: string | null; avatar_url: string | null; email: string | null }) => {
+            hostsMap[u.id] = {
+              id: u.id,
+              username: u.username || u.email?.split('@')[0] || 'Unknown',
+              avatar_url: u.avatar_url,
+            };
+          });
 
-          // Cache the data for 1 minute (live streams change frequently)
-          cache.set(streamsCacheKey, streams, 60 * 1000);
-          cache.set(sellersCacheKey, sellersMap, 60 * 1000);
-
-          setStreams(streams);
-          setSellers(sellersMap);
+          cache.set(streamsCacheKey, rows, 60 * 1000);
+          cache.set(hostsCacheKey, hostsMap, 60 * 1000);
+          setStreams(rows);
+          setHosts(hostsMap);
         }
-
         setLoading(false);
-      } catch (error) {
-        console.error('Error fetching live streams:', error);
+      } catch (err) {
+        console.error('Error fetching live streams:', err);
         setStreams([]);
-        setSellers({});
+        setHosts({});
         setLoading(false);
       }
     }
@@ -117,7 +97,7 @@ export default function LiveStreams() {
   }, []);
 
   const handleStreamClick = (streamId: string) => {
-    navigate(`/item/${streamId}`);
+    navigate(`/live/${streamId}`);
   };
 
   if (loading) {
@@ -162,25 +142,25 @@ export default function LiveStreams() {
 
       <div className="livestreams-grid">
         {streams.map((stream) => {
-          const seller = sellers[stream.seller_id];
+          const host = hosts[stream.host_user_id];
 
           return (
             <div key={stream.id} className="livestreams-card">
-              {/* Seller Info */}
+              {/* Host info */}
               <div
                 className="livestreams-seller"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/@${seller?.username}`);
+                  if (host?.username) navigate(`/@${host.username}`);
                 }}
               >
                 <img
-                  src={seller?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-                  alt={seller?.username}
+                  src={host?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
+                  alt={host?.username}
                   className="livestreams-seller-avatar"
                 />
                 <span className="livestreams-seller-username">
-                  {seller?.username}
+                  {host?.username ?? 'host'}
                 </span>
               </div>
 
@@ -189,44 +169,23 @@ export default function LiveStreams() {
                 className="livestreams-thumbnail"
                 onClick={() => handleStreamClick(stream.id)}
               >
-                {/* Live Badge */}
                 <div className="livestreams-live-badge">
                   <span className="livestreams-live-dot" />
-                  Live · {stream.current_viewers.toLocaleString()}
+                  Live
                 </div>
-
-                {/* Thumbnail Image */}
                 <img
-                  src={stream.thumbnail_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
+                  src={stream.cover_image_url || 'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'}
                   alt={stream.title}
                   className="livestreams-thumbnail-image"
                 />
               </div>
 
-              {/* Stream Info */}
+              {/* Stream info */}
               <div
                 className="livestreams-info"
                 onClick={() => handleStreamClick(stream.id)}
               >
-                <h3 className="livestreams-title-text">
-                  {stream.title}
-                </h3>
-                <div className="livestreams-meta">
-                  <span
-                    className="livestreams-category"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/browse?category=${stream.category}`);
-                    }}
-                  >
-                    {stream.category}
-                  </span>
-                  {stream.description && (
-                    <span className="livestreams-description">
-                      {stream.description}
-                    </span>
-                  )}
-                </div>
+                <h3 className="livestreams-title-text">{stream.title}</h3>
               </div>
             </div>
           );

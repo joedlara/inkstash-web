@@ -1,15 +1,17 @@
 import { supabase } from './supabase/supabaseClient';
 
+// Home-page card shape for live streams. Mirrors livestreams L1 schema with
+// host_user_id renamed to keep the rest of the home page semantics intact.
+// `scheduled_start_time` stays nullable for future L3 (scheduled streams) but
+// is always null in L1.
 export interface LiveStream {
   id: string;
   title: string;
-  thumbnail_url: string | null;
-  current_viewers: number;
-  is_live: boolean;
+  cover_image_url: string | null;
   status: string;
-  seller_id: string;
-  seller_username: string | null;
-  seller_avatar: string | null;
+  host_user_id: string;
+  host_username: string | null;
+  host_avatar: string | null;
   scheduled_start_time: string | null;
 }
 
@@ -46,9 +48,8 @@ export interface FeaturedAuction {
 // ── Fallback data shown when DB has no relevant rows ─────────────────────────
 
 const FALLBACK_STREAMS: LiveStream[] = [
-  { id: 'f1', title: 'Sunday Silver Age Comics Auction', thumbnail_url: null, current_viewers: 312, is_live: true,  status: 'live',      seller_id: '', seller_username: 'silveragedan',   seller_avatar: null, scheduled_start_time: null },
-  { id: 'f2', title: 'Golden Age Keys Break — JSA & CGC Slabs', thumbnail_url: null, current_viewers: 521, is_live: true,  status: 'live',      seller_id: '', seller_username: 'comicvaultpdx', seller_avatar: null, scheduled_start_time: null },
-  { id: 'f3', title: 'MTG Reserved List Cards — Starting in 30min', thumbnail_url: null, current_viewers: 0,   is_live: false, status: 'scheduled', seller_id: '', seller_username: 'mtglegacy',      seller_avatar: null, scheduled_start_time: new Date(Date.now() + 30 * 60000).toISOString() },
+  { id: 'f1', title: 'Sunday Silver Age Comics Auction',         cover_image_url: null, status: 'live', host_user_id: '', host_username: 'silveragedan',   host_avatar: null, scheduled_start_time: null },
+  { id: 'f2', title: 'Golden Age Keys Break — JSA & CGC Slabs',  cover_image_url: null, status: 'live', host_user_id: '', host_username: 'comicvaultpdx', host_avatar: null, scheduled_start_time: null },
 ];
 
 const FALLBACK_TRENDING: TrendingAuction[] = [
@@ -82,32 +83,31 @@ async function fetchUsernamesBatch(userIds: string[]): Promise<Map<string, { use
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export async function getLiveAndUpcomingStreams(): Promise<LiveStream[]> {
+  // L1 schema: livestreams.status='live' only. Scheduled streams ship later
+  // (L3) with a separate scheduled_at column; for now there's no upcoming.
   const { data, error } = await supabase
     .from('livestreams')
-    .select('id, title, thumbnail_url, current_viewers, is_live, status, seller_id, scheduled_start_time')
-    .in('status', ['live', 'scheduled'])
-    .order('is_live', { ascending: false })
-    .order('current_viewers', { ascending: false })
+    .select('id, title, cover_image_url, status, host_user_id')
+    .eq('status', 'live')
+    .order('started_at', { ascending: false })
     .limit(6);
 
   if (error || !data || data.length === 0) return FALLBACK_STREAMS;
 
-  const sellerIds = [...new Set(data.map((r: any) => r.seller_id).filter(Boolean))];
-  const usersMap = await fetchUsernamesBatch(sellerIds);
+  const hostIds = [...new Set(data.map((r: { host_user_id: string }) => r.host_user_id).filter(Boolean))];
+  const usersMap = await fetchUsernamesBatch(hostIds);
 
-  return data.map((row: any) => {
-    const u = usersMap.get(row.seller_id);
+  return data.map((row: { id: string; title: string; cover_image_url: string | null; status: string; host_user_id: string }) => {
+    const u = usersMap.get(row.host_user_id);
     return {
       id: row.id,
       title: row.title,
-      thumbnail_url: row.thumbnail_url,
-      current_viewers: row.current_viewers ?? 0,
-      is_live: row.is_live ?? false,
+      cover_image_url: row.cover_image_url,
       status: row.status,
-      seller_id: row.seller_id,
-      seller_username: u?.username ?? null,
-      seller_avatar: u?.avatar_url ?? null,
-      scheduled_start_time: row.scheduled_start_time,
+      host_user_id: row.host_user_id,
+      host_username: u?.username ?? null,
+      host_avatar: u?.avatar_url ?? null,
+      scheduled_start_time: null,
     };
   });
 }

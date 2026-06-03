@@ -1,26 +1,22 @@
 import { ReactNode } from 'react';
-import { Box, useMediaQuery, useTheme } from '@mui/material';
-import MobileBottomNav from '../home/MobileBottomNav';
-import { MobileNavProvider, useMobileNav } from './MobileNavContext';
+import { Box } from '@mui/material';
+import { MobileNavProvider } from './MobileNavContext';
 import { RubyBalanceProvider } from '../../contexts/RubyBalanceContext';
 
+// The mobile bottom nav was retired (the AppSidebar handles primary
+// navigation on every breakpoint now). MobileNavContext is kept so any
+// `useSuppressMobileNav()` callers continue to compile as no-ops without
+// requiring a one-by-one cleanup.
 interface AppLayoutProps {
   children: ReactNode;
+  /** Deprecated: kept so old call sites compile. No longer wired to anything. */
   showMobileNav?: boolean;
 }
 
-function AppLayoutInner({ children, showMobileNav = true }: AppLayoutProps) {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { hidden } = useMobileNav();
-  const visible = isMobile && showMobileNav && !hidden;
-
+function AppLayoutInner({ children }: AppLayoutProps) {
   return (
     <Box sx={{ position: 'relative', minHeight: '100vh' }}>
-      <Box sx={{ pb: visible ? '80px' : 0 }}>
-        {children}
-      </Box>
-      {visible && <MobileBottomNav />}
+      {children}
     </Box>
   );
 }
