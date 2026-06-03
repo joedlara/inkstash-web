@@ -1,11 +1,8 @@
 // src/components/livestreams/RightRailActions.tsx
 //
-// Vertical stack of action buttons floating on the right edge of the video.
-// WhatNot-style: 48px translucent pills, white icons, tiny labels.
-//
-// In this visual pass: More + Share + Wallet wired up (drawers), Shop is
-// disabled with a "Coming with auctions" tooltip. L2 enables Shop to open
-// the auction queue UI.
+// Editorial right rail: labeled chip stack, NOT generic floating circles.
+// Each chip is a rounded rectangle with the icon on the left + a tiny mono
+// label. Reads like the action shelf of a broadcast studio control panel.
 
 import { useState } from 'react';
 import { Box, Typography, ButtonBase, Tooltip } from '@mui/material';
@@ -13,7 +10,7 @@ import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucid
 import ShareDrawer from './ShareDrawer';
 import MoreDrawer from './MoreDrawer';
 import WalletDrawer from './WalletDrawer';
-import { inkstashFonts } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
   streamTitle: string;
@@ -35,35 +32,35 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
           transform: 'translateY(-50%)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1.25,
+          gap: 0.85,
           zIndex: 2,
           pointerEvents: 'auto',
         }}
       >
-        <RailButton
-          icon={<MoreHorizontal size={20} />}
-          label="More"
-          onClick={() => setOpenDrawer('more')}
-        />
-        <RailButton
-          icon={<Share2 size={18} />}
+        <RailChip
+          icon={<Share2 size={16} strokeWidth={2.4} />}
           label="Share"
           onClick={() => setOpenDrawer('share')}
         />
-        <RailButton
-          icon={<WalletIcon size={18} />}
+        <RailChip
+          icon={<WalletIcon size={16} strokeWidth={2.4} />}
           label="Wallet"
           onClick={() => setOpenDrawer('wallet')}
         />
         <Tooltip title="Coming with auctions" arrow placement="left">
           <span>
-            <RailButton
-              icon={<ShoppingBag size={18} />}
+            <RailChip
+              icon={<ShoppingBag size={16} strokeWidth={2.4} />}
               label="Shop"
               disabled
             />
           </span>
         </Tooltip>
+        <RailChip
+          icon={<MoreHorizontal size={18} strokeWidth={2.4} />}
+          label="More"
+          onClick={() => setOpenDrawer('more')}
+        />
       </Box>
 
       <ShareDrawer
@@ -78,7 +75,7 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
   );
 }
 
-function RailButton({
+function RailChip({
   icon, label, onClick, disabled = false,
 }: {
   icon: React.ReactNode;
@@ -92,22 +89,25 @@ function RailButton({
       disabled={disabled}
       sx={{
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: 0.3,
-        width: 52,
-        py: 0.75,
-        borderRadius: 14,
-        bgcolor: 'rgba(0,0,0,0.55)',
-        backdropFilter: 'blur(8px)',
+        gap: 0.75,
+        // Asymmetric pill so the stack reads as a column, not a list of dots
+        pl: 1,
+        pr: 1.35,
+        py: 0.85,
+        borderRadius: '14px 4px 4px 14px',
+        bgcolor: 'rgba(10,10,10,0.72)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.08)',
         color: disabled ? 'rgba(255,255,255,0.4)' : '#fff',
         opacity: disabled ? 0.5 : 1,
-        transition: 'transform 120ms ease-out, background-color 160ms ease',
+        transition: 'transform 120ms ease-out, background-color 160ms ease, border-color 160ms ease',
         '&:hover:not(.Mui-disabled)': {
-          bgcolor: 'rgba(0,0,0,0.75)',
+          bgcolor: 'rgba(10,10,10,0.92)',
+          borderColor: 'rgba(184,137,58,0.6)',
         },
         '&:active:not(.Mui-disabled)': {
-          transform: 'scale(0.94)',
+          transform: 'scale(0.96)',
         },
       }}
     >
@@ -118,7 +118,7 @@ function RailButton({
           fontSize: 9.5,
           fontWeight: 700,
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
+          letterSpacing: '0.1em',
           lineHeight: 1,
         }}
       >

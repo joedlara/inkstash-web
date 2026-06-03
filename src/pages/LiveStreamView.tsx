@@ -112,19 +112,20 @@ export default function LiveStreamView() {
     );
   }
 
-  // ─── The video "stage" card — black rounded box with all overlays inside ──
-  // Used in all three layouts. Sized to phone aspect (9:16). On desktop /
-  // tablet the parent gives it a max width so it doesn't stretch.
+  // ─── The video "stage" card — black box with all overlays inside ──
+  // Editorial treatment: 1.5px ink border + offset ink "shelf" shadow that
+  // makes the card read as a printed plate sitting on the cream page.
   const videoStage = (
     <Box
       sx={{
         position: 'relative',
         width: '100%',
         height: '100%',
-        bgcolor: '#000',
-        borderRadius: isMobile ? 0 : inkstashRadii.lg,
+        bgcolor: '#0A0A0A',
+        borderRadius: isMobile ? 0 : inkstashRadii.md,
         overflow: 'hidden',
-        boxShadow: isMobile ? 'none' : '0 12px 32px rgba(22,17,14,0.25)',
+        border: isMobile ? 'none' : `1.5px solid ${inkstashColors.ink}`,
+        boxShadow: isMobile ? 'none' : `0 6px 0 ${inkstashColors.ink}`,
       }}
     >
       <LiveStreamVideo
@@ -247,25 +248,36 @@ export default function LiveStreamView() {
         }}
       >
         {isDesktop ? (
-          // Desktop: three-column layout with light-themed rails flanking
-          // the black video card.
+          // Desktop: asymmetric three-column. Tight gutter between shop and
+          // video (the shop is "presented by" the stream), wider gutter
+          // between video and chat (chat is the audience commentary,
+          // separate beat). Video gets the most generous width allocation.
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: '260px 380px 320px',
-              gap: 2,
+              gridTemplateColumns: '260px 400px 340px',
+              columnGap: { md: '14px', lg: '20px' },
+              gridTemplateAreas: '"shop video chat"',
               alignItems: 'stretch',
               // Phone-aspect height for the video; rails match it.
-              height: 'min(82vh, 720px)',
+              height: 'min(82vh, 760px)',
+              // Tighten the shop->video gap relative to video->chat
+              '& > :nth-of-type(2)': {
+                marginLeft: { md: '-4px', lg: '-6px' },
+              },
             }}
           >
-            <StreamShopRail hostUserId={stream.host_user_id} />
-            {videoStage}
-            <StreamChatRail
-              livestreamId={stream.id}
-              initialMessages={joinData.chat}
-              isBanned={joinData.isBanned}
-            />
+            <Box sx={{ gridArea: 'shop' }}>
+              <StreamShopRail hostUserId={stream.host_user_id} />
+            </Box>
+            <Box sx={{ gridArea: 'video' }}>{videoStage}</Box>
+            <Box sx={{ gridArea: 'chat' }}>
+              <StreamChatRail
+                livestreamId={stream.id}
+                initialMessages={joinData.chat}
+                isBanned={joinData.isBanned}
+              />
+            </Box>
           </Box>
         ) : (
           // Tablet: rails hidden. Centered video card at phone aspect with

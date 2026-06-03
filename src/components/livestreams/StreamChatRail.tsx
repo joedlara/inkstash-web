@@ -1,11 +1,8 @@
 // src/components/livestreams/StreamChatRail.tsx
 //
-// Desktop-only right rail. Wraps the existing LiveStreamChat in a dedicated
-// light panel with a Chat/Watching tab strip at the top. Watching tab is
-// disabled in this pass; ships when L4 ports the participant list over.
-//
-// Mobile keeps the overlay-style LiveStreamChat (rendered directly on top
-// of the video) so this component is purely an md+ surface.
+// Desktop-only right rail. Wraps LiveStreamChat in an editorial card:
+// magazine-style table-of-contents tab strip, kicker + display header,
+// ink shelf shadow matching the shop rail.
 
 import { Box, Typography } from '@mui/material';
 import LiveStreamChat from './LiveStreamChat';
@@ -26,31 +23,51 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
         display: 'flex',
         flexDirection: 'column',
         bgcolor: inkstashColors.bgElev,
-        border: `1px solid ${inkstashColors.border}`,
-        borderRadius: inkstashRadii.lg,
+        boxShadow: `0 6px 0 ${inkstashColors.ink}`,
+        border: `1.5px solid ${inkstashColors.ink}`,
+        borderRadius: inkstashRadii.md,
         overflow: 'hidden',
       }}
     >
-      {/* Tab strip */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          px: 2,
-          pt: 1.5,
-          pb: 1,
-          borderBottom: `1px solid ${inkstashColors.border}`,
-        }}
-      >
-        <Tab label="Chat" active />
-        <Tab label="Watching" disabled />
+      {/* Header: kicker + header + tabs */}
+      <Box sx={{ px: 2, pt: 2, pb: 0, borderBottom: `1.5px solid ${inkstashColors.ink}` }}>
+        <Typography
+          sx={{
+            fontFamily: inkstashFonts.mono,
+            fontSize: 9,
+            fontWeight: 700,
+            color: inkstashColors.brand,
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            mb: 0.5,
+          }}
+        >
+          The floor
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: inkstashFonts.display,
+            fontWeight: 900,
+            fontSize: 26,
+            color: inkstashColors.ink,
+            textTransform: 'uppercase',
+            letterSpacing: '0.005em',
+            lineHeight: 1,
+            mb: 1.5,
+          }}
+        >
+          Chat
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 0 }}>
+          <Tab label="Chat" active />
+          <Tab label="Watching" disabled />
+        </Box>
       </Box>
 
-      {/* Chat fills the rest of the rail. LiveStreamChat is internally
-          absolutely positioned for the overlay use case; wrapping it in a
-          relative container of explicit height makes it behave like a normal
-          flex child here. */}
-      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, bgcolor: inkstashColors.bg }}>
+      {/* Chat panel — slight cream sunken bg so the dark chat bubbles still
+          read against it (they keep their existing rgba(0,0,0,0.55) backdrop). */}
+      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, bgcolor: inkstashColors.bgSunken }}>
         <LiveStreamChat
           livestreamId={livestreamId}
           initialMessages={initialMessages}
@@ -66,17 +83,21 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
     <Box
       sx={{
         position: 'relative',
-        pb: 0.75,
+        px: 1,
+        py: 0.85,
         cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <Typography
+        component="span"
         sx={{
-          fontFamily: inkstashFonts.ui,
-          fontSize: 13,
-          fontWeight: 700,
+          fontFamily: inkstashFonts.mono,
+          fontSize: 10.5,
+          fontWeight: 800,
           color: active ? inkstashColors.ink : inkstashColors.muted,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
         }}
       >
         {label}
@@ -84,20 +105,15 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
           <Box
             component="span"
             sx={{
-              ml: 0.75,
+              ml: 0.6,
               fontFamily: inkstashFonts.mono,
-              fontSize: 9,
+              fontSize: 8,
               fontWeight: 700,
               color: inkstashColors.muted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              bgcolor: inkstashColors.bgSunken,
-              px: 0.6,
-              py: 0.2,
-              borderRadius: 4,
+              letterSpacing: '0.1em',
             }}
           >
-            Soon
+            · SOON
           </Box>
         )}
       </Typography>
@@ -106,11 +122,10 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
           sx={{
             position: 'absolute',
             bottom: -1,
-            left: 0,
-            right: 0,
+            left: 4,
+            right: 4,
             height: 2,
             bgcolor: inkstashColors.brand,
-            borderRadius: 1,
           }}
         />
       )}
