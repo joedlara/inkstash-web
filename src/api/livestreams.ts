@@ -17,6 +17,7 @@ export interface Livestream {
   status: LivestreamStatus;
   started_at: string | null;
   ended_at: string | null;
+  scheduled_start_at: string | null;
   viewer_peak: number;
   total_unique_viewers: number;
   created_at: string;
@@ -66,6 +67,33 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
   return data as T;
 }
 
+/** Three buckets the /live page renders as horizontal scroll rows.
+ *  Featured = future hook for editorial picks; for now we surface the
+ *  highest viewer-count live streams as a stand-in so the row isn't empty
+ *  in early days. */
+export interface LivestreamSections {
+  live: Livestream[];
+  upcoming: Livestream[];
+  featured: Livestream[];
+}
+
+async function hydrateHosts(rows: Livestream[]): Promise<Livestream[]> {
+  const hostIds = [...new Set(rows.map((r) => r.host_user_id))];
+  if (hostIds.length === 0) return rows;
+  const { data: hosts } = await supabase
+    .from('users')
+    .select('id, username, avatar_url')
+    .in('id', hostIds);
+  const byId = new Map<string, { username: string | null; avatar_url: string | null }>();
+  (hosts ?? []).forEach((u: { id: string; username: string | null; avatar_url: string | null }) =>
+    byId.set(u.id, { username: u.username, avatar_url: u.avatar_url }),
+  );
+  for (const r of rows) {
+    r.host = byId.get(r.host_user_id) ?? null;
+  }
+  return rows;
+}
+
 export const livestreamsAPI = {
   async listLive(): Promise<Livestream[]> {
     const { data, error } = await supabase
@@ -77,24 +105,52 @@ export const livestreamsAPI = {
       console.error('[livestreamsAPI.listLive] failed', error);
       return [];
     }
-    const rows = (data ?? []) as Livestream[];
-    // Join hosts in one batched query (mirrors the dropsAPI pattern; avoids
-    // the PostgREST FK ambiguity headache).
-    const hostIds = [...new Set(rows.map((r) => r.host_user_id))];
-    if (hostIds.length > 0) {
-      const { data: hosts } = await supabase
-        .from('users')
-        .select('id, username, avatar_url')
-        .in('id', hostIds);
-      const byId = new Map<string, { username: string | null; avatar_url: string | null }>();
-      (hosts ?? []).forEach((u: { id: string; username: string | null; avatar_url: string | null }) =>
-        byId.set(u.id, { username: u.username, avatar_url: u.avatar_url }),
-      );
-      for (const r of rows) {
-        r.host = byId.get(r.host_user_id) ?? null;
-      }
-    }
-    return rows;
+    return hydrateHosts((data ?? []) as Livestream[]);
+  },
+
+  /** One round trip per section, then batch-hydrate hosts across all rows.
+   *  Cheaper than 3 separate hydrations and keeps the page-load query
+   *  count predictable. */
+  async listSections(): Promise<LivestreamSections> {
+    const [liveRes, upcomingRes, featuredRes] = await Promise.all([
+      supabase
+        .from('livestreams')
+        .select('*')
+        .eq('status', 'live')
+        .order('viewer_peak', { ascending: false })
+        .order('started_at', { ascending: false })
+        .limit(12),
+      supabase
+        .from('livestreams')
+        .select('*')
+        .eq('status', 'preparing')
+        .not('scheduled_start_at', 'is', null)
+        .gt('scheduled_start_at', new Date().toISOString())
+        .order('scheduled_start_at', { ascending: true })
+        .limit(12),
+      // Featured = "shows with momentum" — for now, ended streams with the
+      // highest total_unique_viewers. An editor-picked featured flag goes
+      // on the livestreams table later.
+      supabase
+        .from('livestreams')
+        .select('*')
+        .in('status', ['ended', 'live'])
+        .order('total_unique_viewers', { ascending: false })
+        .limit(12),
+    ]);
+
+    const live = (liveRes.data ?? []) as Livestream[];
+    const upcoming = (upcomingRes.data ?? []) as Livestream[];
+    let featured = (featuredRes.data ?? []) as Livestream[];
+    // Exclude rows that already showed up in the live row from featured
+    // so the same stream doesn't appear twice on the page.
+    const liveIds = new Set(live.map((s) => s.id));
+    featured = featured.filter((s) => !liveIds.has(s.id));
+
+    // Single batched host hydration across all three buckets.
+    const all = [...live, ...upcoming, ...featured];
+    await hydrateHosts(all);
+    return { live, upcoming, featured };
   },
 
   async get(id: string): Promise<Livestream | null> {
