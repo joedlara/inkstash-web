@@ -21,8 +21,22 @@ export default function Live() {
   const { user } = useAuth();
   const isActiveSeller = (user as { seller_status?: string } | null)?.seller_status === 'active';
 
+  // Initial fetch + auto-refresh every 15s so viewers see new lives without
+  // having to manually refresh the page. Cleaner than a Supabase Realtime
+  // subscription for v1: cheap, predictable, and stops if the tab is
+  // backgrounded (browsers throttle background setIntervals).
   useEffect(() => {
-    livestreamsAPI.listLive().then((s) => { setStreams(s); setLoading(false); });
+    let cancelled = false;
+    const tick = async () => {
+      const s = await livestreamsAPI.listLive();
+      if (!cancelled) {
+        setStreams(s);
+        setLoading(false);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 15000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   return (

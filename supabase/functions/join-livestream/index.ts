@@ -74,8 +74,12 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(50)
 
+    // Identity-suffix the LiveKit participant so two tabs as the same user
+    // don't kick each other via DUPLICATE_IDENTITY. The user_id is preserved
+    // for any downstream LiveKit-side analytics through the metadata field.
+    const identity = `${user.id}#${crypto.randomUUID().slice(0, 8)}`
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
-      identity: user.id,
+      identity,
       ttl: 4 * 60 * 60,
     })
     token.addGrant({

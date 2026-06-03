@@ -91,9 +91,14 @@ serve(async (req) => {
       return json({ error: 'create_failed' }, 500)
     }
 
-    // Generate a LiveKit token with publish permissions.
+    // Generate a LiveKit token with publish permissions. Append a random
+    // suffix to the identity so a tab refresh (or same user opening the host
+    // page twice) doesn't trigger LiveKit's DUPLICATE_IDENTITY kick. The
+    // real user_id is still captured via the AccessToken `name` field and the
+    // livestreams.host_user_id column for any reporting.
+    const identity = `${user.id}#${crypto.randomUUID().slice(0, 8)}`
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
-      identity: user.id,
+      identity,
       name: (userRow as { username?: string }).username ?? user.email ?? 'host',
       ttl: 4 * 60 * 60, // 4 hours
     })

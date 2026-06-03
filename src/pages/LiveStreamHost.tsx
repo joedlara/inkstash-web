@@ -1,25 +1,24 @@
 // src/pages/LiveStreamHost.tsx
 //
 // /live/start — two-phase. Pre-live: title input + camera preview. Live:
-// camera + side panel with chat + end button. Active sellers only; redirects
+// camera full-bleed with chat + controls overlaid on top (mobile-first;
+// desktop gets a side rail variant). Active sellers only; redirects
 // non-sellers to the seller dashboard.
 //
 // Refresh recovery: if the host already has a live stream when they hit this
-// page (refreshed mid-stream, tab crash, etc.) we need to re-issue a publish
-// token and resume. We can't re-use the previous token because LiveKit tokens
-// are scoped to a participant identity that we've already disconnected from;
-// instead we end the orphaned stream and prompt the host to start a fresh one
-// with a new title. This matches user mental model ("my stream broke; I'll
-// click Go Live again") better than silently resuming a possibly-stale row.
+// page (refreshed mid-stream, tab crash, etc.) we end the orphaned stream
+// and let them start a fresh one — we can't re-issue a token against the
+// previous LiveKit participant identity.
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Button, TextField, Typography, CircularProgress, Alert,
+  Box, Button, TextField, Typography, CircularProgress, Alert, IconButton,
 } from '@mui/material';
+import { CallEnd } from '@mui/icons-material';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
-import HostControlPanel from '../components/livestreams/HostControlPanel';
+import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import { livestreamsAPI } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
@@ -43,10 +42,6 @@ export default function LiveStreamHost() {
     if (user && !isActiveSeller) navigate('/seller-dashboard');
   }, [user, isActiveSeller, navigate]);
 
-  // Refresh recovery: if the user already has a status='live' stream, end it.
-  // We can't resume because the original LiveKit token + participant identity
-  // are gone with the previous tab. Cleaner to wipe + restart than to fake a
-  // session that's actually dead.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -152,15 +147,51 @@ export default function LiveStreamHost() {
   }
 
   if (!streamId || !livekit) return null;
+  // Live phase: camera fills the viewport, chat + end-stream overlay on top.
+  // Same layout as the viewer page so the host sees roughly what their
+  // audience sees, plus a host-only End button + ban controls in chat.
   return (
-    <Box sx={{ position: 'fixed', inset: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 360px' } }}>
-      <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
-      <HostControlPanel
-        livestreamId={streamId}
-        initialChat={[]}
-        onEnd={handleEnd}
-        onBanUser={handleBan}
-      />
+    <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#000', overflow: 'hidden' }}>
+      <Box
+        sx={{
+          position: 'absolute', inset: 0,
+          maxWidth: { xs: '100%', md: 480 },
+          mx: 'auto',
+          display: 'grid',
+          gridTemplateRows: '1fr 280px',
+        }}
+      >
+        {/* Video */}
+        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+          <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
+
+          {/* End-stream button, top-right. Brand-red, unmistakable. */}
+          <IconButton
+            onClick={handleEnd}
+            sx={{
+              position: 'absolute', top: 8, right: 8,
+              bgcolor: inkstashColors.live, color: '#fff',
+              '&:hover': { bgcolor: '#B91C1C' },
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              zIndex: 3,
+            }}
+            aria-label="End stream"
+          >
+            <CallEnd />
+          </IconButton>
+        </Box>
+
+        {/* Chat (host mode = ban buttons on each message) */}
+        <Box sx={{ position: 'relative' }}>
+          <LiveStreamChat
+            livestreamId={streamId}
+            initialMessages={[]}
+            isBanned={false}
+            hostMode
+            onBanUser={handleBan}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }
