@@ -11,6 +11,8 @@ import ItemDetail from './pages/ItemDetail';
 import Packs from './pages/Packs';
 import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
+import LiveStreamView from './pages/LiveStreamView';
+import LiveStreamHost from './pages/LiveStreamHost';
 import Drops from './pages/Drops';
 import DropDetail from './pages/DropDetail';
 import Marketplace from './pages/Marketplace';
@@ -54,6 +56,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/packs/:packId" element={<PackDetail />} />
                 <Route path="/pack-reveal/:purchaseId" element={<Navigate to="/packs" replace />} />
                 <Route path="/live" element={<Live />} />
+                <Route path="/live/start" element={<LiveStreamHost />} />
+                <Route path="/live/:id" element={<LiveStreamView />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drop/:id" element={<DropDetail />} />
                 <Route path="/marketplace" element={<Marketplace />} />
