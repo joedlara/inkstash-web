@@ -148,26 +148,36 @@ export default function LiveStreamHost() {
 
   if (!streamId || !livekit) return null;
   // Live phase: full-bleed video with chat overlaid on top (WhatNot-style).
-  // Centered to a phone-aspect column on desktop so we don't stretch the
-  // host's vertical camera to a 16:9 letterbox.
+  // 100dvh keeps the camera pinned through keyboard open/close events.
+  // Overlay buttons clear safe-area insets (dynamic island + Safari URL bar).
   return (
-    <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#000', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100dvh',
+        bgcolor: '#000',
+        overflow: 'hidden',
+        touchAction: 'manipulation',
+      }}
+    >
       <Box
         sx={{
           position: 'absolute', inset: 0,
           maxWidth: { xs: '100%', md: 480 },
           mx: 'auto',
-          // Video and chat share the same stacking context; chat positions
-          // itself absolutely in the lower-third on top of the video.
         }}
       >
         <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
 
-        {/* End-stream button, top-right. Brand-red, unmistakable. */}
+        {/* End-stream button, top-right. Brand-red. Safe-area padded. */}
         <IconButton
           onClick={handleEnd}
           sx={{
-            position: 'absolute', top: 8, right: 8,
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            right: 'calc(env(safe-area-inset-right, 0px) + 8px)',
             bgcolor: inkstashColors.live, color: '#fff',
             '&:hover': { bgcolor: '#B91C1C' },
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
@@ -178,7 +188,7 @@ export default function LiveStreamHost() {
           <CallEnd />
         </IconButton>
 
-        {/* Chat overlay */}
+        {/* Chat overlay (handles its own safe-area-inset-bottom) */}
         <LiveStreamChat
           livestreamId={streamId}
           initialMessages={[]}

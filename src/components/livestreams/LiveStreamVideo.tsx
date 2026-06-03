@@ -221,8 +221,8 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
         <Box
           sx={{
             position: 'absolute',
-            top: 12,
-            left: 12,
+            top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
             px: 1,
             py: 0.5,
             borderRadius: 999,
@@ -250,8 +250,8 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
           aria-label="Flip camera"
           sx={{
             position: 'absolute',
-            top: 8,
-            left: 90,
+            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 90px)',
             bgcolor: 'rgba(0,0,0,0.55)',
             color: '#fff',
             backdropFilter: 'blur(8px)',

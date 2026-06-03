@@ -12,6 +12,7 @@ import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
+import { supabase } from '../api/supabase/supabaseClient';
 import { inkstashColors } from '../theme/inkstashTokens';
 
 export default function LiveStreamView() {
@@ -47,6 +48,27 @@ export default function LiveStreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Auto-eject viewers when the host ends the stream. Subscribes to the
+  // livestreams row for UPDATEs; on status='ended' or 'aborted', navigates
+  // back to /live so the viewer can pick another stream.
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`livestream:${id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'livestreams', filter: `id=eq.${id}` },
+        (payload) => {
+          const next = payload.new as { status?: string };
+          if (next.status === 'ended' || next.status === 'aborted') {
+            navigate('/live', { replace: true });
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, navigate]);
+
   if (error) {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -63,8 +85,24 @@ export default function LiveStreamView() {
     );
   }
 
+  // Truly full-bleed: 100dvh + 100vw, video underneath ignores all safe-area.
+  // Overlay controls (live badge, host pill, close button) and chat are
+  // padded inward by env(safe-area-inset-*) so they clear the dynamic
+  // island, notch, and Safari URL bar.
   return (
-    <Box sx={{ position: 'fixed', inset: 0, bgcolor: '#000', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        // 100dvh keeps the layout pinned to the dynamic viewport height so the
+        // camera doesn't get scrunched when the iOS keyboard opens.
+        height: '100dvh',
+        bgcolor: '#000',
+        overflow: 'hidden',
+        touchAction: 'manipulation', // disables double-tap-to-zoom
+      }}
+    >
       <Box
         sx={{
           position: 'absolute', inset: 0,
@@ -74,10 +112,13 @@ export default function LiveStreamView() {
       >
         <LiveStreamVideo wsUrl={joinData.wsUrl} token={joinData.token} mode="viewer" />
 
-        {/* Host avatar pill, top-left (offset right of the live badge) */}
+        {/* Host avatar pill, top-left (offset right of the live badge).
+            Pad down by safe-area so it clears the dynamic island. */}
         <Box
           sx={{
-            position: 'absolute', top: 12, left: 60,
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 60px)',
             display: 'flex', alignItems: 'center', gap: 1,
             bgcolor: 'rgba(0,0,0,0.55)', px: 1.25, py: 0.5,
             borderRadius: 999, backdropFilter: 'blur(8px)',
@@ -90,11 +131,13 @@ export default function LiveStreamView() {
           </Typography>
         </Box>
 
-        {/* Close button, top-right */}
+        {/* Close button, top-right (safe-area padded) */}
         <IconButton
           onClick={() => navigate('/live')}
           sx={{
-            position: 'absolute', top: 8, right: 8,
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            right: 'calc(env(safe-area-inset-right, 0px) + 8px)',
             color: '#fff', bgcolor: 'rgba(0,0,0,0.4)',
             '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
             zIndex: 3,
@@ -103,7 +146,7 @@ export default function LiveStreamView() {
           <Close />
         </IconButton>
 
-        {/* Chat overlay */}
+        {/* Chat overlay (handles its own safe-area-inset-bottom) */}
         <LiveStreamChat
           livestreamId={stream.id}
           initialMessages={joinData.chat}

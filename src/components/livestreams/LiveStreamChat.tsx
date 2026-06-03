@@ -92,8 +92,29 @@ export default function LiveStreamChat({
     }
   }
 
-  // Tail the last 8 messages so the overlay never grows past the lower-third.
-  const visible = messages.slice(-8);
+  // Tail the last 6 messages so the overlay never grows past the lower-third.
+  const visible = messages.slice(-6);
+
+  // Track the on-screen keyboard so we can lift JUST the composer above it,
+  // not push the whole camera up. visualViewport reports the part of the
+  // viewport not covered by the OSK; the delta between window.innerHeight
+  // and visualViewport.height is the keyboard height.
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const onResize = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(kb);
+    };
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    onResize();
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+    };
+  }, []);
 
   return (
     <Box
@@ -106,15 +127,18 @@ export default function LiveStreamChat({
         pointerEvents: 'none', // let video receive clicks except where we explicitly opt in
       }}
     >
-      {/* Message stack — pill bubbles floating on the video */}
+      {/* Message stack — pill bubbles floating on the video. Lifts with the
+          keyboard so the bottom messages stay visible above the OSK. */}
       <Box
         ref={listRef}
         sx={{
-          maxHeight: '40vh',
+          maxHeight: '50vh',
           overflowY: 'auto',
           px: 1.5,
           pb: 1,
           pointerEvents: 'auto',
+          transform: `translateY(${-keyboardOffset}px)`,
+          transition: 'transform 180ms ease-out',
           // Hide the scrollbar; WhatNot's chat scrolls without a visible bar.
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
@@ -170,7 +194,8 @@ export default function LiveStreamChat({
         ))}
       </Box>
 
-      {/* Composer — pill input, transparent, pinned to the bottom */}
+      {/* Composer — pill input, transparent. Pinned to the bottom safe-area
+          when keyboard is closed; lifts above the keyboard when it's open. */}
       <Box
         component="form"
         onSubmit={send}
@@ -178,8 +203,10 @@ export default function LiveStreamChat({
           display: 'flex',
           gap: 1,
           px: 1.5,
-          pb: 'max(env(safe-area-inset-bottom), 12px)',
+          pb: keyboardOffset > 0 ? '12px' : 'max(env(safe-area-inset-bottom), 12px)',
           pointerEvents: 'auto',
+          transform: `translateY(${-keyboardOffset}px)`,
+          transition: 'transform 180ms ease-out',
         }}
       >
         <TextField
