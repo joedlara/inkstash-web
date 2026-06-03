@@ -20,6 +20,7 @@ import ViewerCountBadge from '../components/livestreams/ViewerCountBadge';
 import RightRailActions from '../components/livestreams/RightRailActions';
 import StreamShopRail from '../components/livestreams/StreamShopRail';
 import StreamChatRail from '../components/livestreams/StreamChatRail';
+import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -292,13 +293,25 @@ function LiveDesktopStage({
         </Box>
       </Box>
 
-      {/* Right: Chat */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
-        <StreamChatRail
-          livestreamId={stream.id}
-          initialMessages={joinData.chat}
-          isBanned={joinData.isBanned}
-        />
+      {/* Right column: giveaway banner (own card) stacked above the chat rail */}
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          gap: 2,
+          minHeight: 0,
+        }}
+      >
+        <Box sx={{ borderRadius: inkstashRadii.lg, flexShrink: 0 }}>
+          <GiveawayBanner entryCount={0} />
+        </Box>
+        <Box sx={{ overflow: 'hidden', borderRadius: inkstashRadii.lg, flex: 1, minHeight: 0 }}>
+          <StreamChatRail
+            livestreamId={stream.id}
+            initialMessages={joinData.chat}
+            isBanned={joinData.isBanned}
+          />
+        </Box>
       </Box>
     </Box>
   );

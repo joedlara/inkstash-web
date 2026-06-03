@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, FormEvent } from 'react';
 import { Box, Typography, Avatar, TextField, IconButton } from '@mui/material';
-import { ChevronDown, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import type { ChatMessage } from '../../api/livestreams';
 import { useLivestreamChat } from './useLivestreamChat';
 import { inkstashColors } from '../../theme/inkstashTokens';
@@ -59,57 +59,13 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
         borderRadius: 'inherit',
       }}
     >
-      {/* Giveaway banner */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          px: 1.5,
-          py: 1.25,
-          bgcolor: inkstashColors.bgSunken,
-          borderBottom: `1px solid ${inkstashColors.border}`,
-        }}
-      >
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.85 }}>
-          <Box
-            sx={{
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              bgcolor: inkstashColors.gold,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              lineHeight: 1,
-            }}
-          >
-            🎁
-          </Box>
-          <Typography
-            sx={{
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: 12.5,
-              fontWeight: 700,
-              color: inkstashColors.ink,
-              letterSpacing: '-0.005em',
-            }}
-          >
-            Giveaway with 0 entries
-          </Typography>
-        </Box>
-        <ChevronDown size={16} color={inkstashColors.muted} />
-      </Box>
-
       {/* Tab strip */}
       <Box
         sx={{
           display: 'flex',
           gap: 2.5,
           px: 1.75,
-          pt: 1.25,
+          pt: 1.5,
           pb: 0,
           borderBottom: `1px solid ${inkstashColors.border}`,
         }}
