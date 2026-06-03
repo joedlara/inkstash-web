@@ -1,20 +1,27 @@
 // src/pages/LiveStreamView.tsx
 //
-// /live/:id — viewer surface. Mobile-first portrait video full-bleed with
-// chat docked at the bottom, host pill + viewer count up top, right-rail
-// action stack floating on the side. Desktop centers the same layout at
-// max-width 480px (phone aspect) which matches the streamer's vertical
-// camera.
+// /live/:id — viewer surface.
+//
+// Mobile-first portrait video full-bleed with chat docked at the bottom,
+// host pill + viewer count up top, right-rail action stack floating on
+// the side.
+//
+// Desktop (md+) switches to a three-column layout:
+//   - Left rail: Shop (host's marketplace listings)
+//   - Center: Video in a phone-aspect column, with overlays
+//   - Right rail: Chat in a dedicated dark panel (no overlay)
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, IconButton, Typography, CircularProgress } from '@mui/material';
+import { Box, IconButton, Typography, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
 import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import HostPill from '../components/livestreams/HostPill';
 import ViewerCountBadge from '../components/livestreams/ViewerCountBadge';
 import RightRailActions from '../components/livestreams/RightRailActions';
+import StreamShopRail from '../components/livestreams/StreamShopRail';
+import StreamChatRail from '../components/livestreams/StreamChatRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -24,6 +31,8 @@ import { inkstashColors } from '../theme/inkstashTokens';
 export default function LiveStreamView() {
   useSuppressMobileNav();
   useFullBleedBlackBackground();
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [stream, setStream] = useState<Livestream | null>(null);
@@ -56,7 +65,6 @@ export default function LiveStreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Auto-eject viewers when the host ends the stream.
   useEffect(() => {
     if (!id) return;
     const channel = supabase
@@ -75,7 +83,6 @@ export default function LiveStreamView() {
     return () => { supabase.removeChannel(channel); };
   }, [id, navigate]);
 
-  // Stable ref so LiveStreamVideo's useEffect doesn't re-run on every render.
   const handleParticipantCount = useCallback((count: number) => {
     setViewerCount(count);
   }, []);
@@ -96,6 +103,104 @@ export default function LiveStreamView() {
     );
   }
 
+  // ─── Center column (video + overlays) — shared between mobile & desktop ──
+  const centerColumn = (
+    <Box
+      sx={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        maxWidth: { xs: '100%', md: 480 },
+        mx: 'auto',
+        overflow: 'hidden',
+        bgcolor: '#000',
+      }}
+    >
+      <LiveStreamVideo
+        wsUrl={joinData.wsUrl}
+        token={joinData.token}
+        mode="viewer"
+        onParticipantCountChange={handleParticipantCount}
+      />
+
+      {/* Top header row */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 1,
+          zIndex: 3,
+          pointerEvents: 'none',
+        }}
+      >
+        <Box sx={{ pointerEvents: 'auto' }}>
+          <HostPill
+            username={stream.host?.username ?? null}
+            avatarUrl={stream.host?.avatar_url}
+          />
+        </Box>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
+          <ViewerCountBadge count={viewerCount} />
+          <IconButton
+            onClick={() => navigate('/live')}
+            size="small"
+            sx={{
+              color: '#fff',
+              bgcolor: 'rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(8px)',
+              width: 32,
+              height: 32,
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+            }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Right-rail action stack (Share / Wallet / Shop / More).
+          Mobile: shown so viewers can share / open wallet / etc. without
+          a dedicated rail. Desktop: hidden because the shop + chat rails
+          replace these affordances. */}
+      {!isDesktop && (
+        <RightRailActions
+          streamTitle={stream.title}
+          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+      )}
+
+      {/* Winner banner slot (empty in this pass) */}
+      <Box
+        id="livestream-winner-slot"
+        sx={{
+          position: 'absolute',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 280px)',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      />
+
+      {/* Chat overlay — mobile only. On desktop the chat moves to the
+          right rail (StreamChatRail) for a cleaner watching surface. */}
+      {!isDesktop && (
+        <LiveStreamChat
+          livestreamId={stream.id}
+          initialMessages={joinData.chat}
+          isBanned={joinData.isBanned}
+        />
+      )}
+    </Box>
+  );
+
   return (
     <Box
       sx={{
@@ -108,91 +213,32 @@ export default function LiveStreamView() {
         touchAction: 'manipulation',
       }}
     >
-      <Box
-        sx={{
-          position: 'absolute', inset: 0,
-          maxWidth: { xs: '100%', md: 480 },
-          mx: 'auto',
-        }}
-      >
-        <LiveStreamVideo
-          wsUrl={joinData.wsUrl}
-          token={joinData.token}
-          mode="viewer"
-          onParticipantCountChange={handleParticipantCount}
-        />
-
-        {/* Top header row: host pill on the left, viewer count + close on the right.
-            Both clusters padded by safe-area-inset-top so they clear the dynamic island. */}
+      {isDesktop ? (
+        // Three-column desktop layout: shop | video | chat
         <Box
           sx={{
-            position: 'absolute',
-            top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
-            left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
-            right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 1,
-            zIndex: 3,
-            pointerEvents: 'none',
+            display: 'grid',
+            gridTemplateColumns: '280px minmax(0, 1fr) 320px',
+            width: '100%',
+            height: '100%',
           }}
         >
-          <Box sx={{ pointerEvents: 'auto' }}>
-            <HostPill
-              username={stream.host?.username ?? null}
-              avatarUrl={stream.host?.avatar_url}
-            />
+          <StreamShopRail hostUserId={stream.host_user_id} />
+          <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+            {centerColumn}
           </Box>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
-            <ViewerCountBadge count={viewerCount} />
-            <IconButton
-              onClick={() => navigate('/live')}
-              size="small"
-              sx={{
-                color: '#fff',
-                bgcolor: 'rgba(0,0,0,0.4)',
-                backdropFilter: 'blur(8px)',
-                width: 32,
-                height: 32,
-                '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
-              }}
-            >
-              <Close fontSize="small" />
-            </IconButton>
-          </Box>
+          <StreamChatRail
+            livestreamId={stream.id}
+            initialMessages={joinData.chat}
+            isBanned={joinData.isBanned}
+          />
         </Box>
-
-        {/* Right-rail action stack (Share / Wallet / Shop / More) */}
-        <RightRailActions
-          streamTitle={stream.title}
-          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-
-        {/* Winner banner slot — empty in this pass. When L4 raffles ship the
-            celebration banner ("Giveaway Winner 🎉 @user") slots in here
-            without forcing a layout reshuffle. */}
-        <Box
-          id="livestream-winner-slot"
-          sx={{
-            position: 'absolute',
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 280px)',
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-            zIndex: 2,
-          }}
-        />
-
-        {/* Chat overlay */}
-        <LiveStreamChat
-          livestreamId={stream.id}
-          initialMessages={joinData.chat}
-          isBanned={joinData.isBanned}
-        />
-      </Box>
+      ) : (
+        // Mobile: single-column overlay layout (everything stacks on the video)
+        <Box sx={{ position: 'absolute', inset: 0 }}>
+          {centerColumn}
+        </Box>
+      )}
     </Box>
   );
 }
