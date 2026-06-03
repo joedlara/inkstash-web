@@ -10,19 +10,23 @@
 // and let them start a fresh one — we can't re-issue a token against the
 // previous LiveKit participant identity.
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, TextField, Typography, CircularProgress, Alert, IconButton,
+  Dialog, DialogTitle, DialogContent,
 } from '@mui/material';
-import { CallEnd } from '@mui/icons-material';
+import { CallEnd, Close } from '@mui/icons-material';
 import AppShell from '../components/layout/AppShell';
-import LiveStreamVideo from '../components/livestreams/LiveStreamVideo';
-import LiveStreamChat from '../components/livestreams/LiveStreamChat';
+import LiveStreamVideo, { type LiveStreamVideoHandle } from '../components/livestreams/LiveStreamVideo';
+import ViewerCountBadge from '../components/livestreams/ViewerCountBadge';
 import PreLiveCameraPreview, { type PreLiveCameraPreviewHandle } from '../components/livestreams/host/PreLiveCameraPreview';
 import ThumbnailUploader from '../components/livestreams/host/ThumbnailUploader';
 import SchedulePicker from '../components/livestreams/host/SchedulePicker';
 import PreStreamQueue from '../components/livestreams/host/PreStreamQueue';
+import HostFloatingControls from '../components/livestreams/host/HostFloatingControls';
+import HostControlDrawer from '../components/livestreams/host/HostControlDrawer';
+import EndStreamConfirmModal from '../components/livestreams/host/EndStreamConfirmModal';
 import { livestreamsAPI } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../api/supabase/supabaseClient';
@@ -93,6 +97,17 @@ export default function LiveStreamHost() {
   const [orphanCheck, setOrphanCheck] = useState<'checking' | 'clean' | 'cleaned'>('checking');
   const cameraPreviewRef = useRef<PreLiveCameraPreviewHandle>(null);
 
+  // Live-phase state
+  const videoRef = useRef<LiveStreamVideoHandle>(null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [viewerCount, setViewerCount] = useState(1);
+  const [micMuted, setMicMuted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [liveQueue, setLiveQueue] = useState<string[]>([]); // tracked just so the modal shows the current state — INSERTs happen on close
+
   const isActiveSeller = (user as { seller_status?: string } | null)?.seller_status === 'active';
   useEffect(() => {
     if (user && !isActiveSeller) navigate('/seller-dashboard');
@@ -146,6 +161,7 @@ export default function LiveStreamHost() {
       if (scheduledAt && new Date(scheduledAt).getTime() > Date.now()) {
         navigate('/live');
       } else {
+        setStartedAt(new Date().toISOString());
         setPhase('live');
       }
     } catch (err) {
@@ -160,14 +176,54 @@ export default function LiveStreamHost() {
     : 'Go Live Now';
 
   async function handleEnd() {
-    if (!streamId) return;
-    await livestreamsAPI.end(streamId);
-    navigate('/live');
+    if (!streamId || ending) return;
+    setEnding(true);
+    try {
+      await livestreamsAPI.end(streamId);
+    } finally {
+      setEnding(false);
+      navigate('/live');
+    }
   }
 
-  async function handleBan(userId: string) {
+  async function handleToggleMic() {
+    const next = !micMuted;
+    setMicMuted(next);
+    await videoRef.current?.setMicMuted(next);
+  }
+
+  const handleViewerCount = useCallback((count: number) => {
+    setViewerCount(count);
+  }, []);
+
+  // When the host closes the add-item modal, diff the new selection
+  // against the previously committed queue and INSERT only the new ones.
+  // The modal manages its own selection state via PreStreamQueue's value;
+  // we just need to persist on close.
+  async function handleAddItemClose(nextQueue: string[]) {
+    setAddItemOpen(false);
     if (!streamId) return;
-    await livestreamsAPI.banChatter(streamId, userId);
+    const added = nextQueue.filter((id) => !liveQueue.includes(id));
+    if (added.length === 0) return;
+    // Find the current max position so new items append to the bottom.
+    const { data: existing } = await supabase
+      .from('livestream_items')
+      .select('position')
+      .eq('livestream_id', streamId)
+      .order('position', { ascending: false })
+      .limit(1);
+    const startPos = ((existing?.[0] as { position?: number } | undefined)?.position ?? -1) + 1;
+    const rows = added.map((listingId, idx) => ({
+      livestream_id: streamId,
+      listing_id: listingId,
+      position: startPos + idx,
+    }));
+    const { error: insErr } = await supabase.from('livestream_items').insert(rows);
+    if (insErr) {
+      console.warn('[LiveStreamHost] queue insert failed', insErr);
+      return;
+    }
+    setLiveQueue(nextQueue);
   }
 
   if (!user) return null;
@@ -310,20 +366,18 @@ export default function LiveStreamHost() {
     );
   }
 
-  if (!streamId || !livekit) return null;
-  // Live phase: full-bleed video with chat overlaid on top (WhatNot-style).
-  // 100dvh keeps the camera pinned through keyboard open/close events.
-  // Overlay buttons clear safe-area insets (dynamic island + Safari URL bar).
+  if (!streamId || !livekit || !startedAt) return null;
+  // Live phase: full-bleed camera. Overlays on top:
+  //   - Top-left: viewer count pill
+  //   - Top-right: End stream (with confirm)
+  //   - Right edge: floating control stack (Mic, +Item, Control)
+  //   - Bottom (via drawer): Chat / Queue / Stats tabs
   return (
     <Box
       sx={{
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        // 100lvh = largest viewport height: includes the area BEHIND the
-        // iOS Safari URL bar so the camera extends all the way to the
-        // bottom of the physical screen, not just to the URL bar. Falls
-        // back to 100vh on browsers that don't support lvh.
         height: ['100vh', '100lvh'],
         bgcolor: '#000',
         overflow: 'hidden',
@@ -337,11 +391,29 @@ export default function LiveStreamHost() {
           mx: 'auto',
         }}
       >
-        <LiveStreamVideo wsUrl={livekit.wsUrl} token={livekit.token} mode="host" />
+        <LiveStreamVideo
+          ref={videoRef}
+          wsUrl={livekit.wsUrl}
+          token={livekit.token}
+          mode="host"
+          onParticipantCountChange={handleViewerCount}
+        />
 
-        {/* End-stream button, top-right. Brand-red. Safe-area padded. */}
+        {/* Top-left: viewer count pill (engagement signal for the host) */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+            zIndex: 4,
+          }}
+        >
+          <ViewerCountBadge count={viewerCount} />
+        </Box>
+
+        {/* Top-right: End stream button (with confirmation modal) */}
         <IconButton
-          onClick={handleEnd}
+          onClick={() => setEndConfirmOpen(true)}
           sx={{
             position: 'absolute',
             top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
@@ -349,20 +421,73 @@ export default function LiveStreamHost() {
             bgcolor: inkstashColors.live, color: '#fff',
             '&:hover': { bgcolor: '#B91C1C' },
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            zIndex: 3,
+            zIndex: 4,
           }}
           aria-label="End stream"
         >
           <CallEnd />
         </IconButton>
 
-        {/* Chat overlay (handles its own safe-area-inset-bottom) */}
-        <LiveStreamChat
-          livestreamId={streamId}
-          initialMessages={[]}
-          isBanned={false}
+        {/* Right-edge floating control stack */}
+        <HostFloatingControls
+          micMuted={micMuted}
+          onToggleMic={handleToggleMic}
+          onAddItem={() => setAddItemOpen(true)}
+          onOpenControl={() => setDrawerOpen(true)}
         />
       </Box>
+
+      {/* Bottom-sheet drawer: Chat / Queue / Stats */}
+      <HostControlDrawer
+        open={drawerOpen}
+        onOpen={() => setDrawerOpen(true)}
+        onClose={() => setDrawerOpen(false)}
+        livestreamId={streamId}
+        startedAt={startedAt}
+        liveViewers={viewerCount}
+        totalUniqueViewers={viewerCount}
+        onAddItem={() => {
+          setDrawerOpen(false);
+          setAddItemOpen(true);
+        }}
+      />
+
+      {/* End stream confirm */}
+      <EndStreamConfirmModal
+        open={endConfirmOpen}
+        onCancel={() => setEndConfirmOpen(false)}
+        onConfirm={handleEnd}
+        ending={ending}
+      />
+
+      {/* Add item to queue modal (reuses PreStreamQueue's picker UX) */}
+      <Dialog
+        open={addItemOpen}
+        onClose={() => handleAddItemClose(liveQueue)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: inkstashRadii.lg } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography
+            sx={{
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 900,
+              fontSize: 20,
+              letterSpacing: '-0.02em',
+              color: inkstashColors.ink,
+            }}
+          >
+            Add to queue
+          </Typography>
+          <IconButton onClick={() => handleAddItemClose(liveQueue)} size="small">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ maxHeight: 480, p: 2 }}>
+          <PreStreamQueue value={liveQueue} onChange={setLiveQueue} />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

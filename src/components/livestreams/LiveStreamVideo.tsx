@@ -11,14 +11,19 @@
 // Cleanup on unmount: leave room, stop tracks. Critical to prevent zombie
 // cameras (browser tab keeps streaming if we don't tear down properly).
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Room, Track, RoomEvent, createLocalTracks,
-  type RemoteTrack, type LocalTrack, type LocalVideoTrack,
+  type RemoteTrack, type LocalTrack, type LocalVideoTrack, type LocalAudioTrack,
 } from 'livekit-client';
 import { Box, Typography, IconButton } from '@mui/material';
 import { FlipCameraIos } from '@mui/icons-material';
 import { inkstashColors } from '../../theme/inkstashTokens';
+
+export interface LiveStreamVideoHandle {
+  /** Toggle the host's local audio track on/off. No-op for viewers. */
+  setMicMuted: (muted: boolean) => Promise<void>;
+}
 
 interface Props {
   wsUrl: string;
@@ -33,18 +38,31 @@ interface Props {
 
 type Facing = 'user' | 'environment';
 
-export default function LiveStreamVideo({
+const LiveStreamVideo = forwardRef<LiveStreamVideoHandle, Props>(function LiveStreamVideo({
   wsUrl, token, mode, onConnected, onParticipantCountChange,
-}: Props) {
+}, ref) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const roomRef = useRef<Room | null>(null);
   // Hold tracks across re-renders so we can re-attach if the videoRef changes.
   const tracksRef = useRef<Array<LocalTrack | RemoteTrack>>([]);
   // Held separately so the flip button can replace it without touching audio.
   const localVideoRef = useRef<LocalVideoTrack | null>(null);
+  // Kept so the host page can mute/unmute mic without re-publishing tracks.
+  const localAudioRef = useRef<LocalAudioTrack | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [facing, setFacing] = useState<Facing>('environment');
   const [flipping, setFlipping] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    async setMicMuted(muted: boolean) {
+      const track = localAudioRef.current;
+      if (!track) return;
+      // LiveKit's mute method toggles the published track's enabled state
+      // and signals subscribers; we don't need to unpublish/republish.
+      if (muted) await track.mute();
+      else await track.unmute();
+    },
+  }), []);
 
   useEffect(() => {
     const room = new Room({
@@ -132,6 +150,8 @@ export default function LiveStreamVideo({
             attachVideoTrack(track);
             if (track.kind === Track.Kind.Video) {
               localVideoRef.current = track as LocalVideoTrack;
+            } else if (track.kind === Track.Kind.Audio) {
+              localAudioRef.current = track as LocalAudioTrack;
             }
           }
         }
@@ -308,4 +328,6 @@ export default function LiveStreamVideo({
       )}
     </Box>
   );
-}
+});
+
+export default LiveStreamVideo;
