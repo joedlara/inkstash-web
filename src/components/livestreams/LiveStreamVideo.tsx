@@ -26,11 +26,16 @@ interface Props {
   mode: 'host' | 'viewer';
   /** Called once the room is connected. */
   onConnected?: () => void;
+  /** Fires whenever someone joins or leaves the LiveKit room. The number
+   *  reflects subscribers + the publishing host. */
+  onParticipantCountChange?: (count: number) => void;
 }
 
 type Facing = 'user' | 'environment';
 
-export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Props) {
+export default function LiveStreamVideo({
+  wsUrl, token, mode, onConnected, onParticipantCountChange,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const roomRef = useRef<Room | null>(null);
   // Hold tracks across re-renders so we can re-attach if the videoRef changes.
@@ -71,6 +76,19 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
               tracksRef.current.push(track);
             }
           });
+        }
+
+        // Presence subscription: emit numParticipants every time someone
+        // joins or leaves. numParticipants reports remote participants only,
+        // so add 1 for the local participant (host or viewer) to get the
+        // actual head count.
+        if (onParticipantCountChange) {
+          const emit = () => {
+            if (!cancelled) onParticipantCountChange(room.numParticipants + 1);
+          };
+          room.on(RoomEvent.ParticipantConnected, emit);
+          room.on(RoomEvent.ParticipantDisconnected, emit);
+          room.on(RoomEvent.Connected, emit);
         }
 
         await room.connect(wsUrl, token);
