@@ -6,6 +6,7 @@
 // render a gold "soon" badge with the relative start time instead of the
 // red "Live" pill.
 
+import { useEffect, useState } from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
@@ -16,30 +17,58 @@ interface Props {
   stream: Livestream;
   /** Render the scheduled start-time pill instead of the Live pill. */
   scheduled?: boolean;
+  /** Render the card on a dark surface (used by the Featured row).
+   *  Inverts the body text colors so the title + host name stay legible. */
+  variant?: 'light' | 'dark';
 }
 
-/** "in 5m", "in 2h", "tomorrow" — short, scannable. Negative diffs (already
- *  past) render as "starting" since the cron should have flipped status by
- *  then but hasn't (acceptable race for v1). */
+/** Compact start-time pill: 1d 4h, 2h 15m, 12m, 45s, or "starting" when
+ *  the scheduled time has elapsed (cron will flip status soon). Live, not
+ *  computed once — caller wraps in a 1s tick so the pill counts down on
+ *  screen. */
 function formatTimeUntil(iso: string | null): string {
   if (!iso) return 'soon';
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return 'starting';
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `in ${min}m`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `in ${hr}h`;
-  const day = Math.round(hr / 24);
-  if (day === 1) return 'tomorrow';
-  return `in ${day}d`;
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) {
+    const rs = s % 60;
+    return rs === 0 ? `${m}m` : `${m}m ${rs}s`;
+  }
+  const h = Math.floor(m / 60);
+  if (h < 24) {
+    const rm = m % 60;
+    return rm === 0 ? `${h}h` : `${h}h ${rm}m`;
+  }
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return rh === 0 ? `${d}d` : `${d}d ${rh}h`;
 }
 
-export default function LiveStreamCard({ stream, scheduled = false }: Props) {
+export default function LiveStreamCard({ stream, scheduled = false, variant = 'light' }: Props) {
   const navigate = useNavigate();
   const cover = stream.cover_image_url ?? PLACEHOLDER_IMAGE_URL;
+
+  // Re-render once per second when scheduled so the countdown pill ticks
+  // down live. Skipped for live streams (no countdown to update).
+  const [, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!scheduled) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [scheduled]);
+
   const pill = scheduled
-    ? { bg: inkstashColors.gold, text: '#16110E', label: formatTimeUntil(stream.scheduled_start_at) }
+    ? { bg: inkstashColors.brand, text: '#fff', label: formatTimeUntil(stream.scheduled_start_at) }
     : { bg: inkstashColors.live, text: '#fff', label: 'Live' };
+
+  const isDark = variant === 'dark';
+  const bodyBg = isDark ? 'rgba(255,255,255,0.04)' : inkstashColors.bgElev;
+  const titleColor = isDark ? '#fff' : inkstashColors.ink;
+  const hostColor = isDark ? 'rgba(255,255,255,0.6)' : inkstashColors.muted;
+  const borderColor = isDark ? 'rgba(255,255,255,0.1)' : inkstashColors.border;
 
   return (
     <Box
@@ -48,15 +77,17 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
       onClick={() => navigate(`/live/${stream.id}`)}
       sx={{
         display: 'block', width: '100%', p: 0, textAlign: 'left',
-        border: `1px solid ${inkstashColors.border}`,
+        border: `1px solid ${borderColor}`,
         borderRadius: inkstashRadii.lg,
-        bgcolor: inkstashColors.bgElev,
+        bgcolor: bodyBg,
         overflow: 'hidden', cursor: 'pointer',
         transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms ease, box-shadow 160ms ease',
         '&:hover': {
           transform: 'translateY(-3px)',
           borderColor: inkstashColors.brand,
-          boxShadow: '0 8px 20px rgba(22,17,14,0.12)',
+          boxShadow: isDark
+            ? '0 8px 20px rgba(0,0,0,0.35)'
+            : '0 8px 20px rgba(22,17,14,0.12)',
         },
         '&:active': { transform: 'translateY(-1px)' },
       }}
@@ -93,7 +124,7 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
               fontFamily: "'Outfit', sans-serif",
               fontSize: 12,
               fontWeight: 600,
-              color: inkstashColors.muted,
+              color: hostColor,
               letterSpacing: '-0.005em',
             }}
           >
@@ -104,7 +135,7 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 800,
           fontSize: 13.5,
-          color: inkstashColors.ink,
+          color: titleColor,
           letterSpacing: '-0.01em',
           lineHeight: 1.25,
           overflow: 'hidden', textOverflow: 'ellipsis',

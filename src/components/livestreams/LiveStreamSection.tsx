@@ -15,15 +15,23 @@ interface Props {
   label: string;
   streams: Livestream[];
   emptyHint?: string;
-  /** Render a "starts in 5m" countdown instead of the live progress bar. */
+  /** Render a countdown-style pill on the tile instead of the Live pill. */
   scheduled?: boolean;
+  /** Wrap the section in a charcoal panel and switch tile bodies to dark.
+   *  Used by the Featured row so it visually pops against the cream page. */
+  dark?: boolean;
 }
 
-export default function LiveStreamSection({ label, streams, emptyHint, scheduled = false }: Props) {
+export default function LiveStreamSection({
+  label, streams, emptyHint, scheduled = false, dark = false,
+}: Props) {
   if (streams.length === 0 && !emptyHint) return null;
 
-  return (
-    <Box sx={{ mb: 4 }}>
+  const headerColor = dark ? '#fff' : inkstashColors.ink;
+  const linkColor = dark ? 'rgba(255,255,255,0.6)' : inkstashColors.muted;
+
+  const inner = (
+    <>
       {/* Header */}
       <Box
         sx={{
@@ -38,7 +46,7 @@ export default function LiveStreamSection({ label, streams, emptyHint, scheduled
             fontFamily: "'Outfit', sans-serif",
             fontWeight: 900,
             fontSize: { xs: 18, md: 22 },
-            color: inkstashColors.ink,
+            color: headerColor,
             letterSpacing: '-0.02em',
             lineHeight: 1,
           }}
@@ -55,7 +63,7 @@ export default function LiveStreamSection({ label, streams, emptyHint, scheduled
               border: 'none',
               bgcolor: 'transparent',
               cursor: 'pointer',
-              color: inkstashColors.muted,
+              color: linkColor,
               fontFamily: "'Outfit', sans-serif",
               fontSize: 12,
               fontWeight: 700,
@@ -75,7 +83,7 @@ export default function LiveStreamSection({ label, streams, emptyHint, scheduled
           sx={{
             fontFamily: "'Outfit', sans-serif",
             fontSize: 13,
-            color: inkstashColors.muted,
+            color: linkColor,
             py: 2,
           }}
         >
@@ -91,13 +99,8 @@ export default function LiveStreamSection({ label, streams, emptyHint, scheduled
             gap: 1.5,
             overflowX: 'auto',
             scrollSnapType: 'x mandatory',
-            // Hide scrollbar — the row should feel like a carousel, not a
-            // div with a scroll thumb hanging off the bottom.
             scrollbarWidth: 'none',
             '&::-webkit-scrollbar': { display: 'none' },
-            // Negative side margin + matching padding so the first/last
-            // tiles can scroll flush to the page edge without clipping
-            // their hover shadow.
             mx: -1,
             px: 1,
             pb: 1,
@@ -112,11 +115,31 @@ export default function LiveStreamSection({ label, streams, emptyHint, scheduled
                 scrollSnapAlign: 'start',
               }}
             >
-              <LiveStreamCard stream={s} scheduled={scheduled} />
+              <LiveStreamCard
+                stream={s}
+                scheduled={scheduled}
+                variant={dark ? 'dark' : 'light'}
+              />
             </Box>
           ))}
         </Box>
       )}
-    </Box>
+    </>
   );
+
+  if (dark) {
+    return (
+      <Box
+        sx={{
+          mb: 4,
+          p: { xs: 2, md: 2.5 },
+          borderRadius: 3,
+          bgcolor: '#16110E', // ink — matches the rest of the brand palette
+        }}
+      >
+        {inner}
+      </Box>
+    );
+  }
+  return <Box sx={{ mb: 4 }}>{inner}</Box>;
 }

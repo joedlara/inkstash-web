@@ -140,8 +140,9 @@ export default function Live() {
               scheduled
             />
             <LiveStreamSection
-              label="Shows with momentum"
+              label="Featured streams"
               streams={sections.featured}
+              dark
             />
           </>
         )}

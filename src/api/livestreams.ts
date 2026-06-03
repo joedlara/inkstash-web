@@ -128,24 +128,35 @@ export const livestreamsAPI = {
         .gt('scheduled_start_at', new Date().toISOString())
         .order('scheduled_start_at', { ascending: true })
         .limit(12),
-      // Featured = "shows with momentum" — for now, ended streams with the
-      // highest total_unique_viewers. An editor-picked featured flag goes
-      // on the livestreams table later.
+      // Featured streams — for now, highest total_unique_viewers across
+      // ended + live, then deduped against Live and grouped by host so the
+      // row shows a variety of streamers instead of one user's catalog.
+      // Editor-picked featured flag ships later.
       supabase
         .from('livestreams')
         .select('*')
         .in('status', ['ended', 'live'])
         .order('total_unique_viewers', { ascending: false })
-        .limit(12),
+        .limit(40),
     ]);
 
     const live = (liveRes.data ?? []) as Livestream[];
     const upcoming = (upcomingRes.data ?? []) as Livestream[];
-    let featured = (featuredRes.data ?? []) as Livestream[];
-    // Exclude rows that already showed up in the live row from featured
-    // so the same stream doesn't appear twice on the page.
+    const featuredAll = (featuredRes.data ?? []) as Livestream[];
+
+    // Exclude rows already in Live + cap to one stream per host so the
+    // featured row reads as a curated lineup of different streamers,
+    // not one user's catalog.
     const liveIds = new Set(live.map((s) => s.id));
-    featured = featured.filter((s) => !liveIds.has(s.id));
+    const seenHosts = new Set<string>();
+    const featured: Livestream[] = [];
+    for (const s of featuredAll) {
+      if (liveIds.has(s.id)) continue;
+      if (seenHosts.has(s.host_user_id)) continue;
+      seenHosts.add(s.host_user_id);
+      featured.push(s);
+      if (featured.length >= 12) break;
+    }
 
     // Single batched host hydration across all three buckets.
     const all = [...live, ...upcoming, ...featured];
