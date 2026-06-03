@@ -98,13 +98,35 @@ export default function LiveStreamVideo({
         }
 
         if (mode === 'host') {
-          const tracks = await createLocalTracks({
-            audio: true,
-            // Default to back camera so the host can show comics. Prefer
-            // exact match but fall back if the device only has a front
-            // camera (laptops, iPads without ultra-wide).
-            video: { facingMode: { ideal: 'environment' } },
-          });
+          // createLocalTracks can fail AFTER room.connect succeeded — most
+          // commonly when iOS holds the camera/mic for an active phone call
+          // or when another tab/app has the device. Surfacing the error
+          // here keeps the host from staring at a black screen wondering
+          // why their face isn't showing up.
+          let tracks
+          try {
+            tracks = await createLocalTracks({
+              audio: true,
+              // Default to back camera so the host can show comics. Prefer
+              // exact match but fall back if the device only has a front
+              // camera (laptops, iPads without ultra-wide).
+              video: { facingMode: { ideal: 'environment' } },
+            });
+          } catch (tracksErr) {
+            const te = tracksErr as Error
+            // Disconnect from the room so we don't leave a publisher slot
+            // open + a dead participant the LiveKit room thinks is publishing.
+            try { await room.disconnect() } catch { /* ignore */ }
+            if (cancelled) return
+            if (te.name === 'NotReadableError') {
+              setError('Camera or microphone is busy. End any active phone call or close other apps using the camera, then reload.')
+            } else if (te.name === 'NotAllowedError') {
+              setError('Camera/microphone access denied. Tap the address bar lock icon, allow camera + mic, then reload.')
+            } else {
+              setError(`Couldn't start camera: ${te.message}`)
+            }
+            return
+          }
           for (const track of tracks) {
             await room.localParticipant.publishTrack(track);
             attachVideoTrack(track);
