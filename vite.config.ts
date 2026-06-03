@@ -12,7 +12,9 @@ export default defineConfig({
     // The leading dot makes it a wildcard suffix match.
     allowedHosts: [
       '.ngrok-free.app',
+      '.ngrok-free.dev',
       '.ngrok.app',
+      '.ngrok.dev',
       '.ngrok.io',
     ],
   },
