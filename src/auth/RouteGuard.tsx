@@ -33,6 +33,9 @@ const RouteGuard: React.FC<RouteGuardProps> = ({ children }) => {
     '/privacy',
     '/terms',
     '/onboarding',
+    // Dual-device camera page. The pair token in the URL IS the auth —
+    // the phone scanning the QR doesn't need an Inkstash session.
+    '/live/host',
   ];
 
   // Routes that should redirect authenticated users away
