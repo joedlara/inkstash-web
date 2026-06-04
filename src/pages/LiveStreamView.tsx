@@ -21,6 +21,8 @@ import RightRailActions from '../components/livestreams/RightRailActions';
 import StreamShopRail from '../components/livestreams/StreamShopRail';
 import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
+import CurrentItemBar from '../components/livestreams/CurrentItemBar';
+import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -166,7 +168,7 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge.
+  // edge-to-edge. The Explore More rail sits beneath on desktop only.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -176,6 +178,12 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
+      {/* Hidden on mobile (the 3-panel stage is overflow:hidden anyway,
+          but ≤1024 viewports go to a video-only treatment so this rail
+          would feel out of place). */}
+      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: -1.5 }}>
+        <ExploreMoreRail excludeId={stream.id} />
+      </Box>
     </AppShell>
   );
 }
@@ -316,26 +324,26 @@ function LiveDesktopStage({
             }}
           />
 
-          {/* L2 auction-strip stub. Crimson to match brand. */}
+          {/* Bottom item info bar — design's .vf-item. Sits on a vertical
+              gradient scrim so the white text reads regardless of what's
+              on screen behind it. Rendered above the click-to-fullscreen
+              hit layer (zIndex 5 > 1). */}
           <Box
             sx={{
               position: 'absolute',
-              bottom: 12,
-              left: 12,
-              right: 12,
-              borderRadius: inkstashRadii.md,
-              bgcolor: inkstashColors.brand,
-              color: '#fff',
-              py: 1.25,
-              textAlign: 'center',
-              fontFamily: inkstashFonts.ui,
-              fontWeight: 800,
-              fontSize: 13,
-              letterSpacing: '-0.005em',
-              zIndex: 2,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 5,
+              pointerEvents: 'none',
+              background:
+                'linear-gradient(0deg, rgba(8,7,10,0.94) 0%, rgba(8,7,10,0.55) 55%, transparent 100%)',
+              paddingTop: 4,
             }}
           >
-            Awaiting next item
+            <Box sx={{ pointerEvents: 'auto' }}>
+              <CurrentItemBar livestreamId={stream.id} />
+            </Box>
           </Box>
         </Box>
       </Box>

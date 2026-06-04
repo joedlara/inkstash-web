@@ -17,6 +17,10 @@ import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inksta
 
 interface Props {
   stream: Livestream;
+  /** 'dark' (default) for the Featured band; 'light' for the cream Explore
+   *  More rail. Switches host-name color, title color, and tag-row muted
+   *  color so the card legibility holds against either background. */
+  variant?: 'dark' | 'light';
 }
 
 const TILE_PALETTES: Array<{ from: string; to: string }> = [
@@ -34,12 +38,18 @@ function paletteFor(id: string) {
   return TILE_PALETTES[Math.abs(hash) % TILE_PALETTES.length];
 }
 
-export default function MomentumCard({ stream }: Props) {
+export default function MomentumCard({ stream, variant = 'dark' }: Props) {
   const navigate = useNavigate();
   const palette = paletteFor(stream.id);
   const hostName = stream.host?.username ?? 'host';
   const initial = hostName.charAt(0).toUpperCase();
   const viewers = stream.viewer_peak || 0;
+  const isLight = variant === 'light';
+
+  // Per-variant text colors.
+  const hostColor = isLight ? inkstashColors.ink2 : '#EDE3D6';
+  const titleColor = isLight ? inkstashColors.ink : '#FAF7F2';
+  const tagMutedColor = isLight ? inkstashColors.muted : '#8A7F73';
 
   return (
     <Box
@@ -68,7 +78,7 @@ export default function MomentumCard({ stream }: Props) {
         </Box>
         <Typography
           sx={{
-            color: '#EDE3D6',
+            color: hostColor,
             fontFamily: inkstashFonts.ui,
             fontSize: 13,
             fontWeight: 500,
@@ -166,7 +176,7 @@ export default function MomentumCard({ stream }: Props) {
       {/* Title */}
       <Typography
         sx={{
-          color: '#FAF7F2',
+          color: titleColor,
           fontFamily: inkstashFonts.ui,
           fontSize: 14,
           fontWeight: 600,
@@ -191,10 +201,10 @@ export default function MomentumCard({ stream }: Props) {
           gap: 0.75,
           fontFamily: inkstashFonts.ui,
           fontSize: 12,
-          color: '#8A7F73',
+          color: tagMutedColor,
         }}
       >
-        <Box component="span" sx={{ color: '#E07A82', fontWeight: 600 }}>
+        <Box component="span" sx={{ color: isLight ? inkstashColors.brand : '#E07A82', fontWeight: 600 }}>
           Featured
         </Box>
         <Box component="span">·</Box>
