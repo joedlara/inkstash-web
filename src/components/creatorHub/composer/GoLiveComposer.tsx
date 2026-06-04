@@ -15,6 +15,8 @@ import { useState } from 'react';
 import { Box, IconButton, Modal, Typography, CircularProgress } from '@mui/material';
 import { Check, X as Close, Zap } from 'lucide-react';
 import { livestreamsAPI } from '../../../api/livestreams';
+import { useAuth } from '../../../hooks/useAuth';
+import { uploadComposerPhoto } from './uploadPhoto';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
 import HBtn from '../HBtn';
 import StepDetails from './StepDetails';
@@ -36,6 +38,7 @@ interface Props {
 const STEPS = ['Details', 'Run of show', 'Settings', 'Preview'] as const;
 
 export default function GoLiveComposer({ open, mode, onClose, onPublished }: Props) {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<ComposerDetails>(DEFAULT_DETAILS);
   const [items, setItems] = useState<ComposerItem[]>([]);
@@ -60,15 +63,20 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishing(true);
     setPublishError(null);
     try {
-      // TODO(upload): the editor holds the photo as a data URL. Uploading
-      // it to Supabase Storage (livestream-thumbnails RLS already exists)
-      // and writing the public URL to cover_image_url is a follow-up. For
-      // now we don't pass cover_image_url — better than passing a 5MB
-      // data URL into the livestreams row.
+      // Upload the thumbnail to user-uploads/livestream-thumbnails/{uid}/
+      // before creating the livestream row, so cover_image_url is a real
+      // public URL instead of a multi-megabyte data URL. If upload fails
+      // we publish without the cover rather than blocking — the warning
+      // shows in the console for follow-up.
+      let coverUrl: string | undefined;
+      if (user?.id && details.thumb.src) {
+        const url = await uploadComposerPhoto(details.thumb.src, user.id, 'livestream-thumbnails');
+        coverUrl = url ?? undefined;
+      }
       const res = await livestreamsAPI.start({
         title: details.title.trim(),
         description: details.description.trim() || undefined,
-        cover_image_url: undefined,
+        cover_image_url: coverUrl,
         scheduled_start_at: mode === 'schedule' ? details.scheduledAt : null,
         // livestreamsAPI.start expects an array of existing listing ids
         // for its queue param. Our composer items are brand-new lots
