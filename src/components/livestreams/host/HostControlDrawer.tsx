@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { SwipeableDrawer, Box, Typography } from '@mui/material';
 import HostQueuePanel from './HostQueuePanel';
 import HostStatsPanel from './HostStatsPanel';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 type Tab = 'queue' | 'stats';
 

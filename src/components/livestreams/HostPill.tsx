@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { Box, Avatar, Typography, ButtonBase } from '@mui/material';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   username: string | null;

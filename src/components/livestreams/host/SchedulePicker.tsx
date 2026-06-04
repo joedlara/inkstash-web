@@ -5,7 +5,7 @@
 // the ISO timestamp. Browser-native picker — no extra deps.
 
 import { Box, Switch, TextField, Typography } from '@mui/material';
-import { inkstashColors } from '../../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   value: string | null;

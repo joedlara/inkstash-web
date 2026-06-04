@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { inkstashFonts } from "../theme/inkstashTokens";
 import {
   Dialog,
   Box,

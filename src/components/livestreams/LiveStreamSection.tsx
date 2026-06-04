@@ -9,7 +9,7 @@ import { Box, Typography } from '@mui/material';
 import { ChevronRight } from 'lucide-react';
 import type { Livestream } from '../../api/livestreams';
 import LiveStreamCard from './LiveStreamCard';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   label: string;

@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Chip, Typography, ButtonBase } from '@mui/material';
 import { Search } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
-import { inkstashColors, inkstashRadii } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface Props {

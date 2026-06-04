@@ -14,7 +14,7 @@ import AppShell from '../components/layout/AppShell';
 import LiveStreamSection from '../components/livestreams/LiveStreamSection';
 import { livestreamsAPI, type LivestreamSections } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
-import { inkstashColors } from '../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 
 const EMPTY: LivestreamSections = { live: [], upcoming: [], featured: [] };
 

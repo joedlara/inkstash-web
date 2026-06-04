@@ -11,7 +11,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import { FlipCameraIos } from '@mui/icons-material';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 type Facing = 'user' | 'environment';
 

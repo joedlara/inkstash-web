@@ -9,7 +9,7 @@ import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucid
 import ShareDrawer from './ShareDrawer';
 import MoreDrawer from './MoreDrawer';
 import WalletDrawer from './WalletDrawer';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   streamTitle: string;

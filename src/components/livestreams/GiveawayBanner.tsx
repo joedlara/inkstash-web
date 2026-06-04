@@ -8,7 +8,7 @@
 
 import { Box, Typography } from '@mui/material';
 import { ChevronDown } from 'lucide-react';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   entryCount?: number;

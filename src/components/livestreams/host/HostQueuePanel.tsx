@@ -11,7 +11,7 @@ import { Box, Typography, ButtonBase, IconButton } from '@mui/material';
 import { Plus, Play, X } from 'lucide-react';
 import { supabase } from '../../../api/supabase/supabaseClient';
 import { PLACEHOLDER_IMAGE_URL } from '../../../utils/placeholders';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   livestreamId: string;

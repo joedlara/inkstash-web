@@ -25,7 +25,7 @@ import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livest
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
 import { supabase } from '../api/supabase/supabaseClient';
-import { inkstashColors, inkstashRadii } from '../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../theme/inkstashTokens';
 
 // Collapse the global sidebar by default on the live page so the immersive
 // stream surface gets the maximum horizontal real estate while keeping the

@@ -18,7 +18,7 @@ import { Add, Close, RemoveCircleOutline } from '@mui/icons-material';
 import { supabase } from '../../../api/supabase/supabaseClient';
 import { useAuth } from '../../../hooks/useAuth';
 import { PLACEHOLDER_IMAGE_URL } from '../../../utils/placeholders';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface ListingOption {
   id: string;

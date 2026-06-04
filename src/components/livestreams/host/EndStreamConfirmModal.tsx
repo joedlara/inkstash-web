@@ -4,7 +4,7 @@
 // "End the stream? You'll have to start a new one to broadcast again."
 
 import { Dialog, Box, Typography, Button } from '@mui/material';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   open: boolean;

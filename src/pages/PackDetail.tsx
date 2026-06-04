@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { inkstashFonts } from "../theme/inkstashTokens";
 import { useNavigate, useParams } from 'react-router-dom';
 import VendorPackHeader from '../components/packs/VendorPackHeader';
 import CuratorNote from '../components/packs/CuratorNote';

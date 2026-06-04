@@ -9,7 +9,7 @@ import { Box, Button, IconButton, CircularProgress, Typography } from '@mui/mate
 import { ImageOutlined, Close } from '@mui/icons-material';
 import { supabase } from '../../../api/supabase/supabaseClient';
 import { useAuth } from '../../../hooks/useAuth';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   value: string | null;

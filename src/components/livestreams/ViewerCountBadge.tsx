@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { Eye } from 'lucide-react';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   count: number;

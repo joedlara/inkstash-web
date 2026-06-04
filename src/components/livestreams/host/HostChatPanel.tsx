@@ -11,7 +11,7 @@ import { Send, MoreVertical } from 'lucide-react';
 import type { ChatMessage } from '../../../api/livestreams';
 import { livestreamsAPI } from '../../../api/livestreams';
 import { useLivestreamChat } from '../useLivestreamChat';
-import { inkstashColors } from '../../../theme/inkstashTokens';
+import { inkstashColors , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   livestreamId: string;

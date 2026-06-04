@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
+import { inkstashColors, inkstashRadii , inkstashFonts} from '../../../theme/inkstashTokens';
 
 interface Props {
   startedAt: string;
