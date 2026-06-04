@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import { Box, IconButton, Modal, Typography, CircularProgress } from '@mui/material';
-import { Check, Close, Zap } from 'lucide-react';
+import { Check, X as Close, Zap } from 'lucide-react';
 import { livestreamsAPI } from '../../../api/livestreams';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
 import HBtn from '../HBtn';
@@ -118,7 +118,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
             </Typography>
           </Box>
           <IconButton onClick={handleClose} size="small" disabled={publishing}>
-            <Close fontSize="small" />
+            <Close size={18} />
           </IconButton>
         </Box>
 
