@@ -115,13 +115,19 @@ const RailChip = forwardRef<HTMLButtonElement, {
         pr: 1.4,
         py: 0.85,
         borderRadius: 999,
-        bgcolor: 'rgba(10,10,10,0.65)',
-        backdropFilter: 'blur(10px)',
+        // Glass: lighter dark fill + softer blur so the video reads through,
+        // but a 1px inner highlight + edge stroke keep the label legible.
+        bgcolor: 'rgba(10,10,10,0.38)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        backdropFilter: 'blur(5px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(5px) saturate(160%)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 4px 14px -4px rgba(0,0,0,0.45)',
         color: disabled ? 'rgba(255,255,255,0.4)' : '#fff',
+        textShadow: '0 1px 2px rgba(0,0,0,0.5)',
         opacity: disabled ? 0.5 : 1,
         transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
         '&:hover:not(.Mui-disabled)': {
-          bgcolor: 'rgba(10,10,10,0.9)',
+          bgcolor: 'rgba(10,10,10,0.55)',
         },
         '&:active:not(.Mui-disabled)': {
           transform: 'scale(0.96)',

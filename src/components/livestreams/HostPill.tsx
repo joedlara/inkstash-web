@@ -67,10 +67,12 @@ export default function HostPill({
         display: 'inline-flex',
         alignItems: 'center',
         gap: 1.25,
-        bgcolor: 'rgba(255,255,255,0.12)',
+        // Glass: lighter blur + slightly higher tint so you can still see
+        // the video moving through but @username + Follow read cleanly.
+        bgcolor: 'rgba(10,10,10,0.32)',
         border: '1px solid rgba(255,255,255,0.22)',
-        backdropFilter: 'blur(18px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+        backdropFilter: 'blur(6px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(6px) saturate(160%)',
         borderRadius: 999,
         pl: '6px',
         pr: '12px',
