@@ -57,7 +57,7 @@ function Tile({ label, value, accent = false }: { label: string; value: number |
     >
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 10.5,
           fontWeight: 700,
           color: inkstashColors.muted,
@@ -70,7 +70,7 @@ function Tile({ label, value, accent = false }: { label: string; value: number |
       </Typography>
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontWeight: 900,
           fontSize: 22,
           color: accent ? inkstashColors.brand : inkstashColors.ink,

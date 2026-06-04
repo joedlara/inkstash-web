@@ -93,7 +93,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
         {rows.length === 0 && (
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               color: inkstashColors.muted,
               textAlign: 'center',
@@ -120,7 +120,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
             >
               <Typography
                 sx={{
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: inkstashFonts.ui,
                   fontSize: 12,
                   fontWeight: 800,
                   color: isLive ? inkstashColors.brand : inkstashColors.muted,
@@ -143,7 +143,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
               <Box sx={{ minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontWeight: 700,
                     fontSize: 13,
                     color: inkstashColors.ink,
@@ -159,7 +159,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
                   {r.listing?.buy_now_price != null && (
                     <Typography
                       sx={{
-                        fontFamily: "'Outfit', sans-serif",
+                        fontFamily: inkstashFonts.ui,
                         fontSize: 11.5,
                         color: inkstashColors.muted,
                         fontVariantNumeric: 'tabular-nums',
@@ -176,7 +176,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
                         borderRadius: 999,
                         bgcolor: inkstashColors.live,
                         color: '#fff',
-                        fontFamily: "'Outfit', sans-serif",
+                        fontFamily: inkstashFonts.ui,
                         fontSize: 9.5,
                         fontWeight: 800,
                         letterSpacing: '0.04em',
@@ -202,7 +202,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
                       borderRadius: 999,
                       bgcolor: inkstashColors.brand,
                       color: '#fff',
-                      fontFamily: "'Outfit', sans-serif",
+                      fontFamily: inkstashFonts.ui,
                       fontSize: 11.5,
                       fontWeight: 800,
                       letterSpacing: '-0.005em',
@@ -246,7 +246,7 @@ export default function HostQueuePanel({ livestreamId, onAddItem }: Props) {
             borderRadius: 999,
             bgcolor: inkstashColors.bgSunken,
             color: inkstashColors.ink,
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             fontWeight: 700,
             letterSpacing: '-0.005em',

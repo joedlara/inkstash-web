@@ -281,7 +281,7 @@ function LiveDesktopStage({
               color: '#fff',
               py: 1.25,
               textAlign: 'center',
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 800,
               fontSize: 13,
               letterSpacing: '-0.005em',

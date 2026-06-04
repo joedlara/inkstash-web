@@ -75,7 +75,7 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
           color: '#fff',
           px: 1.5,
           py: 0.75,
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 10.5,
           fontWeight: 800,
           letterSpacing: '-0.005em',
@@ -93,7 +93,7 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
       <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontWeight: 900,
             fontSize: 22,
             color: inkstashColors.ink,
@@ -123,7 +123,7 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
             '& .MuiInputBase-root': {
               bgcolor: inkstashColors.bgSunken,
               color: inkstashColors.ink,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               borderRadius: 999,
               px: 1.5,
@@ -142,7 +142,7 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
               sx={{
                 bgcolor: inkstashColors.bgSunken,
                 color: inkstashColors.ink,
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
                 fontSize: 11.5,
                 fontWeight: 700,
                 letterSpacing: '-0.005em',
@@ -189,7 +189,7 @@ function SectionHeader({ label, sx }: { label: string; sx?: object }) {
   return (
     <Typography
       sx={{
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: inkstashFonts.ui,
         fontWeight: 800,
         fontSize: 14,
         color: inkstashColors.ink,
@@ -208,7 +208,7 @@ function EmptyHint({ label }: { label: string }) {
   return (
     <Typography
       sx={{
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: inkstashFonts.ui,
         fontSize: 12,
         color: inkstashColors.muted,
         py: 1.5,
@@ -263,7 +263,7 @@ function ProductTile({
         {price != null && (
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 900,
               fontSize: 15,
               color: inkstashColors.ink,
@@ -277,7 +277,7 @@ function ProductTile({
         )}
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontWeight: 600,
             fontSize: 12.5,
             color: inkstashColors.ink2,
@@ -303,7 +303,7 @@ function ProductTile({
             borderRadius: 999,
             bgcolor: inkstashColors.bg,
             color: inkstashColors.muted,
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontWeight: 700,
             fontSize: 10.5,
             letterSpacing: '-0.005em',

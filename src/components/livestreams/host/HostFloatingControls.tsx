@@ -84,7 +84,7 @@ function ControlChip({
       </IconButton>
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 10,
           fontWeight: 700,
           color: '#fff',

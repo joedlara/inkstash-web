@@ -43,7 +43,7 @@ export default function LiveStreamSection({
       >
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontWeight: 900,
             fontSize: { xs: 18, md: 22 },
             color: headerColor,
@@ -64,7 +64,7 @@ export default function LiveStreamSection({
               bgcolor: 'transparent',
               cursor: 'pointer',
               color: linkColor,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: '-0.005em',
@@ -81,7 +81,7 @@ export default function LiveStreamSection({
       {streams.length === 0 && emptyHint && (
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             color: linkColor,
             py: 2,

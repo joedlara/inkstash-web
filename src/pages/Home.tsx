@@ -38,7 +38,7 @@ const T = {
   white:     '#f0f0f5',
   muted:     'rgba(240,240,245,0.52)',
   dimmed:    'rgba(240,240,245,0.22)',
-  mono:      "'DM Mono', 'Courier New', monospace",
+  mono:      "'Geist Mono', 'Courier New', monospace",
 };
 
 const H = {
@@ -181,7 +181,7 @@ function SplashPage() {
 
         {/* Nav bar */}
         <Box sx={{ px: { xs: 2.5, md: 5 }, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}` }}>
-          <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: '1.35rem', color: T.white, letterSpacing: '-0.03em' }}>
+          <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 900, fontSize: '1.35rem', color: T.white, letterSpacing: '-0.03em' }}>
             Ink<Box component="span" sx={{ color: T.blue }}>Stash</Box>
           </Typography>
           <Stack direction="row" spacing={1}>
@@ -211,13 +211,13 @@ function SplashPage() {
             </Box>
 
             <Box className="fu2">
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white, mb: 0.5 }}>
+              <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white, mb: 0.5 }}>
                 Rip packs.
               </Typography>
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.blue, mb: 0.5 }}>
+              <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.blue, mb: 0.5 }}>
                 Chase keys.
               </Typography>
-              <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white }}>
+              <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 900, fontSize: { xs: '3rem', md: '4.2rem', lg: '5rem' }, lineHeight: 0.95, letterSpacing: '-0.03em', color: T.white }}>
                 Go live.
               </Typography>
             </Box>
@@ -265,7 +265,7 @@ function SplashPage() {
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
             bgcolor: T.surface,
           }}>
-            <Typography sx={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: '1.6rem', color: T.white, letterSpacing: '-0.02em', mb: 0.5 }}>
+            <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 900, fontSize: '1.6rem', color: T.white, letterSpacing: '-0.02em', mb: 0.5 }}>
               {tab === 'signup' ? 'Create your account' : 'Welcome back'}
             </Typography>
             <Typography sx={{ fontFamily: T.mono, fontSize: '0.72rem', color: T.muted, mb: 3.5 }}>

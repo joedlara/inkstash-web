@@ -67,7 +67,7 @@ export default function HostChatPanel({ livestreamId, initialMessages = [] }: Pr
         {messages.length === 0 && (
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               color: inkstashColors.muted,
               textAlign: 'center',
@@ -89,7 +89,7 @@ export default function HostChatPanel({ livestreamId, initialMessages = [] }: Pr
                 <Typography
                   component="span"
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontSize: 12.5,
                     fontWeight: 800,
                     color: m.is_mod_action ? inkstashColors.brand : inkstashColors.ink,
@@ -102,7 +102,7 @@ export default function HostChatPanel({ livestreamId, initialMessages = [] }: Pr
                 <Typography
                   component="span"
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontSize: 13,
                     color: inkstashColors.ink2,
                     letterSpacing: '-0.005em',
@@ -136,7 +136,7 @@ export default function HostChatPanel({ livestreamId, initialMessages = [] }: Pr
         <MenuItem
           onClick={handleBan}
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             fontWeight: 700,
             color: inkstashColors.brand,
@@ -169,7 +169,7 @@ export default function HostChatPanel({ livestreamId, initialMessages = [] }: Pr
             '& .MuiInputBase-root': {
               bgcolor: inkstashColors.bgSunken,
               color: inkstashColors.ink,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               borderRadius: 999,
               px: 1.5,

@@ -152,7 +152,7 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
             backdropFilter: scheduled ? 'blur(10px)' : undefined,
             border: scheduled ? '1px solid rgba(255,255,255,0.18)' : undefined,
             color: '#fff',
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 10.5,
             fontWeight: 800,
             letterSpacing: '-0.005em',
@@ -192,7 +192,7 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
               bgcolor: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(10px)',
               color: '#fff',
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 10.5,
               fontWeight: 800,
               letterSpacing: '-0.005em',
@@ -240,7 +240,7 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
           />
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 11.5,
               fontWeight: 700,
               color: '#fff',
@@ -259,7 +259,7 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
       <Box onClick={goToStream} sx={{ pt: 1.5, cursor: 'pointer' }}>
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 14,
             fontWeight: 700,
             color: titleColor,

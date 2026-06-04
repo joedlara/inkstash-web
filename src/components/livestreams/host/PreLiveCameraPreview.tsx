@@ -142,7 +142,7 @@ const PreLiveCameraPreview = forwardRef<PreLiveCameraPreviewHandle>(function Pre
             sx={{
               color: '#fff',
               textAlign: 'center',
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               lineHeight: 1.5,
               maxWidth: 280,

@@ -54,7 +54,7 @@ export default function SchedulePicker({ value, onChange }: Props) {
         />
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             color: inkstashColors.ink,
             letterSpacing: '-0.005em',
@@ -72,7 +72,7 @@ export default function SchedulePicker({ value, onChange }: Props) {
           sx={{
             mt: 1,
             '& .MuiInputBase-root': {
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               bgcolor: inkstashColors.bgSunken,
               borderRadius: 1.5,

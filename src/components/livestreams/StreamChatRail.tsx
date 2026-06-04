@@ -93,7 +93,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
         {messages.length === 0 && (
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 12.5,
               color: inkstashColors.muted,
               textAlign: 'center',
@@ -126,7 +126,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
                 <Typography
                   component="span"
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontSize: 12.5,
                     fontWeight: 800,
                     color: m.is_mod_action ? inkstashColors.brand : inkstashColors.ink,
@@ -139,7 +139,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
                 <Typography
                   component="span"
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontSize: 13,
                     color: inkstashColors.ink2,
                     letterSpacing: '-0.005em',
@@ -178,7 +178,7 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
             '& .MuiInputBase-root': {
               bgcolor: inkstashColors.bgSunken,
               color: inkstashColors.ink,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 13,
               borderRadius: 999,
               px: 1.5,
@@ -225,7 +225,7 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
       <Typography
         component="span"
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 14,
           fontWeight: 700,
           color: active ? inkstashColors.ink : inkstashColors.muted,

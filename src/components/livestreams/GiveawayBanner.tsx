@@ -51,7 +51,7 @@ export default function GiveawayBanner({ entryCount = 0 }: Props) {
         </Box>
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             fontWeight: 700,
             color: inkstashColors.ink,

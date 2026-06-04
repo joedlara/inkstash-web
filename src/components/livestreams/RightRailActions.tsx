@@ -110,7 +110,7 @@ function RailChip({
       {icon}
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 11,
           fontWeight: 700,
           letterSpacing: '-0.005em',

@@ -29,7 +29,7 @@ export default function EndStreamConfirmModal({ open, onCancel, onConfirm, endin
       <Box sx={{ p: 3 }}>
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 20,
             fontWeight: 900,
             color: inkstashColors.ink,
@@ -41,7 +41,7 @@ export default function EndStreamConfirmModal({ open, onCancel, onConfirm, endin
         </Typography>
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13.5,
             color: inkstashColors.muted,
             letterSpacing: '-0.005em',
@@ -57,7 +57,7 @@ export default function EndStreamConfirmModal({ open, onCancel, onConfirm, endin
             disabled={ending}
             fullWidth
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 14,
               fontWeight: 700,
               textTransform: 'none',
@@ -76,7 +76,7 @@ export default function EndStreamConfirmModal({ open, onCancel, onConfirm, endin
             disabled={ending}
             fullWidth
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 14,
               fontWeight: 800,
               textTransform: 'none',

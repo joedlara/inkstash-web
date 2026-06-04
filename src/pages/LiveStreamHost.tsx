@@ -19,6 +19,7 @@ import {
 import { CallEnd, Close } from '@mui/icons-material';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamVideo, { type LiveStreamVideoHandle } from '../components/livestreams/LiveStreamVideo';
+import LiveStreamChat from '../components/livestreams/LiveStreamChat';
 import ViewerCountBadge from '../components/livestreams/ViewerCountBadge';
 import PreLiveCameraPreview, { type PreLiveCameraPreviewHandle } from '../components/livestreams/host/PreLiveCameraPreview';
 import ThumbnailUploader from '../components/livestreams/host/ThumbnailUploader';
@@ -38,7 +39,7 @@ function SectionLabel({ children, optional = false }: { children: React.ReactNod
   return (
     <Typography
       sx={{
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: inkstashFonts.ui,
         fontSize: 12.5,
         fontWeight: 800,
         color: inkstashColors.ink,
@@ -53,7 +54,7 @@ function SectionLabel({ children, optional = false }: { children: React.ReactNod
           component="span"
           sx={{
             ml: 0.75,
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 10,
             fontWeight: 700,
             color: inkstashColors.muted,
@@ -70,7 +71,7 @@ function SectionLabel({ children, optional = false }: { children: React.ReactNod
 
 const inputSx = {
   '& .MuiInputBase-root': {
-    fontFamily: "'Outfit', sans-serif",
+    fontFamily: inkstashFonts.ui,
     fontSize: 14,
     bgcolor: inkstashColors.bgSunken,
     borderRadius: 1.5,
@@ -137,6 +138,20 @@ export default function LiveStreamHost() {
     })();
     return () => { cancelled = true; };
   }, [user]);
+
+  // Lock body scroll while in the live phase so the host can't drag the
+  // page background up/down behind the full-bleed camera.
+  useEffect(() => {
+    if (phase !== 'live') return;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, [phase]);
 
   async function handleGoLive() {
     setStarting(true);
@@ -234,7 +249,7 @@ export default function LiveStreamHost() {
         <Box sx={{ maxWidth: 540, mx: 'auto', p: { xs: 2, md: 3 } }}>
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 900,
               fontSize: { xs: 28, md: 36 },
               color: inkstashColors.ink,
@@ -248,7 +263,7 @@ export default function LiveStreamHost() {
           <Typography
             sx={{
               color: inkstashColors.muted,
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontSize: 14,
               letterSpacing: '-0.005em',
               mb: 3,
@@ -320,7 +335,7 @@ export default function LiveStreamHost() {
                 mt: 1,
                 fontSize: 11.5,
                 color: inkstashColors.muted,
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
               }}
             >
               Items appear in the shop rail when the stream goes live.
@@ -337,7 +352,7 @@ export default function LiveStreamHost() {
             sx={{
               bgcolor: inkstashColors.brand,
               color: '#fff',
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 900,
               fontSize: 15,
               letterSpacing: '-0.01em',
@@ -428,6 +443,16 @@ export default function LiveStreamHost() {
           <CallEnd />
         </IconButton>
 
+        {/* Read-only chat overlay so the host can see audience messages
+            without opening the drawer. Scroll-back works; composer is
+            suppressed via readOnly. */}
+        <LiveStreamChat
+          livestreamId={streamId}
+          initialMessages={[]}
+          isBanned={false}
+          readOnly
+        />
+
         {/* Right-edge floating control stack */}
         <HostFloatingControls
           micMuted={micMuted}
@@ -471,7 +496,7 @@ export default function LiveStreamHost() {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 900,
               fontSize: 20,
               letterSpacing: '-0.02em',

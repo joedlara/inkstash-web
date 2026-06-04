@@ -115,7 +115,7 @@ export default function ThumbnailUploader({ value, onChange }: Props) {
         disabled={uploading}
         startIcon={uploading ? <CircularProgress size={14} /> : <ImageOutlined />}
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 13,
           fontWeight: 700,
           textTransform: 'none',

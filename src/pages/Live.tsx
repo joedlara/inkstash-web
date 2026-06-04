@@ -53,7 +53,7 @@ export default function Live() {
           <Box>
             <Typography
               sx={{
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
                 fontSize: 11,
                 fontWeight: 700,
                 color: inkstashColors.muted,
@@ -66,7 +66,7 @@ export default function Live() {
             </Typography>
             <Typography
               sx={{
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
                 fontWeight: 900,
                 fontSize: { xs: 32, md: 44 },
                 color: inkstashColors.ink,
@@ -84,7 +84,7 @@ export default function Live() {
               sx={{
                 bgcolor: inkstashColors.brand,
                 color: '#fff',
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
                 fontWeight: 800,
                 fontSize: 14,
                 letterSpacing: '-0.01em',
@@ -111,7 +111,7 @@ export default function Live() {
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography
               sx={{
-                fontFamily: "'Outfit', sans-serif",
+                fontFamily: inkstashFonts.ui,
                 fontWeight: 800,
                 fontSize: 22,
                 color: inkstashColors.ink,

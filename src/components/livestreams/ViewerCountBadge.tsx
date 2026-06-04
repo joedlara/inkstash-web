@@ -40,7 +40,7 @@ export default function ViewerCountBadge({ count }: Props) {
       <Eye size={13} strokeWidth={2.5} />
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 13,
           fontWeight: 800,
           letterSpacing: '-0.01em',

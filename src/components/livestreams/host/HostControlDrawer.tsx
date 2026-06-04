@@ -6,12 +6,11 @@
 
 import { useState } from 'react';
 import { SwipeableDrawer, Box, Typography } from '@mui/material';
-import HostChatPanel from './HostChatPanel';
 import HostQueuePanel from './HostQueuePanel';
 import HostStatsPanel from './HostStatsPanel';
 import { inkstashColors, inkstashRadii } from '../../../theme/inkstashTokens';
 
-type Tab = 'chat' | 'queue' | 'stats';
+type Tab = 'queue' | 'stats';
 
 interface Props {
   open: boolean;
@@ -27,7 +26,7 @@ interface Props {
 export default function HostControlDrawer({
   open, onOpen, onClose, livestreamId, startedAt, liveViewers, totalUniqueViewers, onAddItem,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('chat');
+  const [tab, setTab] = useState<Tab>('queue');
 
   return (
     <SwipeableDrawer
@@ -35,8 +34,9 @@ export default function HostControlDrawer({
       open={open}
       onOpen={onOpen}
       onClose={onClose}
-      disableSwipeToOpen={false}
-      swipeAreaWidth={24}
+      disableSwipeToOpen
+      swipeAreaWidth={0}
+      ModalProps={{ keepMounted: false }}
       PaperProps={{
         sx: {
           height: '60vh',
@@ -79,14 +79,12 @@ export default function HostControlDrawer({
           flexShrink: 0,
         }}
       >
-        <TabBtn label="Chat" active={tab === 'chat'} onClick={() => setTab('chat')} />
         <TabBtn label="Queue" active={tab === 'queue'} onClick={() => setTab('queue')} />
         <TabBtn label="Stats" active={tab === 'stats'} onClick={() => setTab('stats')} />
       </Box>
 
       {/* Panel body */}
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {tab === 'chat' && <HostChatPanel livestreamId={livestreamId} />}
         {tab === 'queue' && <HostQueuePanel livestreamId={livestreamId} onAddItem={onAddItem} />}
         {tab === 'stats' && (
           <HostStatsPanel
@@ -112,7 +110,7 @@ function TabBtn({ label, active, onClick }: { label: string; active: boolean; on
     >
       <Typography
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 14,
           fontWeight: 700,
           color: active ? inkstashColors.ink : inkstashColors.muted,

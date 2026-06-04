@@ -75,7 +75,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
         startIcon={<Add />}
         onClick={() => setOpen(true)}
         sx={{
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontSize: 13,
           fontWeight: 700,
           textTransform: 'none',
@@ -115,7 +115,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
               >
                 <Typography
                   sx={{
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: inkstashFonts.ui,
                     fontWeight: 800,
                     fontSize: 13,
                     color: inkstashColors.muted,
@@ -138,7 +138,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
                 <Box sx={{ minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontFamily: "'Outfit', sans-serif",
+                      fontFamily: inkstashFonts.ui,
                       fontWeight: 700,
                       fontSize: 13,
                       color: inkstashColors.ink,
@@ -153,7 +153,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
                   {l.buy_now_price != null && (
                     <Typography
                       sx={{
-                        fontFamily: "'Outfit', sans-serif",
+                        fontFamily: inkstashFonts.ui,
                         fontSize: 11.5,
                         color: inkstashColors.muted,
                         fontVariantNumeric: 'tabular-nums',
@@ -187,7 +187,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 900,
               fontSize: 20,
               letterSpacing: '-0.02em',
@@ -252,7 +252,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
                 <Box sx={{ minWidth: 0 }}>
                   <Typography
                     sx={{
-                      fontFamily: "'Outfit', sans-serif",
+                      fontFamily: inkstashFonts.ui,
                       fontWeight: 700,
                       fontSize: 13,
                       color: inkstashColors.ink,
@@ -269,7 +269,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
                   {l.buy_now_price != null && (
                     <Typography
                       sx={{
-                        fontFamily: "'Outfit', sans-serif",
+                        fontFamily: inkstashFonts.ui,
                         fontSize: 12,
                         color: inkstashColors.muted,
                         mt: 0.25,
@@ -287,7 +287,7 @@ export default function PreStreamQueue({ value, onChange }: Props) {
           <Button
             onClick={() => setOpen(false)}
             sx={{
-              fontFamily: "'Outfit', sans-serif",
+              fontFamily: inkstashFonts.ui,
               fontWeight: 800,
               fontSize: 13,
               textTransform: 'none',

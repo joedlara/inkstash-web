@@ -25,7 +25,7 @@ export default function HostPill({ username, avatarUrl }: Props) {
           width: 40,
           height: 40,
           fontSize: 16,
-          fontFamily: "'Outfit', sans-serif",
+          fontFamily: inkstashFonts.ui,
           fontWeight: 800,
           bgcolor: inkstashColors.brand,
           color: '#fff',
@@ -58,7 +58,7 @@ export default function HostPill({ username, avatarUrl }: Props) {
       >
         <Typography
           sx={{
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 13,
             fontWeight: 800,
             color: '#fff',
@@ -80,7 +80,7 @@ export default function HostPill({ username, avatarUrl }: Props) {
             borderRadius: 999,
             bgcolor: followed ? 'rgba(255,255,255,0.18)' : inkstashColors.brand,
             color: '#fff',
-            fontFamily: "'Outfit', sans-serif",
+            fontFamily: inkstashFonts.ui,
             fontSize: 10.5,
             fontWeight: 800,
             letterSpacing: '-0.005em',
