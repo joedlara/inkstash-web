@@ -201,6 +201,42 @@ export const livestreamsAPI = {
   banChatter: (livestream_id: string, user_id: string, reason?: string) =>
     callFn<{ status: string }>('ban-chatter', { livestream_id, user_id, reason }),
 
+  /** "Do I have a live or starting stream right now?" used by the Creator
+   *  Hub's Live Control panel to decide between empty state and the real
+   *  producer console. Returns the row + a viewer-mode LiveKit token so
+   *  the laptop can join its own stream as a viewer (the phone is the
+   *  camera; the laptop is the control surface). */
+  async getMyActiveStream(host_user_id: string): Promise<
+    | { stream: Livestream; livekit: { token: string; wsUrl: string } }
+    | null
+  > {
+    const { data, error } = await supabase
+      .from('livestreams')
+      .select('*')
+      .eq('host_user_id', host_user_id)
+      .eq('status', 'live')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const row = data as Livestream;
+    try {
+      // join() is buyer-side viewer join — chat history isn't needed by
+      // the producer surface, but the token + wsUrl are. We drop the rest.
+      const join = await callFn<{ livekit_token: string; livekit_ws_url: string }>(
+        'join-livestream', { livestream_id: row.id },
+      );
+      const hydrated = await hydrateHosts([row]);
+      return {
+        stream: hydrated[0],
+        livekit: { token: join.livekit_token, wsUrl: join.livekit_ws_url },
+      };
+    } catch (err) {
+      console.warn('[livestreamsAPI.getMyActiveStream] join failed', err);
+      return null;
+    }
+  },
+
   /** Host-scoped lister used by the Creator Hub Shows panel. Returns
    *  upcoming (scheduled future or live) and past (ended) splits in one
    *  round trip. The auth user has to match host_user_id, so we expect
