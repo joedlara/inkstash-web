@@ -15,6 +15,8 @@ import HubRail, { type HubTabId } from '../components/creatorHub/HubRail';
 import OverviewPanel from '../components/creatorHub/panels/OverviewPanel';
 import ShowsPanel from '../components/creatorHub/panels/ShowsPanel';
 import PlaceholderPanel from '../components/creatorHub/panels/PlaceholderPanel';
+import GoLiveComposer from '../components/creatorHub/composer/GoLiveComposer';
+import type { ComposerMode } from '../components/creatorHub/composer/types';
 import { useAuth } from '../hooks/useAuth';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { inkstashColors } from '../theme/inkstashTokens';
@@ -36,10 +38,23 @@ export default function CreatorHub() {
   }, [user, loading, navigate]);
 
   const [tab, setTab] = useState<HubTabId>('home');
-  // TODO(go-live): wire to the GoLiveComposer modal when that ships.
-  const handleGoLive = () => {
-    console.info('[CreatorHub] Go Live composer not built yet');
-  };
+  const [composer, setComposer] = useState<ComposerMode | null>(null);
+
+  const openLiveNow = () => setComposer('live');
+  const openSchedule = () => setComposer('schedule');
+  const handleGoLive = openLiveNow;
+
+  function handlePublished(livestreamId: string, mode: ComposerMode) {
+    if (mode === 'live') {
+      // Live Control panel is the next commit — route to the viewer
+      // page meanwhile so the host can confirm the room is up.
+      navigate(`/live/${livestreamId}`);
+    } else {
+      // Scheduled — drop back to Shows so the new entry appears in
+      // the Upcoming tab.
+      setTab('stream');
+    }
+  }
 
   if (loading || !user) {
     return (
@@ -52,7 +67,7 @@ export default function CreatorHub() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: inkstashColors.bg, color: inkstashColors.ink }}>
       <HubTopBar
-        onCreateShow={handleGoLive}
+        onCreateShow={openSchedule}
         onOpenSettings={() => setTab('settings')}
         notificationCount={0}
       />
@@ -60,18 +75,25 @@ export default function CreatorHub() {
         <HubRail active={tab} onChange={setTab} streamLive={false} />
         <Box component="main" sx={{ minWidth: 0, minHeight: 'calc(100vh - 60px)' }}>
           <Box sx={{ p: { xs: 3, md: '28px 34px 60px' }, maxWidth: 1240 }}>
-            {renderPanel(tab, handleGoLive)}
+            {renderPanel(tab, openLiveNow, openSchedule)}
           </Box>
         </Box>
       </Box>
+
+      <GoLiveComposer
+        open={composer !== null}
+        mode={composer ?? 'live'}
+        onClose={() => setComposer(null)}
+        onPublished={handlePublished}
+      />
     </Box>
   );
 }
 
-function renderPanel(tab: HubTabId, onGoLive: () => void) {
+function renderPanel(tab: HubTabId, onGoLive: () => void, onSchedule: () => void) {
   switch (tab) {
     case 'home':      return <OverviewPanel onGoLive={onGoLive} />;
-    case 'stream':    return <ShowsPanel onSchedule={onGoLive} onGoLive={onGoLive} />;
+    case 'stream':    return <ShowsPanel onSchedule={onSchedule} onGoLive={onGoLive} />;
     case 'analytics': return <PlaceholderPanel eyebrow="Insights"  title="Analytics" sub="Revenue, orders, viewers, follower growth." />;
     case 'listed':    return <PlaceholderPanel eyebrow="Inventory" title="Listed Items" sub="Everything you have on the marketplace." />;
     case 'community': return <PlaceholderPanel eyebrow="Audience"  title="Community" sub="Followers, top fans, replies to messages." />;
