@@ -13,6 +13,8 @@ import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 
 interface Props {
   label: string;
+  /** Sub-line under the label — design spec: 13px muted body. */
+  sub?: string;
   streams: Livestream[];
   emptyHint?: string;
   /** Render a countdown-style pill on the tile instead of the Live pill. */
@@ -23,7 +25,7 @@ interface Props {
 }
 
 export default function LiveStreamSection({
-  label, streams, emptyHint, scheduled = false, dark = false,
+  label, sub, streams, emptyHint, scheduled = false, dark = false,
 }: Props) {
   if (streams.length === 0 && !emptyHint) return null;
 
@@ -32,27 +34,47 @@ export default function LiveStreamSection({
 
   const inner = (
     <>
-      {/* Header */}
+      {/* Header — display font label + optional muted sub-line. Right side
+          carries the "Show all" control. Design spec: align-items end. */}
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'flex-end',
           justifyContent: 'space-between',
-          mb: 1.5,
+          gap: 2,
+          mb: 2,
+          flexWrap: 'wrap',
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.ui,
-            fontWeight: 900,
-            fontSize: { xs: 18, md: 22 },
-            color: headerColor,
-            letterSpacing: '-0.02em',
-            lineHeight: 1,
-          }}
-        >
-          {label}
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontFamily: inkstashFonts.display,
+              fontWeight: 900,
+              fontSize: { xs: 22, md: 28 },
+              color: headerColor,
+              letterSpacing: '-0.005em',
+              lineHeight: 1,
+              textTransform: 'uppercase',
+              mb: sub ? 0.5 : 0,
+            }}
+          >
+            {label}
+          </Typography>
+          {sub && (
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.ui,
+                fontSize: 13,
+                color: dark ? 'rgba(255,255,255,0.62)' : inkstashColors.muted,
+                lineHeight: 1.5,
+                maxWidth: 440,
+              }}
+            >
+              {sub}
+            </Typography>
+          )}
+        </Box>
         {streams.length > 0 && (
           <Box
             component="button"

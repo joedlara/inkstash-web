@@ -48,33 +48,45 @@ export default function Live() {
   return (
     <AppShell>
       <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
-        {/* Page header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 4 }}>
-          <Box>
+        {/* Page header — display title + lede. Design spec: align end,
+            wrap on small screens. */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 2.5,
+            mb: 4,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Box sx={{ flex: '1 1 auto', minWidth: 240 }}>
             <Typography
+              component="h1"
               sx={{
-                fontFamily: inkstashFonts.ui,
-                fontSize: 11,
-                fontWeight: 700,
-                color: inkstashColors.muted,
-                letterSpacing: '0.06em',
+                fontFamily: inkstashFonts.display,
+                fontWeight: 900,
+                fontSize: 'clamp(40px, 5vw, 60px)',
+                color: inkstashColors.ink,
+                letterSpacing: '-0.005em',
+                lineHeight: 0.95,
                 textTransform: 'uppercase',
-                mb: 0.5,
+                mb: 1,
               }}
             >
-              Watch + bid in real time
+              Live Breaks
             </Typography>
             <Typography
               sx={{
                 fontFamily: inkstashFonts.ui,
-                fontWeight: 900,
-                fontSize: { xs: 32, md: 44 },
-                color: inkstashColors.ink,
-                letterSpacing: '-0.03em',
-                lineHeight: 1,
+                fontSize: 15,
+                color: inkstashColors.ink2,
+                maxWidth: 440,
+                lineHeight: 1.5,
               }}
             >
-              Live
+              Watch hosts open packs in real time, bid on what they pull, and tune into
+              tonight's featured spotlight.
             </Typography>
           </Box>
           {isActiveSeller && (
@@ -130,17 +142,20 @@ export default function Live() {
         {!loading && !nothingAnywhere && (
           <>
             <LiveStreamSection
-              label="Live now"
+              label="Live Now"
+              sub="Jump into a stream and start bidding."
               streams={sections.live}
               emptyHint="No one is live right now. Scroll down for upcoming streams."
             />
             <LiveStreamSection
-              label="Coming up"
+              label="Coming Up"
+              sub="Set a reminder so you don't miss the drop."
               streams={sections.upcoming}
               scheduled
             />
             <LiveStreamSection
-              label="Featured streams"
+              label="Featured Streams"
+              sub="Tonight's hand-picked spotlights."
               streams={sections.featured}
               dark
             />
