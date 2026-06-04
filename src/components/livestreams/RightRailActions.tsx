@@ -1,25 +1,33 @@
 // src/components/livestreams/RightRailActions.tsx
 //
-// Mobile-only floating right-rail. Modern rounded chip stack with icon +
-// uppercase label. Crisp white-on-dark with brand-red hover accent.
+// Floating right-rail on the stream viewer. Each chip opens a small
+// floating popover anchored to itself (not a full-width bottom drawer)
+// so the popover never blocks the camera feed.
 
-import { useState } from 'react';
+import { forwardRef, useRef, useState } from 'react';
 import { Box, Typography, ButtonBase, Tooltip } from '@mui/material';
 import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucide-react';
 import ShareDrawer from './ShareDrawer';
 import MoreDrawer from './MoreDrawer';
 import WalletDrawer from './WalletDrawer';
-import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
   streamTitle: string;
   streamUrl: string;
 }
 
-type DrawerKey = 'more' | 'share' | 'wallet' | null;
+type PopoverKey = 'more' | 'share' | 'wallet' | null;
 
 export default function RightRailActions({ streamTitle, streamUrl }: Props) {
-  const [openDrawer, setOpenDrawer] = useState<DrawerKey>(null);
+  const [open, setOpen] = useState<PopoverKey>(null);
+  // One ref per button so each popover can anchor to the exact chip the
+  // user tapped instead of all anchoring to the rail wrapper.
+  const shareRef = useRef<HTMLButtonElement | null>(null);
+  const walletRef = useRef<HTMLButtonElement | null>(null);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
+
+  const close = () => setOpen(null);
 
   return (
     <>
@@ -37,14 +45,16 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
         }}
       >
         <RailChip
+          ref={shareRef}
           icon={<Share2 size={15} strokeWidth={2.4} />}
           label="Share"
-          onClick={() => setOpenDrawer('share')}
+          onClick={() => setOpen('share')}
         />
         <RailChip
+          ref={walletRef}
           icon={<WalletIcon size={15} strokeWidth={2.4} />}
           label="Wallet"
-          onClick={() => setOpenDrawer('wallet')}
+          onClick={() => setOpen('wallet')}
         />
         <Tooltip title="Coming with auctions" arrow placement="left">
           <span>
@@ -56,34 +66,45 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
           </span>
         </Tooltip>
         <RailChip
+          ref={moreRef}
           icon={<MoreHorizontal size={17} strokeWidth={2.4} />}
           label="More"
-          onClick={() => setOpenDrawer('more')}
+          onClick={() => setOpen('more')}
         />
       </Box>
 
       <ShareDrawer
-        open={openDrawer === 'share'}
-        onClose={() => setOpenDrawer(null)}
+        open={open === 'share'}
+        onClose={close}
+        anchorEl={shareRef.current}
         streamTitle={streamTitle}
         streamUrl={streamUrl}
       />
-      <MoreDrawer open={openDrawer === 'more'} onClose={() => setOpenDrawer(null)} />
-      <WalletDrawer open={openDrawer === 'wallet'} onClose={() => setOpenDrawer(null)} />
+      <WalletDrawer
+        open={open === 'wallet'}
+        onClose={close}
+        anchorEl={walletRef.current}
+      />
+      <MoreDrawer
+        open={open === 'more'}
+        onClose={close}
+        anchorEl={moreRef.current}
+      />
     </>
   );
 }
 
-function RailChip({
-  icon, label, onClick, disabled = false,
-}: {
+// forwardRef so each chip can be a popover anchor without losing the
+// existing ButtonBase semantics.
+const RailChip = forwardRef<HTMLButtonElement, {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
-}) {
+}>(function RailChip({ icon, label, onClick, disabled = false }, ref) {
   return (
     <ButtonBase
+      ref={ref}
       onClick={onClick}
       disabled={disabled}
       sx={{
@@ -121,4 +142,4 @@ function RailChip({
       </Typography>
     </ButtonBase>
   );
-}
+});

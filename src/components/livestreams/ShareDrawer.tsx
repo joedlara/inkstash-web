@@ -1,27 +1,28 @@
 // src/components/livestreams/ShareDrawer.tsx
 //
-// Triggered from the right rail Share button. On mobile, prefers the native
-// share sheet via navigator.share(); falls back to copying the URL on web
-// where share isn't supported. A toast confirms either path.
+// Right-rail "Share" popover. Anchored to the rail Share chip. On
+// devices with native share (mobile Safari, etc.) it auto-opens the
+// native sheet on first render; on desktop it falls back to in-popover
+// options (Copy link, Message, Email). A toast confirms whichever path
+// the user took.
 
 import { useEffect, useState } from 'react';
-import { Drawer, Box, Typography, Button, Snackbar, Alert } from '@mui/material';
+import { Popover, Box, Typography, Snackbar, Alert } from '@mui/material';
 import { Link as LinkIcon, MessageCircle, Mail } from 'lucide-react';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  anchorEl: HTMLElement | null;
   streamTitle: string;
   streamUrl: string;
 }
 
-export default function ShareDrawer({ open, onClose, streamTitle, streamUrl }: Props) {
+export default function ShareDrawer({ open, onClose, anchorEl, streamTitle, streamUrl }: Props) {
   const [toast, setToast] = useState<string | null>(null);
   const supportsNative = typeof navigator !== 'undefined' && 'share' in navigator;
 
-  // On open, immediately try native share if available — saves the user a tap.
-  // If they cancel or it's not supported, fall back to the in-drawer options.
   useEffect(() => {
     if (!open || !supportsNative) return;
     (async () => {
@@ -29,10 +30,9 @@ export default function ShareDrawer({ open, onClose, streamTitle, streamUrl }: P
         await navigator.share({ title: streamTitle, url: streamUrl });
         onClose();
       } catch {
-        // User cancelled native sheet — leave drawer open with fallback options
+        // User cancelled native sheet — leave popover open with fallback options
       }
     })();
-    // Intentionally only run on `open` transitioning true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -44,36 +44,30 @@ export default function ShareDrawer({ open, onClose, streamTitle, streamUrl }: P
 
   return (
     <>
-      <Drawer
-        anchor="bottom"
-        open={open}
+      <Popover
+        open={open && !!anchorEl}
         onClose={onClose}
-        PaperProps={{
-          sx: {
-            bgcolor: inkstashColors.bgElev,
-            borderTopLeftRadius: inkstashRadii.lg,
-            borderTopRightRadius: inkstashRadii.lg,
-            pb: 'max(env(safe-area-inset-bottom), 16px)',
+        anchorEl={anchorEl}
+        anchorOrigin={{ vertical: 'center', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'center', horizontal: 'right' }}
+        slotProps={{
+          paper: {
+            sx: {
+              mr: 1.5,
+              width: 240,
+              bgcolor: inkstashColors.bgElev,
+              borderRadius: inkstashRadii.md,
+              boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
+              border: `1px solid ${inkstashColors.border}`,
+              overflow: 'hidden',
+            },
           },
         }}
       >
-        <Box sx={{ p: 3 }}>
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.display,
-              fontWeight: 900,
-              fontSize: 18,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              mb: 2,
-            }}
-          >
-            Share stream
-          </Typography>
-
-          <ShareRow icon={<LinkIcon size={18} />} label="Copy link" onClick={copyLink} />
+        <Box sx={{ p: 1 }}>
+          <ShareRow icon={<LinkIcon size={16} />} label="Copy link" onClick={copyLink} />
           <ShareRow
-            icon={<MessageCircle size={18} />}
+            icon={<MessageCircle size={16} />}
             label="Message"
             onClick={() => {
               window.location.href = `sms:?&body=${encodeURIComponent(`${streamTitle} ${streamUrl}`)}`;
@@ -81,30 +75,16 @@ export default function ShareDrawer({ open, onClose, streamTitle, streamUrl }: P
             }}
           />
           <ShareRow
-            icon={<Mail size={18} />}
+            icon={<Mail size={16} />}
             label="Email"
             onClick={() => {
               window.location.href = `mailto:?subject=${encodeURIComponent(streamTitle)}&body=${encodeURIComponent(streamUrl)}`;
               onClose();
             }}
+            isLast
           />
-
-          <Button
-            fullWidth
-            onClick={onClose}
-            sx={{
-              mt: 1,
-              py: 1.2,
-              fontFamily: inkstashFonts.ui,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              color: inkstashColors.muted,
-            }}
-          >
-            Cancel
-          </Button>
         </Box>
-      </Drawer>
+      </Popover>
 
       <Snackbar
         open={!!toast}
@@ -120,7 +100,14 @@ export default function ShareDrawer({ open, onClose, streamTitle, streamUrl }: P
   );
 }
 
-function ShareRow({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function ShareRow({
+  icon, label, onClick, isLast = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  isLast?: boolean;
+}) {
   return (
     <Box
       component="button"
@@ -128,20 +115,20 @@ function ShareRow({ icon, label, onClick }: { icon: React.ReactNode; label: stri
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1.5,
+        gap: 1.25,
         width: '100%',
-        py: 1.5,
-        px: 1,
+        py: 1.1,
+        px: 1.25,
         border: 'none',
         bgcolor: 'transparent',
         color: inkstashColors.ink,
         cursor: 'pointer',
-        borderBottom: `1px solid ${inkstashColors.border}`,
+        borderBottom: isLast ? 'none' : `1px solid ${inkstashColors.border}`,
         '&:hover': { bgcolor: inkstashColors.bgSunken },
       }}
     >
       {icon}
-      <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 600, fontSize: 14 }}>
+      <Typography sx={{ fontFamily: inkstashFonts.ui, fontWeight: 600, fontSize: 13 }}>
         {label}
       </Typography>
     </Box>

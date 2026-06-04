@@ -22,7 +22,6 @@ import LiveBreaksRow from '../components/home/LiveBreaksRow';
 import PublisherScroller from '../components/home/PublisherScroller';
 import TrendingList from '../components/home/TrendingList';
 import Discover3Up from '../components/home/Discover3Up';
-import HomeFooter from '../components/home/HomeFooter';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -376,7 +375,6 @@ export default function Home() {
       <PublisherScroller />
       <TrendingList />
       <Discover3Up />
-      <HomeFooter />
       <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </AppShell>
   );
