@@ -187,7 +187,7 @@ function LiveDesktopStage({
     >
       {/* Left: Shop */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
-        <StreamShopRail hostUserId={stream.host_user_id} streamTitle={stream.title} />
+        <StreamShopRail livestreamId={stream.id} streamTitle={stream.title} />
       </Box>
 
       {/* Center: Video card, vertically centered with breathing room */}

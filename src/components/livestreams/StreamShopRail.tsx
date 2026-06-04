@@ -16,7 +16,9 @@ import { inkstashColors, inkstashRadii , inkstashFonts} from '../../theme/inksta
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface Props {
-  hostUserId: string;
+  /** The viewer's current livestream id. Drives the queued-item list. */
+  livestreamId: string;
+  /** Display chip above the Shop header. */
   streamTitle: string;
 }
 
@@ -25,30 +27,90 @@ interface ShopListing {
   title: string;
   buy_now_price: number | null;
   photos: Array<{ url?: string }> | null;
+  position: number;
+  status: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
 }
 
-const FILTER_CHIPS = ['Filter', 'Sort', 'Auction', 'Giveaway'] as const;
+const FILTER_CHIPS = ['Filter', 'Sort', 'Auction', 'Giveaway', 'Sold'] as const;
 
-export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
+export default function StreamShopRail({ livestreamId, streamTitle }: Props) {
   const navigate = useNavigate();
   const [listings, setListings] = useState<ShopListing[]>([]);
   const [query, setQuery] = useState('');
 
+  // Pull the host's queue (livestream_items) joined with each listing's
+  // display metadata. Two queries to dodge the PostgREST FK-embed shape
+  // ambiguity we've hit elsewhere in this codebase.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data: items } = await supabase
+        .from('livestream_items')
+        .select('listing_id, position, status')
+        .eq('livestream_id', livestreamId)
+        .neq('status', 'removed')
+        .order('position', { ascending: true });
+      const ids = (items ?? []).map((i: { listing_id: string }) => i.listing_id);
+      if (cancelled) return;
+      if (ids.length === 0) { setListings([]); return; }
+      const { data: listingRows } = await supabase
         .from('listings')
         .select('id, title, buy_now_price, photos')
-        .eq('user_id', hostUserId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(30);
+        .in('id', ids);
       if (cancelled) return;
-      setListings((data ?? []) as ShopListing[]);
+      const byId = new Map(
+        (listingRows ?? []).map(
+          (l: { id: string; title: string; buy_now_price: number | null; photos: Array<{ url?: string }> | null }) => [l.id, l],
+        ),
+      );
+      const joined: ShopListing[] = (items ?? [])
+        .map((i: { listing_id: string; position: number; status: ShopListing['status'] }) => {
+          const row = byId.get(i.listing_id);
+          if (!row) return null;
+          return { ...row, position: i.position, status: i.status } satisfies ShopListing;
+        })
+        .filter((x): x is ShopListing => x !== null);
+      setListings(joined);
     })();
-    return () => { cancelled = true; };
-  }, [hostUserId]);
+
+    // Realtime: any change in the queue (host adds, marks live, sells)
+    // re-pulls. Cheap because the dataset is small.
+    const channel = supabase
+      .channel(`stream_shop_items:${livestreamId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'livestream_items', filter: `livestream_id=eq.${livestreamId}` },
+        () => { if (!cancelled) { /* trigger re-fetch on next tick */ void (async () => {
+          const { data: items2 } = await supabase
+            .from('livestream_items')
+            .select('listing_id, position, status')
+            .eq('livestream_id', livestreamId)
+            .neq('status', 'removed')
+            .order('position', { ascending: true });
+          if (cancelled) return;
+          const ids2 = (items2 ?? []).map((i: { listing_id: string }) => i.listing_id);
+          if (ids2.length === 0) { setListings([]); return; }
+          const { data: rows2 } = await supabase
+            .from('listings')
+            .select('id, title, buy_now_price, photos')
+            .in('id', ids2);
+          if (cancelled) return;
+          const map2 = new Map(
+            (rows2 ?? []).map((l: { id: string; title: string; buy_now_price: number | null; photos: Array<{ url?: string }> | null }) => [l.id, l]),
+          );
+          setListings(
+            (items2 ?? [])
+              .map((i: { listing_id: string; position: number; status: ShopListing['status'] }) => {
+                const r = map2.get(i.listing_id);
+                return r ? ({ ...r, position: i.position, status: i.status } satisfies ShopListing) : null;
+              })
+              .filter((x): x is ShopListing => x !== null),
+          );
+        })(); } },
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [livestreamId]);
 
   const filtered = query.trim()
     ? listings.filter((l) => l.title.toLowerCase().includes(query.toLowerCase()))
@@ -166,13 +228,14 @@ export default function StreamShopRail({ hostUserId, streamTitle }: Props) {
         }}
       >
         <SectionHeader label={`Products (${filtered.length})`} />
-        {filtered.length === 0 && <EmptyHint label="This streamer hasn't listed anything yet." />}
+        {filtered.length === 0 && <EmptyHint label="The host hasn't queued any items yet." />}
         {filtered.map((l) => (
           <ProductTile
             key={l.id}
             cover={l.photos?.[0]?.url ?? PLACEHOLDER_IMAGE_URL}
             title={l.title}
             price={l.buy_now_price}
+            status={l.status}
             onClick={() => navigate(`/item/${l.id}`)}
           />
         ))}
@@ -220,13 +283,16 @@ function EmptyHint({ label }: { label: string }) {
 }
 
 function ProductTile({
-  cover, title, price, onClick,
+  cover, title, price, status, onClick,
 }: {
   cover: string;
   title: string;
   price: number | null;
+  status: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
   onClick: () => void;
 }) {
+  const isLive = status === 'live';
+  const isSold = status === 'sold';
   return (
     <ButtonBase
       onClick={onClick}
@@ -241,14 +307,16 @@ function ProductTile({
         color: inkstashColors.ink,
         textAlign: 'left',
         alignItems: 'flex-start',
-        border: `1px solid ${inkstashColors.border}`,
-        transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms ease',
+        border: `1px solid ${isLive ? inkstashColors.brand : inkstashColors.border}`,
+        opacity: isSold ? 0.55 : 1,
+        transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms ease, opacity 160ms ease',
         '&:hover': { borderColor: inkstashColors.brand },
         '&:active': { transform: 'scale(0.98)' },
       }}
     >
       <Box
         sx={{
+          position: 'relative',
           width: 56,
           height: 56,
           flexShrink: 0,
@@ -257,8 +325,32 @@ function ProductTile({
           backgroundImage: `url(${cover})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          overflow: 'hidden',
         }}
-      />
+      >
+        {isLive && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 4,
+              left: 4,
+              px: 0.7,
+              py: 0.25,
+              borderRadius: 999,
+              bgcolor: inkstashColors.live,
+              color: '#fff',
+              fontFamily: inkstashFonts.mono,
+              fontSize: 8.5,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}
+          >
+            Live
+          </Box>
+        )}
+      </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         {price != null && (
           <Typography
@@ -293,7 +385,8 @@ function ProductTile({
         >
           {title}
         </Typography>
-        {/* Pre-bid pill — visible but disabled until L2 auctions ship */}
+        {/* CTA pill — visible but data-driven. Pre-bid is a stub until L2
+            auctions ship; status from livestream_items drives the label. */}
         <Box
           sx={{
             mt: 1,
@@ -301,16 +394,16 @@ function ProductTile({
             px: 1.25,
             py: 0.45,
             borderRadius: 999,
-            bgcolor: inkstashColors.bg,
-            color: inkstashColors.muted,
+            bgcolor: isLive ? inkstashColors.brand : inkstashColors.bg,
+            color: isLive ? '#fff' : (isSold ? inkstashColors.muted : inkstashColors.muted),
             fontFamily: inkstashFonts.ui,
             fontWeight: 700,
             fontSize: 10.5,
             letterSpacing: '-0.005em',
-            border: `1px solid ${inkstashColors.border}`,
+            border: isLive ? 'none' : `1px solid ${inkstashColors.border}`,
           }}
         >
-          Pre-bid
+          {isLive ? 'Bid now' : isSold ? 'Sold' : 'Pre-bid'}
         </Box>
       </Box>
     </ButtonBase>
