@@ -58,6 +58,21 @@ export default function LiveStreamView() {
   const [joinData, setJoinData] = useState<{ token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(1);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Esc exits fullscreen. Body scroll locked while in fullscreen so the
+  // bottom-overlay chat doesn't fight the rest of the page.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreen]);
 
   useEffect(() => {
     if (!id) return;
@@ -135,6 +150,20 @@ export default function LiveStreamView() {
     );
   }
 
+  // Fullscreen: video card peels out of the grid and goes fixed inset:0.
+  // No AppShell wrapper (sidebar + topnav are off-screen). Esc to exit.
+  if (fullscreen) {
+    return (
+      <FullscreenVideoSurface
+        stream={stream}
+        joinData={joinData}
+        viewerCount={viewerCount}
+        onParticipantCountChange={handleParticipantCount}
+        onExit={() => setFullscreen(false)}
+      />
+    );
+  }
+
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
   // edge-to-edge.
@@ -145,6 +174,7 @@ export default function LiveStreamView() {
         joinData={joinData}
         viewerCount={viewerCount}
         onParticipantCountChange={handleParticipantCount}
+        onEnterFullscreen={() => setFullscreen(true)}
       />
     </AppShell>
   );
@@ -152,12 +182,13 @@ export default function LiveStreamView() {
 
 // ─── Tablet/Desktop stage ───────────────────────────────────────────────────
 function LiveDesktopStage({
-  stream, joinData, viewerCount, onParticipantCountChange,
+  stream, joinData, viewerCount, onParticipantCountChange, onEnterFullscreen,
 }: {
   stream: Livestream;
   joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
   viewerCount: number;
   onParticipantCountChange: (n: number) => void;
+  onEnterFullscreen: () => void;
 }) {
   // Negative margins escape the AppShell main padding so the live surface
   // can run flush to the edges of the content area for the immersive feel
@@ -217,6 +248,22 @@ function LiveDesktopStage({
             token={joinData.token}
             mode="viewer"
             onParticipantCountChange={onParticipantCountChange}
+          />
+
+          {/* Click-to-fullscreen hit layer. Sits ABOVE the video stage but
+              BELOW the interactive overlays (z-index 4 < HostPill/right rail's
+              own z-indexes). pointerEvents on overlay wrappers stay 'auto'
+              so they remain clickable. */}
+          <Box
+            onClick={onEnterFullscreen}
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 1,
+              cursor: 'zoom-in',
+              background: 'transparent',
+            }}
+            aria-label="Enter fullscreen"
           />
 
           {/* Top header row inside the video card */}
@@ -313,6 +360,108 @@ function LiveDesktopStage({
           />
         </Box>
       </Box>
+    </Box>
+  );
+}
+
+// ─── Fullscreen surface (desktop click-to-zoom) ─────────────────────────────
+// No AppShell wrapper — sidebar + topnav are off-screen by design. Video
+// fixed inset:0. Same overlay set as mobile (HostPill, ViewerCountBadge,
+// RightRailActions) plus the read-only chat overlay docked at the bottom.
+// Click the video again to exit; Esc handled by parent.
+function FullscreenVideoSurface({
+  stream, joinData, viewerCount, onParticipantCountChange, onExit,
+}: {
+  stream: Livestream;
+  joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
+  viewerCount: number;
+  onParticipantCountChange: (n: number) => void;
+  onExit: () => void;
+}) {
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 2000,
+        bgcolor: '#000',
+        overflow: 'hidden',
+        touchAction: 'manipulation',
+      }}
+    >
+      <LiveStreamVideo
+        wsUrl={joinData.wsUrl}
+        token={joinData.token}
+        mode="viewer"
+        onParticipantCountChange={onParticipantCountChange}
+      />
+
+      {/* Click-to-exit hit layer, under the interactive overlays */}
+      <Box
+        onClick={onExit}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          cursor: 'zoom-out',
+          background: 'transparent',
+        }}
+        aria-label="Exit fullscreen"
+      />
+
+      {/* Top row: host pill (left) + viewer count + close (right) */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 14px)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 14px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 14px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 1,
+          zIndex: 5,
+          pointerEvents: 'none',
+        }}
+      >
+        <Box sx={{ pointerEvents: 'auto' }}>
+          <HostPill
+            username={stream.host?.username ?? null}
+            avatarUrl={stream.host?.avatar_url}
+          />
+        </Box>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
+          <ViewerCountBadge count={viewerCount} />
+          <IconButton
+            onClick={onExit}
+            size="small"
+            sx={{
+              color: '#fff',
+              bgcolor: 'rgba(0,0,0,0.4)',
+              backdropFilter: 'blur(8px)',
+              width: 32,
+              height: 32,
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+            }}
+            aria-label="Exit fullscreen"
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Right rail (Share / Items / Buy) — same component as mobile */}
+      <RightRailActions
+        streamTitle={stream.title}
+        streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+      />
+
+      {/* Bottom chat overlay — read-only, fade-mask at top */}
+      <LiveStreamChat
+        livestreamId={stream.id}
+        initialMessages={joinData.chat}
+        isBanned={joinData.isBanned}
+      />
     </Box>
   );
 }
