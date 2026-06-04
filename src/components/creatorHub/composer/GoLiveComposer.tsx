@@ -60,10 +60,15 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishing(true);
     setPublishError(null);
     try {
+      // TODO(upload): the editor holds the photo as a data URL. Uploading
+      // it to Supabase Storage (livestream-thumbnails RLS already exists)
+      // and writing the public URL to cover_image_url is a follow-up. For
+      // now we don't pass cover_image_url — better than passing a 5MB
+      // data URL into the livestreams row.
       const res = await livestreamsAPI.start({
         title: details.title.trim(),
         description: details.description.trim() || undefined,
-        cover_image_url: details.coverImageUrl ?? undefined,
+        cover_image_url: undefined,
         scheduled_start_at: mode === 'schedule' ? details.scheduledAt : null,
         // livestreamsAPI.start expects an array of existing listing ids
         // for its queue param. Our composer items are brand-new lots

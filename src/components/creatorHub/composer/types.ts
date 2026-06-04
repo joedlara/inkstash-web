@@ -4,6 +4,9 @@
 // orchestrator so each step file can import the types without a
 // circular dependency.
 
+import type { Photo } from './PhotoEditor';
+import { BLANK_PHOTO } from './PhotoEditor';
+
 export type ComposerMode = 'live' | 'schedule';
 
 export type ItemType = 'auction' | 'buynow' | 'giveaway';
@@ -15,9 +18,10 @@ export interface ComposerDetails {
   description: string;
   category: string;
   language: string;
-  /** Future: the thumbnail editor's photo blob. Cover URL is set once
-   *  the photo is uploaded to Supabase Storage at publish time. */
-  coverImageUrl: string | null;
+  /** Thumbnail with filter + optional caption. Photo.src is a data
+   *  URL while editing; gets uploaded to Supabase Storage at publish
+   *  time so the public URL can be written to livestreams.cover_image_url. */
+  thumb: Photo;
   /** Only set in 'schedule' mode. ISO string. */
   scheduledAt: string | null;
 }
@@ -30,7 +34,9 @@ export interface ComposerItem {
   start: number;
   /** Always 1 per row — qty > 1 in the add form fans out into N rows. */
   qty: number;
-  coverImageUrl: string | null;
+  /** Per-lot photo. Defaults to BLANK_PHOTO. Lots created with Qty > 1
+   *  share the same photo by reference until edited individually. */
+  photo: Photo;
 }
 
 export interface ComposerSettings {
@@ -50,7 +56,7 @@ export const DEFAULT_DETAILS: ComposerDetails = {
   description: '',
   category: 'Comics',
   language: 'English',
-  coverImageUrl: null,
+  thumb: BLANK_PHOTO,
   scheduledAt: null,
 };
 

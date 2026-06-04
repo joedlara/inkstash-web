@@ -12,6 +12,7 @@ import { Copy, GripVertical, Plus, X } from 'lucide-react';
 import type { ComposerItem, ComposerSettings, ItemType } from './types';
 import { TYPE_LABEL } from './types';
 import HBtn from '../HBtn';
+import PhotoEditor, { BLANK_PHOTO, type Photo } from './PhotoEditor';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
 
 interface Props {
@@ -25,9 +26,10 @@ interface DraftItem {
   type: ItemType;
   start: string;
   qty: string;
+  photo: Photo;
 }
 
-const EMPTY_DRAFT: DraftItem = { name: '', type: 'auction', start: '', qty: '1' };
+const EMPTY_DRAFT: DraftItem = { name: '', type: 'auction', start: '', qty: '1', photo: BLANK_PHOTO };
 
 export default function StepItems({ items, setItems, settings }: Props) {
   const [draft, setDraft] = useState<DraftItem>(EMPTY_DRAFT);
@@ -125,10 +127,12 @@ export default function StepItems({ items, setItems, settings }: Props) {
       type: draft.type,
       start: startPrice,
       qty: 1,
-      coverImageUrl: null,
+      // Lots created in the same batch share the photo. Editing a single
+      // lot's photo later will be a future commit (per-row photo edit).
+      photo: draft.photo,
     }));
     setItems((a) => [...a, ...made]);
-    setDraft({ name: '', type: draft.type, start: '', qty: '1' });
+    setDraft({ name: '', type: draft.type, start: '', qty: '1', photo: BLANK_PHOTO });
   }
 
   function cloneItem(it: ComposerItem) {
@@ -194,19 +198,13 @@ export default function StepItems({ items, setItems, settings }: Props) {
           p: 2,
         }}>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
-            {/* Photo slot — PhotoEditor lands in a follow-up */}
-            <Box sx={{
-              width: 92, height: 92, flexShrink: 0,
-              borderRadius: inkstashRadii.md,
-              border: `1px dashed ${inkstashColors.border}`,
-              bgcolor: inkstashColors.bgSunken,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: inkstashColors.muted,
-              fontFamily: inkstashFonts.mono, fontSize: 9.5,
-              textTransform: 'uppercase', letterSpacing: '0.06em',
-              textAlign: 'center', px: 1,
-            }}>
-              Photo<br />soon
+            <Box sx={{ width: 92, flexShrink: 0 }}>
+              <PhotoEditor
+                photo={draft.photo}
+                onChange={(photo) => setDraft({ ...draft, photo })}
+                ratio="1 / 1"
+                compact
+              />
             </Box>
             <Box sx={{ flex: 1, display: 'grid', gap: 1.25 }}>
               <Field label="Item name">
@@ -419,20 +417,27 @@ export default function StepItems({ items, setItems, settings }: Props) {
                 {String(i + 1).padStart(2, '0')}
               </Typography>
               <Box sx={{
+                position: 'relative',
                 width: 44, height: 44,
                 borderRadius: inkstashRadii.sm,
                 bgcolor: inkstashColors.bgSunken,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: inkstashColors.muted,
                 fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 16,
-                ...(it.coverImageUrl && {
-                  backgroundImage: `url(${it.coverImageUrl})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  color: 'transparent',
-                }),
+                overflow: 'hidden',
               }}>
-                {it.name.charAt(0).toUpperCase()}
+                {it.photo.src ? (
+                  <Box component="img" src={it.photo.src} alt=""
+                    sx={{
+                      position: 'absolute', inset: 0,
+                      width: '100%', height: '100%',
+                      objectFit: 'cover',
+                      filter: it.photo.filter,
+                    }}
+                  />
+                ) : (
+                  it.name.charAt(0).toUpperCase()
+                )}
               </Box>
               <Box sx={{ minWidth: 0 }}>
                 <Typography sx={{

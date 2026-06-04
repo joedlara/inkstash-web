@@ -9,7 +9,8 @@
 import { Box, MenuItem, Select, TextField, Typography } from '@mui/material';
 import type { ComposerDetails } from './types';
 import { CATEGORIES, LANGUAGES } from './types';
-import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
+import PhotoEditor from './PhotoEditor';
+import { inkstashColors, inkstashFonts } from '../../../theme/inkstashTokens';
 
 interface Props {
   details: ComposerDetails;
@@ -89,7 +90,7 @@ export default function StepDetails({ details, setDetails, mode }: Props) {
         )}
       </Box>
 
-      {/* Side column — thumbnail editor placeholder */}
+      {/* Side column — thumbnail editor */}
       <Box>
         <Typography
           sx={{
@@ -104,24 +105,11 @@ export default function StepDetails({ details, setDetails, mode }: Props) {
         >
           Thumbnail
         </Typography>
-        <Box
-          sx={{
-            aspectRatio: '4 / 5',
-            borderRadius: inkstashRadii.lg,
-            border: `1px dashed ${inkstashColors.border}`,
-            bgcolor: inkstashColors.bgSunken,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: inkstashColors.muted,
-            fontFamily: inkstashFonts.ui,
-            fontSize: 12.5,
-            textAlign: 'center',
-            px: 3,
-          }}
-        >
-          Photo editor lands in a follow-up commit
-        </Box>
+        <PhotoEditor
+          photo={details.thumb}
+          onChange={(thumb) => update('thumb', thumb)}
+          ratio="4 / 5"
+        />
       </Box>
     </Box>
   );

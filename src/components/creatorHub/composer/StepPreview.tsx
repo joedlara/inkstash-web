@@ -26,10 +26,11 @@ export default function StepPreview({ mode, details, items, settings }: Props) {
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
       {/* Left — camera preview placeholder */}
       <Box>
-        <SectionLabel>Camera preview</SectionLabel>
+        <SectionLabel>{details.thumb.src ? 'Thumbnail' : 'Camera preview'}</SectionLabel>
         <Box
           sx={{
-            aspectRatio: '9 / 16',
+            position: 'relative',
+            aspectRatio: '4 / 5',
             borderRadius: inkstashRadii.lg,
             bgcolor: inkstashColors.stage,
             color: 'rgba(255,255,255,0.55)',
@@ -41,11 +42,43 @@ export default function StepPreview({ mode, details, items, settings }: Props) {
             textAlign: 'center',
             px: 3,
             border: `1px solid ${inkstashColors.border}`,
+            overflow: 'hidden',
           }}
         >
-          {mode === 'live'
-            ? 'Camera preview ships with the dual-device pairing flow.'
-            : 'Schedule mode — the camera connects when you go live.'}
+          {details.thumb.src ? (
+            <>
+              <Box component="img" src={details.thumb.src} alt=""
+                sx={{
+                  position: 'absolute', inset: 0,
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  filter: details.thumb.filter,
+                }}
+              />
+              {details.thumb.text && (
+                <Box sx={{
+                  position: 'absolute', left: 0, right: 0,
+                  ...(details.thumb.pos === 'top'
+                    ? { top: 14 }
+                    : details.thumb.pos === 'center'
+                      ? { top: '50%', transform: 'translateY(-50%)' }
+                      : { bottom: 14 }),
+                  px: 2,
+                  textAlign: 'center',
+                  color: details.thumb.color,
+                  fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
+                  textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1.1,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                }}>
+                  {details.thumb.text}
+                </Box>
+              )}
+            </>
+          ) : (
+            mode === 'live'
+              ? 'Camera preview ships with the dual-device pairing flow.'
+              : 'Schedule mode — the camera connects when you go live.'
+          )}
         </Box>
       </Box>
 
