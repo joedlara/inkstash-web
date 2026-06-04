@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamSection from '../components/livestreams/LiveStreamSection';
 import FeaturedBreaksBand from '../components/livestreams/FeaturedBreaksBand';
+import ScheduledRow from '../components/livestreams/ScheduledRow';
 import { livestreamsAPI, type LivestreamSections } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
@@ -169,11 +170,10 @@ export default function Live() {
               streams={sections.live}
               emptyHint="No one is live right now. Scroll down for upcoming streams."
             />
-            <LiveStreamSection
+            <ScheduledRow
               label="Coming Up"
-              sub="Set a reminder so you don't miss the drop."
+              sub="Set a reminder and don't miss the rip."
               streams={sections.upcoming}
-              scheduled
             />
             <FeaturedBreaksBand
               label="Featured Breaks"
