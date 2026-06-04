@@ -26,7 +26,7 @@ import Purchases from './pages/Purchases';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
 import SellerOnboarding from './pages/SellerOnboarding';
-import SellerDashboard from './pages/SellerDashboard';
+import CreatorHub from './pages/CreatorHub';
 import ListItem from './pages/ListItem';
 import UserProfile from './pages/UserProfile';
 import VendorProfile from './pages/VendorProfile';
@@ -46,7 +46,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/" element={<Home />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/seller-onboarding" element={<SellerOnboarding />} />
-                <Route path="/seller-dashboard" element={<SellerDashboard />} />
+                <Route path="/seller-dashboard" element={<CreatorHub />} />
                 <Route path="/list-item" element={<ListItem />} />
                 <Route path="/sell" element={<Seller />} />
                 <Route path="/item/:id" element={<ItemDetail />} />
