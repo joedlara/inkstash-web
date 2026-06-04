@@ -18,6 +18,7 @@ import { livestreamsAPI } from '../../../api/livestreams';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
 import HBtn from '../HBtn';
 import StepDetails from './StepDetails';
+import StepItems from './StepItems';
 import StepPreview from './StepPreview';
 import type { ComposerDetails, ComposerItem, ComposerMode, ComposerSettings } from './types';
 import { DEFAULT_DETAILS, DEFAULT_SETTINGS } from './types';
@@ -36,8 +37,8 @@ const STEPS = ['Details', 'Run of show', 'Settings', 'Preview'] as const;
 export default function GoLiveComposer({ open, mode, onClose, onPublished }: Props) {
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<ComposerDetails>(DEFAULT_DETAILS);
-  const [items] = useState<ComposerItem[]>([]); // setItems wired in next commit
-  const [settings] = useState<ComposerSettings>(DEFAULT_SETTINGS);
+  const [items, setItems] = useState<ComposerItem[]>([]);
+  const [settings] = useState<ComposerSettings>(DEFAULT_SETTINGS); // setSettings wired in next commit
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
@@ -46,6 +47,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     if (publishing) return;
     setStep(0);
     setDetails(DEFAULT_DETAILS);
+    setItems([]);
     setPublishError(null);
     onClose();
   }
@@ -61,7 +63,11 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
         description: details.description.trim() || undefined,
         cover_image_url: details.coverImageUrl ?? undefined,
         scheduled_start_at: mode === 'schedule' ? details.scheduledAt : null,
-        // TODO(items): wire ComposerItem[] -> queue once Step 2 ships
+        // livestreamsAPI.start expects an array of existing listing ids
+        // for its queue param. Our composer items are brand-new lots
+        // that aren't in the listings table yet, so we don't pass them
+        // here. Wiring lot persistence is a follow-up that needs a real
+        // "create lots from composer items" endpoint (Step C work).
         queue: undefined,
       });
       onPublished?.(res.livestream_id, mode);
@@ -145,7 +151,9 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
           {step === 0 && (
             <StepDetails details={details} setDetails={setDetails} mode={mode} />
           )}
-          {step === 1 && <StepStub label="Run of show" hint="Lot list with add / clone / drag-to-reorder ships in the next commit." />}
+          {step === 1 && (
+            <StepItems items={items} setItems={setItems} settings={settings} />
+          )}
           {step === 2 && <StepStub label="Settings" hint="Shipping, moderation, coupons, mods. Ships in the next commit." />}
           {step === 3 && (
             <StepPreview mode={mode} details={details} items={items} settings={settings} />
