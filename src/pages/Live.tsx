@@ -12,6 +12,7 @@ import { Box, Container, Typography, Button, CircularProgress } from '@mui/mater
 import { useNavigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamSection from '../components/livestreams/LiveStreamSection';
+import FeaturedBreaksBand from '../components/livestreams/FeaturedBreaksBand';
 import { livestreamsAPI, type LivestreamSections } from '../api/livestreams';
 import { useAuth } from '../hooks/useAuth';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
@@ -89,6 +90,26 @@ export default function Live() {
               tonight's featured spotlight.
             </Typography>
           </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            <Box
+              component="button"
+              sx={{
+                background: 'none',
+                border: 0,
+                cursor: 'pointer',
+                fontFamily: inkstashFonts.ui,
+                fontSize: 14,
+                fontWeight: 600,
+                color: inkstashColors.ink2,
+                letterSpacing: '-0.005em',
+                whiteSpace: 'nowrap',
+                transition: 'color 120ms ease',
+                p: 0,
+                '&:hover': { color: inkstashColors.brand },
+              }}
+            >
+              View all streams →
+            </Box>
           {isActiveSeller && (
             <Button
               variant="contained"
@@ -111,6 +132,7 @@ export default function Live() {
               Go live
             </Button>
           )}
+          </Box>
         </Box>
 
         {loading && (
@@ -153,11 +175,10 @@ export default function Live() {
               streams={sections.upcoming}
               scheduled
             />
-            <LiveStreamSection
-              label="Featured Streams"
-              sub="Tonight's hand-picked spotlights."
+            <FeaturedBreaksBand
+              label="Featured Breaks"
+              sub="Hand-picked shows with serious heat right now."
               streams={sections.featured}
-              dark
             />
           </>
         )}
