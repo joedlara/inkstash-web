@@ -1,20 +1,41 @@
 // src/theme/inkstashTokens.ts
+// ────────────────────────────────────────────────────────────
+// SINGLE SOURCE OF TRUTH for the Inkstash visual system.
+// theme.ts (MUI) and index.css both derive from these values.
+// Light theme. Warm paper + crimson + gold.
+// ────────────────────────────────────────────────────────────
 export const inkstashColors = {
-  bg:           '#FAF7F2',
-  bgElev:       '#FFFFFF',
-  bgSunken:     '#F2EDE5',
-  ink:          '#16110E',
-  ink2:         '#3A302A',
-  muted:        '#8A7F73',
-  muted2:       '#C5BBAE',
-  border:       '#E8DFD2',
-  borderStrong: '#D6CABA',
+  // Neutrals — warm paper & ink
+  bg:           '#FAF7F2', // page background
+  bgElev:       '#FFFFFF', // cards / raised surfaces
+  bgSunken:     '#F2EDE5', // inputs / wells / chips
+  ink:          '#16110E', // primary text
+  ink2:         '#3A302A', // secondary text / body
+  muted:        '#8A7F73', // tertiary text / captions
+  muted2:       '#C5BBAE', // disabled / faint
+  border:       '#E8DFD2', // hairline borders
+  borderStrong: '#D6CABA', // emphasized borders
+
+  // Primary — Crimson
   brand:        '#A1232C',
+  brandLight:   '#C9434C',
   brandDeep:    '#7A1A21',
   brandSoft:    '#FCEAEB',
+
+  // Secondary — Gold
   gold:         '#B8893A',
+  goldLight:    '#CDA45A',
+  goldDeep:     '#8A6526',
   goldSoft:     '#F7EFDC',
-  live:         '#DC2626',
+
+  // Status
+  success:      '#2E6F4F',
+  info:         '#2A4D8A',
+  live:         '#DC2626', // pulsing LIVE badge / danger
+
+  // Dark surfaces — video stage / immersive overlays
+  stage:        '#08070A',
+  stage2:       '#120C0A',
 } as const;
 
 export const rarityColors = {
@@ -41,9 +62,9 @@ export const inkstashShadows = {
 } as const;
 
 export const inkstashFonts = {
-  display: "'Big Shoulders Display', system-ui, sans-serif",
-  ui:      "'Geist', system-ui, sans-serif",
-  mono:    "'Geist Mono', ui-monospace, monospace",
+  display: "'Big Shoulders Display', system-ui, sans-serif", // headings, titles, prices, ALL-CAPS
+  ui:      "'Geist', system-ui, sans-serif",                 // body + UI
+  mono:    "'Geist Mono', ui-monospace, monospace",          // counts, timers, labels
 } as const;
 
 export const inkstashLayout = {
