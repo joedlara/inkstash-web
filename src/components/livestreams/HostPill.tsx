@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { Box, Typography, ButtonBase } from '@mui/material';
 import { Star } from 'lucide-react';
+import HostAvatar from './HostAvatar';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -54,11 +55,10 @@ function VerifiedCheck() {
 }
 
 export default function HostPill({
-  username, verified = false, rating = null,
+  username, avatarUrl, verified = false, rating = null,
 }: Props) {
   const [followed, setFollowed] = useState(false);
   const displayName = username ?? 'host';
-  const initial = displayName.charAt(0).toUpperCase();
   const showRating = rating != null && rating > 0;
 
   return (
@@ -79,26 +79,11 @@ export default function HostPill({
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 18px -6px rgba(0,0,0,0.4)',
       }}
     >
-      {/* Gradient initial avatar (no external image fetch) */}
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: 999,
-          background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-          color: '#fff',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: inkstashFonts.display,
-          fontWeight: 900,
-          fontSize: 14,
-          flexShrink: 0,
-          lineHeight: 1,
-        }}
-      >
-        {initial}
-      </Box>
+      <HostAvatar
+        username={username}
+        avatarUrl={avatarUrl ?? null}
+        size={34}
+      />
 
       {/* Name + rating column */}
       <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>

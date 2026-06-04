@@ -133,7 +133,8 @@ export default function LiveStreamSection({
               key={s.id}
               sx={{
                 flexShrink: 0,
-                width: { xs: 160, sm: 180, md: 200 },
+                // Bigger break-card tiles per user feedback. Was xs:160 sm:180 md:200.
+                width: { xs: 200, sm: 230, md: 260 },
                 scrollSnapAlign: 'start',
               }}
             >

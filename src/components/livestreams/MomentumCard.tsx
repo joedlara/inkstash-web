@@ -13,6 +13,7 @@
 import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
+import HostAvatar from './HostAvatar';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -42,7 +43,6 @@ export default function MomentumCard({ stream, variant = 'dark' }: Props) {
   const navigate = useNavigate();
   const palette = paletteFor(stream.id);
   const hostName = stream.host?.username ?? 'host';
-  const initial = hostName.charAt(0).toUpperCase();
   const viewers = stream.viewer_peak || 0;
   const isLight = variant === 'light';
 
@@ -58,24 +58,11 @@ export default function MomentumCard({ stream, variant = 'dark' }: Props) {
     >
       {/* Host row ABOVE the thumb */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
-        <Box
-          sx={{
-            width: 26,
-            height: 26,
-            borderRadius: 999,
-            background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontFamily: inkstashFonts.display,
-            fontWeight: 900,
-            fontSize: 11,
-            flexShrink: 0,
-          }}
-        >
-          {initial}
-        </Box>
+        <HostAvatar
+          username={stream.host?.username ?? null}
+          avatarUrl={stream.host?.avatar_url ?? null}
+          size={26}
+        />
         <Typography
           sx={{
             color: hostColor,

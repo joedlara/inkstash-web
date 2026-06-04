@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
+import HostAvatar from './HostAvatar';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -85,7 +86,6 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
 
   const liveCount = stream.viewer_peak || 0;
   const hostName = stream.host?.username ?? 'host';
-  const hostInitial = hostName.charAt(0).toUpperCase();
 
   const goToStream = () => navigate(`/live/${stream.id}`);
   const goToHost = (e: React.MouseEvent) => {
@@ -271,26 +271,12 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
               '&:hover': { color: '#fff' },
             }}
           >
-            <Box
-              sx={{
-                width: { xs: 18, sm: 22 },
-                height: { xs: 18, sm: 22 },
-                borderRadius: 999,
-                background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontFamily: inkstashFonts.display,
-                fontWeight: 800,
-                fontSize: { xs: 10, sm: 11 },
-                border: '1.5px solid rgba(255,255,255,0.18)',
-                flexShrink: 0,
-                lineHeight: 1,
-              }}
-            >
-              {hostInitial}
-            </Box>
+            <HostAvatar
+              username={stream.host?.username ?? null}
+              avatarUrl={stream.host?.avatar_url ?? null}
+              size={22}
+              ring="soft"
+            />
             <Box component="span">@{hostName}</Box>
           </Box>
 

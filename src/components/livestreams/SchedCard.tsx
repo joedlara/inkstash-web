@@ -12,6 +12,7 @@ import { Box, Typography } from '@mui/material';
 import { Bell, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
+import HostAvatar from './HostAvatar';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -47,17 +48,19 @@ function formatWhen(iso: string | null): string {
   return `${dayLabel} · ${time}`;
 }
 
-// "Xd Xh" / "Xh Xm" / "Xm XXs" / "Xs" — mirrors formatCountdown().
+// "Xd Xh" / "Xh Xm" / "Xm" — no seconds (visually noisy in a pill) and no
+// "in " prefix (the pill style already implies a countdown).
 function formatCountdown(iso: string | null): string {
   if (!iso) return 'soon';
-  let s = Math.max(0, Math.floor((new Date(iso).getTime() - Date.now()) / 1000));
-  const d = Math.floor(s / 86400); s -= d * 86400;
-  const h = Math.floor(s / 3600);  s -= h * 3600;
-  const m = Math.floor(s / 60);    s -= m * 60;
-  if (d > 0) return `in ${d}d ${h}h`;
-  if (h > 0) return `in ${h}h ${m}m`;
-  if (m > 0) return `in ${m}m ${String(s).padStart(2, '0')}s`;
-  return `in ${s}s`;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'starting';
+  const totalMin = Math.max(1, Math.floor(ms / 60000));
+  const d = Math.floor(totalMin / (60 * 24));
+  const h = Math.floor((totalMin % (60 * 24)) / 60);
+  const m = totalMin % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 export default function SchedCard({ stream }: Props) {
@@ -69,12 +72,12 @@ export default function SchedCard({ stream }: Props) {
   const [reminded, setReminded] = useState(false);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    // Tick every 30s — display has no seconds, so 1s would just burn cycles.
+    const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
 
   const hostName = stream.host?.username ?? 'host';
-  const initial = hostName.charAt(0).toUpperCase();
   // Stream metadata doesn't have an explicit "expected viewers" field;
   // fall back to "Expected soon" so the slot stays filled visually.
   const expectLabel = stream.viewer_peak
@@ -209,24 +212,11 @@ export default function SchedCard({ stream }: Props) {
             '&:hover': { color: inkstashColors.ink2 },
           }}
         >
-          <Box
-            sx={{
-              width: 20,
-              height: 20,
-              borderRadius: 999,
-              background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-              color: '#fff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: inkstashFonts.display,
-              fontWeight: 900,
-              fontSize: 10,
-              flexShrink: 0,
-            }}
-          >
-            {initial}
-          </Box>
+          <HostAvatar
+            username={stream.host?.username ?? null}
+            avatarUrl={stream.host?.avatar_url ?? null}
+            size={20}
+          />
           <Box component="span">@{hostName}</Box>
         </Box>
 
