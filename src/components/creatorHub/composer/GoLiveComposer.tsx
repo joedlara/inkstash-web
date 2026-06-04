@@ -19,6 +19,7 @@ import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/ink
 import HBtn from '../HBtn';
 import StepDetails from './StepDetails';
 import StepItems from './StepItems';
+import StepSettings from './StepSettings';
 import StepPreview from './StepPreview';
 import type { ComposerDetails, ComposerItem, ComposerMode, ComposerSettings } from './types';
 import { DEFAULT_DETAILS, DEFAULT_SETTINGS } from './types';
@@ -38,7 +39,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<ComposerDetails>(DEFAULT_DETAILS);
   const [items, setItems] = useState<ComposerItem[]>([]);
-  const [settings] = useState<ComposerSettings>(DEFAULT_SETTINGS); // setSettings wired in next commit
+  const [settings, setSettings] = useState<ComposerSettings>(DEFAULT_SETTINGS);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
@@ -48,6 +49,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setStep(0);
     setDetails(DEFAULT_DETAILS);
     setItems([]);
+    setSettings(DEFAULT_SETTINGS);
     setPublishError(null);
     onClose();
   }
@@ -154,7 +156,9 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
           {step === 1 && (
             <StepItems items={items} setItems={setItems} settings={settings} />
           )}
-          {step === 2 && <StepStub label="Settings" hint="Shipping, moderation, coupons, mods. Ships in the next commit." />}
+          {step === 2 && (
+            <StepSettings settings={settings} setSettings={setSettings} />
+          )}
           {step === 3 && (
             <StepPreview mode={mode} details={details} items={items} settings={settings} />
           )}
@@ -275,27 +279,3 @@ function StepChip({
   );
 }
 
-function StepStub({ label, hint }: { label: string; hint: string }) {
-  return (
-    <Box sx={{
-      borderRadius: inkstashRadii.lg,
-      border: `1px dashed ${inkstashColors.border}`,
-      bgcolor: inkstashColors.bgSunken,
-      p: 6, textAlign: 'center',
-    }}>
-      <Typography sx={{
-        fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 18,
-        textTransform: 'uppercase', letterSpacing: '0.01em',
-        color: inkstashColors.ink, mb: 1,
-      }}>
-        {label}
-      </Typography>
-      <Typography sx={{
-        fontFamily: inkstashFonts.ui, fontSize: 13,
-        color: inkstashColors.muted,
-      }}>
-        {hint}
-      </Typography>
-    </Box>
-  );
-}
