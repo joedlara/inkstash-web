@@ -11,14 +11,19 @@
 // Cleanup on unmount: leave room, stop tracks. Critical to prevent zombie
 // cameras (browser tab keeps streaming if we don't tear down properly).
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Room, Track, RoomEvent, createLocalTracks,
-  type RemoteTrack, type LocalTrack, type LocalVideoTrack,
+  type RemoteTrack, type LocalTrack, type LocalVideoTrack, type LocalAudioTrack,
 } from 'livekit-client';
 import { Box, Typography, IconButton } from '@mui/material';
 import { FlipCameraIos } from '@mui/icons-material';
 import { inkstashColors } from '../../theme/inkstashTokens';
+
+export interface LiveStreamVideoHandle {
+  /** Toggle the host's local audio track on/off. No-op for viewers. */
+  setMicMuted: (muted: boolean) => Promise<void>;
+}
 
 interface Props {
   wsUrl: string;
@@ -26,20 +31,38 @@ interface Props {
   mode: 'host' | 'viewer';
   /** Called once the room is connected. */
   onConnected?: () => void;
+  /** Fires whenever someone joins or leaves the LiveKit room. The number
+   *  reflects subscribers + the publishing host. */
+  onParticipantCountChange?: (count: number) => void;
 }
 
 type Facing = 'user' | 'environment';
 
-export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Props) {
+const LiveStreamVideo = forwardRef<LiveStreamVideoHandle, Props>(function LiveStreamVideo({
+  wsUrl, token, mode, onConnected, onParticipantCountChange,
+}, ref) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const roomRef = useRef<Room | null>(null);
   // Hold tracks across re-renders so we can re-attach if the videoRef changes.
   const tracksRef = useRef<Array<LocalTrack | RemoteTrack>>([]);
   // Held separately so the flip button can replace it without touching audio.
   const localVideoRef = useRef<LocalVideoTrack | null>(null);
+  // Kept so the host page can mute/unmute mic without re-publishing tracks.
+  const localAudioRef = useRef<LocalAudioTrack | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [facing, setFacing] = useState<Facing>('environment');
   const [flipping, setFlipping] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    async setMicMuted(muted: boolean) {
+      const track = localAudioRef.current;
+      if (!track) return;
+      // LiveKit's mute method toggles the published track's enabled state
+      // and signals subscribers; we don't need to unpublish/republish.
+      if (muted) await track.mute();
+      else await track.unmute();
+    },
+  }), []);
 
   useEffect(() => {
     const room = new Room({
@@ -73,6 +96,19 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
           });
         }
 
+        // Presence subscription: emit numParticipants every time someone
+        // joins or leaves. numParticipants reports remote participants only,
+        // so add 1 for the local participant (host or viewer) to get the
+        // actual head count.
+        if (onParticipantCountChange) {
+          const emit = () => {
+            if (!cancelled) onParticipantCountChange(room.numParticipants + 1);
+          };
+          room.on(RoomEvent.ParticipantConnected, emit);
+          room.on(RoomEvent.ParticipantDisconnected, emit);
+          room.on(RoomEvent.Connected, emit);
+        }
+
         await room.connect(wsUrl, token);
         if (cancelled) {
           await room.disconnect();
@@ -80,18 +116,42 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
         }
 
         if (mode === 'host') {
-          const tracks = await createLocalTracks({
-            audio: true,
-            // Default to back camera so the host can show comics. Prefer
-            // exact match but fall back if the device only has a front
-            // camera (laptops, iPads without ultra-wide).
-            video: { facingMode: { ideal: 'environment' } },
-          });
+          // createLocalTracks can fail AFTER room.connect succeeded — most
+          // commonly when iOS holds the camera/mic for an active phone call
+          // or when another tab/app has the device. Surfacing the error
+          // here keeps the host from staring at a black screen wondering
+          // why their face isn't showing up.
+          let tracks
+          try {
+            tracks = await createLocalTracks({
+              audio: true,
+              // Default to back camera so the host can show comics. Prefer
+              // exact match but fall back if the device only has a front
+              // camera (laptops, iPads without ultra-wide).
+              video: { facingMode: { ideal: 'environment' } },
+            });
+          } catch (tracksErr) {
+            const te = tracksErr as Error
+            // Disconnect from the room so we don't leave a publisher slot
+            // open + a dead participant the LiveKit room thinks is publishing.
+            try { await room.disconnect() } catch { /* ignore */ }
+            if (cancelled) return
+            if (te.name === 'NotReadableError') {
+              setError('Camera or microphone is busy. End any active phone call or close other apps using the camera, then reload.')
+            } else if (te.name === 'NotAllowedError') {
+              setError('Camera/microphone access denied. Tap the address bar lock icon, allow camera + mic, then reload.')
+            } else {
+              setError(`Couldn't start camera: ${te.message}`)
+            }
+            return
+          }
           for (const track of tracks) {
             await room.localParticipant.publishTrack(track);
             attachVideoTrack(track);
             if (track.kind === Track.Kind.Video) {
               localVideoRef.current = track as LocalVideoTrack;
+            } else if (track.kind === Track.Kind.Audio) {
+              localAudioRef.current = track as LocalAudioTrack;
             }
           }
         }
@@ -217,7 +277,11 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
           </Typography>
         </Box>
       )}
-      {!error && (
+      {/* The previous baked-in "LIVE" badge has been removed — HostPill is
+          the authoritative top-left treatment now and the badge was
+          overlapping it. Viewer state is conveyed by the ViewerCountBadge
+          and the host-pill cluster instead. */}
+      {false && !error && (
         <Box
           sx={{
             position: 'absolute',
@@ -264,4 +328,6 @@ export default function LiveStreamVideo({ wsUrl, token, mode, onConnected }: Pro
       )}
     </Box>
   );
-}
+});
+
+export default LiveStreamVideo;

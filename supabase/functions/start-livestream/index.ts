@@ -20,6 +20,11 @@ interface RequestBody {
   title?: string
   description?: string
   cover_image_url?: string
+  /** ISO timestamp. When set + in the future the stream is created as
+   *  'preparing' instead of going live immediately. */
+  scheduled_start_at?: string | null
+  /** Optional listing IDs to pre-populate the stream's item queue. */
+  queue?: string[]
 }
 
 function shortId(): string {
@@ -72,6 +77,16 @@ serve(async (req) => {
 
     const roomName = 'stream-' + shortId()
 
+    // Scheduled-start handling: if the requested time is in the future we
+    // create the row as 'preparing' (the cron that flips it to 'live' is
+    // deferred per spec; for now an admin can flip the status manually).
+    // Pre-live tokens still need to be issued so the host can step into the
+    // broadcast experience at the scheduled moment.
+    const scheduledAt = body.scheduled_start_at ? new Date(body.scheduled_start_at) : null
+    const isScheduledFuture = scheduledAt && scheduledAt.getTime() > Date.now()
+    const initialStatus = isScheduledFuture ? 'preparing' : 'live'
+    const startedAt = isScheduledFuture ? null : new Date().toISOString()
+
     const { data: stream, error: insertErr } = await serviceClient
       .from('livestreams')
       .insert({
@@ -80,8 +95,9 @@ serve(async (req) => {
         description: body.description ?? null,
         cover_image_url: body.cover_image_url ?? null,
         livekit_room_name: roomName,
-        status: 'live',
-        started_at: new Date().toISOString(),
+        status: initialStatus,
+        started_at: startedAt,
+        scheduled_start_at: scheduledAt?.toISOString() ?? null,
       })
       .select('id, livekit_room_name')
       .single()
@@ -89,6 +105,20 @@ serve(async (req) => {
     if (insertErr || !stream) {
       console.error('[start-livestream] insert failed', insertErr)
       return json({ error: 'create_failed' }, 500)
+    }
+
+    // Persist the pre-stream queue. Best-effort: failures don't abort
+    // stream creation (the host can re-add items mid-stream).
+    if (body.queue && body.queue.length > 0) {
+      const rows = body.queue.map((listingId, idx) => ({
+        livestream_id: (stream as { id: string }).id,
+        listing_id: listingId,
+        position: idx,
+      }))
+      const { error: queueErr } = await serviceClient.from('livestream_items').insert(rows)
+      if (queueErr) {
+        console.warn('[start-livestream] queue insert failed (continuing)', queueErr)
+      }
     }
 
     // Generate a LiveKit token with publish permissions. Append a random

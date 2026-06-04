@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import AppSidebar from './AppSidebar';
 import AppTopnav from './AppTopnav';
 import CartDrawer from '../cart/CartDrawer';
+import HomeFooter from '../home/HomeFooter';
 import { useSuppressMobileNav } from './MobileNavContext';
 import { inkstashColors, inkstashFonts, inkstashLayout } from '../../theme/inkstashTokens';
 
@@ -11,9 +12,13 @@ const LS_KEY = 'inkstash.sidebar.collapsed';
 
 interface AppShellProps {
   children: ReactNode;
+  /** Set to true on immersive surfaces (e.g. /live/:id desktop stage)
+   *  where a footer would compete with the main content. Defaults to
+   *  false so every page using AppShell gets the brand footer by default. */
+  hideFooter?: boolean;
 }
 
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({ children, hideFooter = false }: AppShellProps) {
   useSuppressMobileNav();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -71,6 +76,7 @@ export default function AppShell({ children }: AppShellProps) {
         >
           {children}
         </Box>
+        {!hideFooter && <HomeFooter />}
       </Box>
       <CartDrawer />
     </Box>

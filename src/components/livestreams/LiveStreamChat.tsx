@@ -20,10 +20,12 @@ interface Props {
   livestreamId: string;
   initialMessages: ChatMessage[];
   isBanned: boolean;
+  // Host-overlay mode: hide composer, keep the scrollable message list.
+  readOnly?: boolean;
 }
 
 export default function LiveStreamChat({
-  livestreamId, initialMessages, isBanned,
+  livestreamId, initialMessages, isBanned, readOnly = false,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
@@ -174,7 +176,7 @@ export default function LiveStreamChat({
                 <Typography
                   component="span"
                   sx={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: 800,
                     color: m.is_mod_action ? inkstashColors.gold : '#fff',
                     whiteSpace: 'nowrap',
@@ -185,7 +187,7 @@ export default function LiveStreamChat({
                 <Typography
                   component="span"
                   sx={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: '#fff',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -202,7 +204,9 @@ export default function LiveStreamChat({
       </Box>
 
       {/* Composer — pill input, transparent. Pinned to the bottom safe-area
-          when keyboard is closed; lifts above the keyboard when it's open. */}
+          when keyboard is closed; lifts above the keyboard when it's open.
+          Suppressed in readOnly mode (host overlay). */}
+      {!readOnly && (
       <Box
         component="form"
         onSubmit={send}
@@ -259,6 +263,7 @@ export default function LiveStreamChat({
           <Send fontSize="small" />
         </IconButton>
       </Box>
+      )}
     </Box>
   );
 }

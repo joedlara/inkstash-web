@@ -17,7 +17,11 @@ const col2 = [
 export default function HomeFooter() {
   return (
     <Box component="footer" sx={{
-      mt: 7, pt: 3.5,
+      mt: 7, pt: 3.5, pb: 4,
+      // Horizontal padding matches AppShell main padding so the footer never
+      // butts against the page edges, even on surfaces (like /live) that
+      // bypass main padding with negative margins on their grid.
+      px: { xs: 2, md: 3.5 },
       borderTop: `1px solid ${inkstashColors.border}`,
       display: 'flex', justifyContent: 'space-between',
       flexWrap: 'wrap', gap: 2.75,

@@ -82,7 +82,11 @@ export default function ProfileDropdown({ isOpen, onClose }: ProfileDropdownProp
 
   const tiles: { icon: typeof Gift; label: string; route: string; badge?: number; isCart?: boolean }[] = [
     { icon: Gift,         label: 'Refer Friends',       route: '/refer' },
-    user?.seller_verified
+    // Source of truth is seller_status: 'active' once Stripe Connect
+    // verifies. The legacy `seller_verified` boolean is not reliably
+    // maintained — the sidebar badge + Go Live gate both key off
+    // seller_status, so we match them here.
+    user?.seller_status === 'active'
       ? { icon: LayoutGrid, label: 'Creator Dashboard',   route: '/seller-dashboard' }
       : { icon: UserPlus,   label: 'Become a Seller',     route: '/sell' },
     { icon: CreditCard,   label: 'Payments & Shipping', route: '/settings?tab=payments' },
