@@ -181,6 +181,40 @@ export const livestreamsAPI = {
     return row;
   },
 
+  /** Dual-device variant of start(). Holds the row at 'preparing',
+   *  mints a pair token. The composer encodes the token + livestream id
+   *  into a QR; the phone scans it and calls pair() to get a host token.
+   *  Once the phone is publishing, the composer calls goLive(). */
+  prepareDualDevice: (body: {
+    title: string;
+    description?: string;
+    cover_image_url?: string;
+    scheduled_start_at?: string | null;
+    queue?: string[];
+  }) =>
+    callFn<{
+      livestream_id: string;
+      livekit_room_name: string;
+      livekit_ws_url: string;
+      pair_token: string;
+    }>('start-livestream', { ...body, prepare_dual_device: true }),
+
+  /** UNAUTHENTICATED. Called from the phone with the QR-encoded pair
+   *  token. Returns a host LiveKit publish token. */
+  pair: (body: { livestream_id: string; pair_token: string }) =>
+    callFn<{
+      livestream_id: string;
+      livekit_room_name: string;
+      livekit_token: string;
+      livekit_ws_url: string;
+    }>('pair-livestream', body),
+
+  /** Authenticated as the host. Flips status preparing -> live and
+   *  nulls the pair_token. Called by the composer after the phone is
+   *  publishing. */
+  goLive: (livestream_id: string) =>
+    callFn<{ status: string }>('go-live-livestream', { livestream_id }),
+
   start: (body: {
     title: string;
     description?: string;
