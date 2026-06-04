@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import HubTopBar from '../components/creatorHub/HubTopBar';
 import HubRail, { type HubTabId } from '../components/creatorHub/HubRail';
 import OverviewPanel from '../components/creatorHub/panels/OverviewPanel';
+import ShowsPanel from '../components/creatorHub/panels/ShowsPanel';
 import PlaceholderPanel from '../components/creatorHub/panels/PlaceholderPanel';
 import { useAuth } from '../hooks/useAuth';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
@@ -70,7 +71,7 @@ export default function CreatorHub() {
 function renderPanel(tab: HubTabId, onGoLive: () => void) {
   switch (tab) {
     case 'home':      return <OverviewPanel onGoLive={onGoLive} />;
-    case 'stream':    return <PlaceholderPanel eyebrow="Broadcast" title="Stream" sub="Schedule shows, run live, manage the queue." />;
+    case 'stream':    return <ShowsPanel onSchedule={onGoLive} onGoLive={onGoLive} />;
     case 'analytics': return <PlaceholderPanel eyebrow="Insights"  title="Analytics" sub="Revenue, orders, viewers, follower growth." />;
     case 'listed':    return <PlaceholderPanel eyebrow="Inventory" title="Listed Items" sub="Everything you have on the marketplace." />;
     case 'community': return <PlaceholderPanel eyebrow="Audience"  title="Community" sub="Followers, top fans, replies to messages." />;

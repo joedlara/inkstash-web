@@ -200,4 +200,36 @@ export const livestreamsAPI = {
 
   banChatter: (livestream_id: string, user_id: string, reason?: string) =>
     callFn<{ status: string }>('ban-chatter', { livestream_id, user_id, reason }),
+
+  /** Host-scoped lister used by the Creator Hub Shows panel. Returns
+   *  upcoming (scheduled future or live) and past (ended) splits in one
+   *  round trip. The auth user has to match host_user_id, so we expect
+   *  the caller to pass the seller's own id (or use the current user). */
+  async listMyShows(host_user_id: string): Promise<{ upcoming: Livestream[]; past: Livestream[] }> {
+    const { data, error } = await supabase
+      .from('livestreams')
+      .select('*')
+      .eq('host_user_id', host_user_id)
+      .order('scheduled_start_at', { ascending: true, nullsFirst: false })
+      .order('started_at', { ascending: false, nullsFirst: false });
+    if (error) {
+      console.error('[livestreamsAPI.listMyShows] failed', error);
+      return { upcoming: [], past: [] };
+    }
+    const all = await hydrateHosts((data ?? []) as Livestream[]);
+    const upcoming: Livestream[] = [];
+    const past: Livestream[] = [];
+    for (const row of all) {
+      // 'preparing' + future scheduled_start_at OR currently 'live' counts as upcoming.
+      // Everything else (ended, aborted) is past.
+      const isLive = row.status === 'live';
+      const isScheduledFuture =
+        row.status === 'preparing'
+        && !!row.scheduled_start_at
+        && new Date(row.scheduled_start_at).getTime() > Date.now();
+      if (isLive || isScheduledFuture) upcoming.push(row);
+      else past.push(row);
+    }
+    return { upcoming, past };
+  },
 };

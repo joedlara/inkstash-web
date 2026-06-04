@@ -50,22 +50,12 @@ export default function HubTopBar({
           color: inkstashColors.ink,
         }}
       >
-        <Box
-          sx={{
-            width: 30,
-            height: 30,
-            borderRadius: 1,
-            background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontFamily: inkstashFonts.display,
-            fontWeight: 900,
-            fontSize: 14,
-          }}
-        >
-          I
+        {/* Brand mark — same inline SVG used by AppSidebar so the hub
+            matches the buyer-side identity exactly. */}
+        <Box component="svg" width={30} height={30} viewBox="0 0 40 40" fill="none" sx={{ flexShrink: 0 }}>
+          <circle cx={20} cy={20} r={18} fill={inkstashColors.ink} />
+          <path d="M20 10L25 15L20 20L15 15L20 10Z" fill={inkstashColors.brand} />
+          <path d="M20 20L25 25L20 30L15 25L20 20Z" fill={inkstashColors.brand} opacity={0.65} />
         </Box>
         <Typography
           sx={{
@@ -74,6 +64,7 @@ export default function HubTopBar({
             fontSize: 22,
             letterSpacing: '0.01em',
             color: inkstashColors.ink,
+            textTransform: 'lowercase',
           }}
         >
           inkstash
