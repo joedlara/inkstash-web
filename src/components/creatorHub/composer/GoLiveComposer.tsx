@@ -17,6 +17,7 @@ import { Check, X as Close, Zap } from 'lucide-react';
 import { livestreamsAPI } from '../../../api/livestreams';
 import { useAuth } from '../../../hooks/useAuth';
 import { uploadComposerPhoto } from './uploadPhoto';
+import { persistComposerItems } from './persistItems';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../../theme/inkstashTokens';
 import HBtn from '../HBtn';
 import StepDetails from './StepDetails';
@@ -78,13 +79,23 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
         description: details.description.trim() || undefined,
         cover_image_url: coverUrl,
         scheduled_start_at: mode === 'schedule' ? details.scheduledAt : null,
-        // livestreamsAPI.start expects an array of existing listing ids
-        // for its queue param. Our composer items are brand-new lots
-        // that aren't in the listings table yet, so we don't pass them
-        // here. Wiring lot persistence is a follow-up that needs a real
-        // "create lots from composer items" endpoint (Step C work).
+        // We persist composer items separately AFTER start() succeeds so
+        // we can insert each as a real listing + livestream_items row
+        // with its photo uploaded. Passing the new ids back through
+        // start()'s queue param would require pre-creating the listings,
+        // which we can't do without the stream id existing first.
         queue: undefined,
       });
+      // Persist Run-of-Show items. Errors are logged inside the helper;
+      // we don't block the publish on a single bad lot.
+      if (user?.id && items.length > 0) {
+        const result = await persistComposerItems({
+          items, livestreamId: res.livestream_id, userId: user.id,
+        });
+        if (result.failed > 0) {
+          console.warn(`[GoLiveComposer] ${result.failed}/${items.length} lots failed to persist`);
+        }
+      }
       onPublished?.(res.livestream_id, mode);
       handleClose();
     } catch (err) {
