@@ -12,7 +12,6 @@ import Packs from './pages/Packs';
 import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
 import LiveStreamView from './pages/LiveStreamView';
-import LiveStreamHost from './pages/LiveStreamHost';
 import Drops from './pages/Drops';
 import DropDetail from './pages/DropDetail';
 import Marketplace from './pages/Marketplace';
@@ -56,7 +55,11 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/packs/:packId" element={<PackDetail />} />
                 <Route path="/pack-reveal/:purchaseId" element={<Navigate to="/packs" replace />} />
                 <Route path="/live" element={<Live />} />
-                <Route path="/live/start" element={<LiveStreamHost />} />
+                {/* /live/start lived here for Phase 1/2 of the host overhaul.
+                    All stream authoring now happens inside the Creator Hub
+                    (Stream tab + Go Live composer). The page file stays on
+                    disk until the new hub is shipping. */}
+                <Route path="/live/start" element={<Navigate to="/seller-dashboard" replace />} />
                 <Route path="/live/:id" element={<LiveStreamView />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drop/:id" element={<DropDetail />} />

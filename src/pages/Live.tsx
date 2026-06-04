@@ -8,14 +8,12 @@
 // Auto-refreshes every 15s. Mobile-first single column; sections wrap fluidly.
 
 import { useEffect, useState } from 'react';
-import { Box, Container, Typography, Button, CircularProgress } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Box, Container, Typography, CircularProgress } from '@mui/material';
 import AppShell from '../components/layout/AppShell';
 import LiveStreamSection from '../components/livestreams/LiveStreamSection';
 import FeaturedBreaksBand from '../components/livestreams/FeaturedBreaksBand';
 import ScheduledRow from '../components/livestreams/ScheduledRow';
 import { livestreamsAPI, type LivestreamSections } from '../api/livestreams';
-import { useAuth } from '../hooks/useAuth';
 import { inkstashColors, inkstashFonts } from '../theme/inkstashTokens';
 
 const EMPTY: LivestreamSections = { live: [], upcoming: [], featured: [] };
@@ -23,9 +21,6 @@ const EMPTY: LivestreamSections = { live: [], upcoming: [], featured: [] };
 export default function Live() {
   const [sections, setSections] = useState<LivestreamSections>(EMPTY);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const isActiveSeller = (user as { seller_status?: string } | null)?.seller_status === 'active';
 
   useEffect(() => {
     let cancelled = false;
@@ -91,48 +86,28 @@ export default function Live() {
               tonight's featured spotlight.
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-            <Box
-              component="button"
-              sx={{
-                background: 'none',
-                border: 0,
-                cursor: 'pointer',
-                fontFamily: inkstashFonts.ui,
-                fontSize: 14,
-                fontWeight: 600,
-                color: inkstashColors.ink2,
-                letterSpacing: '-0.005em',
-                whiteSpace: 'nowrap',
-                transition: 'color 120ms ease',
-                p: 0,
-                '&:hover': { color: inkstashColors.brand },
-              }}
-            >
-              View all streams →
-            </Box>
-          {isActiveSeller && (
-            <Button
-              variant="contained"
-              onClick={() => navigate('/live/start')}
-              sx={{
-                bgcolor: inkstashColors.brand,
-                color: '#fff',
-                fontFamily: inkstashFonts.ui,
-                fontWeight: 800,
-                fontSize: 14,
-                letterSpacing: '-0.01em',
-                textTransform: 'none',
-                px: 2.5,
-                py: 1,
-                borderRadius: 999,
-                boxShadow: '0 4px 12px rgba(161,35,44,0.3)',
-                '&:hover': { bgcolor: inkstashColors.brandDeep },
-              }}
-            >
-              Go live
-            </Button>
-          )}
+          {/* Go Live used to live here for active sellers; all stream
+              authoring now happens inside the Creator Hub. The View all
+              link stays as the only right-side action. */}
+          <Box
+            component="button"
+            sx={{
+              background: 'none',
+              border: 0,
+              cursor: 'pointer',
+              fontFamily: inkstashFonts.ui,
+              fontSize: 14,
+              fontWeight: 600,
+              color: inkstashColors.ink2,
+              letterSpacing: '-0.005em',
+              whiteSpace: 'nowrap',
+              transition: 'color 120ms ease',
+              p: 0,
+              flexShrink: 0,
+              '&:hover': { color: inkstashColors.brand },
+            }}
+          >
+            View all streams →
           </Box>
         </Box>
 
