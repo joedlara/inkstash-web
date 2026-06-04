@@ -5,9 +5,11 @@
 // 2-column SchedCard grid (collapses to 1 column <= 760px), per
 // docs/design-system/claude-design/live_breaks/breaks.css :: .sched-grid.
 
+import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { ChevronRight } from 'lucide-react';
 import type { Livestream } from '../../api/livestreams';
+import { livestreamRemindersAPI } from '../../api/livestreamReminders';
 import SchedCard from './SchedCard';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
@@ -23,6 +25,17 @@ interface Props {
 export default function ScheduledRow({
   label, sub, streams, emptyHint, linkLabel = 'Full schedule →',
 }: Props) {
+  // Hydrate the user's reminder set once for the whole row. Each SchedCard
+  // gets a boolean prop; this avoids N requests on initial render.
+  const [reminderIds, setReminderIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    livestreamRemindersAPI.listMine().then((rows) => {
+      if (!cancelled) setReminderIds(new Set(rows.map((r) => r.livestream_id)));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   if (streams.length === 0 && !emptyHint) return null;
 
   return (
@@ -110,7 +123,13 @@ export default function ScheduledRow({
           gap: 2,
         }}
       >
-        {streams.map((s) => <SchedCard key={s.id} stream={s} />)}
+        {streams.map((s) => (
+          <SchedCard
+            key={s.id}
+            stream={s}
+            initialReminded={reminderIds.has(s.id)}
+          />
+        ))}
       </Box>
     </Box>
   );

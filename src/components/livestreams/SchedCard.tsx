@@ -12,11 +12,15 @@ import { Box, Typography } from '@mui/material';
 import { Bell, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
+import { livestreamRemindersAPI } from '../../api/livestreamReminders';
 import HostAvatar from './HostAvatar';
 import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface Props {
   stream: Livestream;
+  /** Whether the current user already has a reminder on this stream.
+   *  Hydrated once by the parent row to avoid N round-trips. */
+  initialReminded?: boolean;
 }
 
 const TILE_PALETTES: Array<{ from: string; to: string }> = [
@@ -63,19 +67,39 @@ function formatCountdown(iso: string | null): string {
   return `${m}m`;
 }
 
-export default function SchedCard({ stream }: Props) {
+export default function SchedCard({ stream, initialReminded = false }: Props) {
   const navigate = useNavigate();
   const palette = paletteFor(stream.id);
   const [, setNow] = useState(Date.now());
-  // Set-a-reminder is purely client-side until L4 / push wiring; the
-  // toggle is intentionally optimistic.
-  const [reminded, setReminded] = useState(false);
+  // Optimistic toggle. The parent row hydrates initial state in one
+  // round-trip; this card calls the API on each toggle and reverts on
+  // failure so a sign-out / network blip doesn't desync the UI.
+  const [reminded, setReminded] = useState(initialReminded);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => { setReminded(initialReminded); }, [initialReminded]);
 
   useEffect(() => {
     // Tick every 30s — display has no seconds, so 1s would just burn cycles.
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  async function toggleReminder(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (pending) return;
+    const next = !reminded;
+    setReminded(next);
+    setPending(true);
+    const result = next
+      ? await livestreamRemindersAPI.setReminder(stream.id)
+      : await livestreamRemindersAPI.clearReminder(stream.id);
+    setPending(false);
+    if (!result.ok) {
+      setReminded(!next);
+      console.warn('[SchedCard] reminder toggle failed', result.reason);
+    }
+  }
 
   const hostName = stream.host?.username ?? 'host';
   // Stream metadata doesn't have an explicit "expected viewers" field;
@@ -244,10 +268,8 @@ export default function SchedCard({ stream }: Props) {
           </Typography>
           <Box
             component="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setReminded((v) => !v);
-            }}
+            onClick={toggleReminder}
+            disabled={pending}
             sx={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -261,9 +283,10 @@ export default function SchedCard({ stream }: Props) {
               fontFamily: inkstashFonts.ui,
               fontSize: 12.5,
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: pending ? 'progress' : 'pointer',
               whiteSpace: 'nowrap',
-              transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease',
+              opacity: pending ? 0.7 : 1,
+              transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease',
               '&:hover': {
                 bgcolor: reminded ? inkstashColors.brandDeep : inkstashColors.bgSunken,
               },
