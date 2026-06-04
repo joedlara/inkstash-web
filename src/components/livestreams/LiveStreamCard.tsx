@@ -1,45 +1,54 @@
 // src/components/livestreams/LiveStreamCard.tsx
 //
-// Tile used by /live sections. Layout:
-//   - Tall thumbnail card (9:16 ratio). Cover image fills it; if no
-//     cover, falls back to a brand-tinted gradient. Soft dark gradient
-//     fade rises from the bottom for legibility on the LIVE / host /
-//     viewer-count overlays.
-//   - LIVE pill top-left, viewer count top-right, host pill bottom-left
-//     of the thumbnail — all on glass backdrops over the gradient fade.
-//   - Below the thumbnail: title typography (2-line clamp). This is
-//     where stream titles live now — not overlaid on the cover.
+// "Break card" — the canonical Live Now tile, per the Claude Design spec
+// (docs/design-system/claude-design/styles.css :: .break-card / .break-thumb).
+// Used by /live and the home Live Streams widget.
+//
+//   - 9:16 portrait card on an ink (#16110E) background
+//   - Cover image fills the thumb (object-fit: cover); brand-tinted gradient
+//     is the fallback when no cover is set
+//   - Decorative layers: radial highlight at top + bottom darken via the
+//     :before pseudo, and a halftone dot overlay via :after — both rendered
+//     here as absolutely-positioned <Box>es
+//   - Overlays inside the thumb: LIVE pill top-left (red, pulsing dot, mono),
+//     "N watching" glass chip top-right (mono), then the info overlay at
+//     the bottom: host row (initial-based gradient avatar + @username) then
+//     a 2-line title in white
+//
+// `scheduled` swaps the LIVE pill for a glass countdown pill and hides the
+// watching chip. The horizontal "Coming Up" sched-card layout is a separate
+// component (TBD).
 
 import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Livestream } from '../../api/livestreams';
-import { inkstashColors } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts, inkstashRadii, inkstashShadows } from '../../theme/inkstashTokens';
 
 interface Props {
   stream: Livestream;
-  /** Render the scheduled start-time pill instead of the Live pill. */
+  /** Render the scheduled-start countdown pill instead of LIVE. */
   scheduled?: boolean;
-  /** Inverts the title color (used when the tile sits on a charcoal
-   *  section background like Featured streams). The thumbnail itself
-   *  stays the same in both contexts. */
+  /** Reserved for parent-section theming. The thumb itself is unchanged in
+   *  both modes; the title lives INSIDE the thumb now, so this prop is a
+   *  no-op visually but kept to preserve the component API. */
   variant?: 'light' | 'dark';
 }
 
-/** Scheduled-start countdown: Xd Xh Xm. */
-function formatTimeUntil(iso: string | null): string {
+/** Scheduled-start countdown: Xd Xh / Xh Xm / Xm Xs. Mirrors the prototype's
+ *  formatCountdown in breaks-view.jsx. */
+function formatCountdown(iso: string | null): string {
   if (!iso) return 'soon';
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return 'starting';
-  const totalMin = Math.max(1, Math.floor(ms / 60000));
-  const d = Math.floor(totalMin / (60 * 24));
-  const h = Math.floor((totalMin % (60 * 24)) / 60);
-  const m = totalMin % 60;
-  const parts: string[] = [];
-  if (d > 0) parts.push(`${d}d`);
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
-  return parts.join(' ');
+  let s = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600);  s -= h * 3600;
+  const m = Math.floor(s / 60);    s -= m * 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
 }
 
 /** Brand-tinted gradient fallback when no cover image is set. Deterministic
@@ -61,20 +70,22 @@ function paletteFor(id: string) {
   return TILE_PALETTES[Math.abs(hash) % TILE_PALETTES.length];
 }
 
-export default function LiveStreamCard({ stream, scheduled = false, variant = 'light' }: Props) {
+export default function LiveStreamCard({ stream, scheduled = false }: Props) {
   const navigate = useNavigate();
   const palette = paletteFor(stream.id);
 
-  // Tick the countdown every 30s for scheduled tiles. Minutes only.
+  // Tick the countdown every second for scheduled tiles — the format includes
+  // seconds when under 1h, so a coarser interval would visibly stall.
   const [, setNow] = useState(Date.now());
   useEffect(() => {
     if (!scheduled) return;
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [scheduled]);
 
   const liveCount = stream.viewer_peak || 0;
-  const titleColor = variant === 'dark' ? '#fff' : inkstashColors.ink;
+  const hostName = stream.host?.username ?? 'host';
+  const hostInitial = hostName.charAt(0).toUpperCase();
 
   const goToStream = () => navigate(`/live/${stream.id}`);
   const goToHost = (e: React.MouseEvent) => {
@@ -83,31 +94,36 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* Thumbnail (taller, 9:16 portrait). Cover image is the centerpiece;
-          gradient fallback when no cover. */}
+    <Box
+      onClick={goToStream}
+      sx={{
+        position: 'relative',
+        borderRadius: inkstashRadii.lg,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        bgcolor: inkstashColors.ink,
+        transition: 'transform 140ms ease, box-shadow 140ms ease',
+        '&:hover': {
+          transform: 'translateY(-3px)',
+          boxShadow: inkstashShadows.lg,
+        },
+        '&:active': { transform: 'translateY(-1px)' },
+      }}
+    >
+      {/* Thumbnail surface (9:16). All overlays + decorative layers live
+          inside this box, so the gradient + image always frame correctly. */}
       <Box
-        onClick={goToStream}
         sx={{
           position: 'relative',
-          width: '100%',
           aspectRatio: '9 / 16',
-          borderRadius: 2.5,
           overflow: 'hidden',
-          cursor: 'pointer',
-          // Brand-tinted gradient sits underneath as the fallback.
-          background: `linear-gradient(155deg, ${palette.from} 0%, ${palette.to} 100%)`,
-          boxShadow: '0 6px 18px rgba(22,17,14,0.18)',
-          transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 160ms ease',
-          '&:hover': {
-            transform: 'translateY(-3px)',
-            boxShadow: '0 12px 28px rgba(22,17,14,0.28)',
-          },
-          '&:active': { transform: 'translateY(-1px)' },
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'flex-end',
+          background: `linear-gradient(160deg, ${palette.from} 0%, ${palette.to} 100%)`,
         }}
       >
-        {/* Cover image fills the thumbnail when present. Zooms inside the
-            fixed frame on hover so the thumbnail itself doesn't grow. */}
+        {/* Cover image — sits between the gradient and the decorative layers. */}
         {stream.cover_image_url && (
           <Box
             component="img"
@@ -119,162 +135,184 @@ export default function LiveStreamCard({ stream, scheduled = false, variant = 'l
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transition: 'transform 300ms ease',
-              '.MuiBox-root:hover > &': { transform: 'scale(1.04)' },
+              zIndex: 0,
             }}
           />
         )}
 
-        {/* Bottom-up dark gradient fade for legibility behind the overlays */}
+        {/* ::before — radial top highlight + bottom darken gradient. Lifts
+            white overlays off the background and grounds the info overlay. */}
         <Box
           sx={{
             position: 'absolute',
             inset: 0,
-            background:
-              'linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 100%)',
             pointerEvents: 'none',
+            background:
+              'radial-gradient(circle at 50% 25%, rgba(255,255,255,0.14), transparent 50%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.85) 100%)',
+            zIndex: 1,
           }}
         />
-
-        {/* Top-left: LIVE / countdown pill */}
+        {/* ::after — halftone dot texture, overlay blend. Subtle, but it's the
+            difference between "flat tile" and "designed surface". */}
         <Box
           sx={{
             position: 'absolute',
-            top: 10,
-            left: 10,
+            inset: 0,
+            pointerEvents: 'none',
+            backgroundImage:
+              'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1.2px)',
+            backgroundSize: '10px 10px',
+            mixBlendMode: 'overlay',
+            zIndex: 1,
+          }}
+        />
+
+        {/* LIVE pill top-left (or countdown pill when scheduled) */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            zIndex: 3,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 0.5,
-            px: 0.9,
-            py: 0.4,
-            borderRadius: 1,
+            gap: 0.6,
+            px: scheduled ? '8px' : '8px',
+            pr: scheduled ? '10px' : '10px',
+            py: '4px',
+            borderRadius: 999,
             bgcolor: scheduled ? 'rgba(0,0,0,0.55)' : inkstashColors.live,
-            backdropFilter: scheduled ? 'blur(10px)' : undefined,
-            border: scheduled ? '1px solid rgba(255,255,255,0.18)' : undefined,
+            backdropFilter: scheduled ? 'blur(6px)' : undefined,
+            WebkitBackdropFilter: scheduled ? 'blur(6px)' : undefined,
+            border: scheduled ? '1px solid rgba(255,255,255,0.18)' : 'none',
             color: '#fff',
-            fontFamily: inkstashFonts.ui,
+            fontFamily: inkstashFonts.mono,
             fontSize: 10.5,
-            fontWeight: 800,
-            letterSpacing: '-0.005em',
+            fontWeight: 700,
+            letterSpacing: scheduled ? '0.04em' : '0.08em',
             lineHeight: 1,
-            fontVariantNumeric: 'tabular-nums',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            boxShadow: scheduled ? 'none' : '0 2px 8px rgba(220,38,38,0.4)',
+            textTransform: scheduled ? 'none' : 'uppercase',
+            whiteSpace: 'nowrap',
           }}
         >
           {!scheduled && (
             <Box
               sx={{
-                width: 5,
-                height: 5,
+                width: 6,
+                height: 6,
                 borderRadius: '50%',
                 bgcolor: '#fff',
-                animation: 'lscPulse 1.5s ease-in-out infinite',
-                '@keyframes lscPulse': {
+                animation: 'lsLivePulse 1.4s ease-in-out infinite',
+                '@keyframes lsLivePulse': {
                   '0%, 100%': { opacity: 1 },
-                  '50%': { opacity: 0.5 },
+                  '50%': { opacity: 0.35 },
                 },
               }}
             />
           )}
-          {scheduled ? formatTimeUntil(stream.scheduled_start_at) : 'Live'}
+          {scheduled ? formatCountdown(stream.scheduled_start_at) : 'Live'}
         </Box>
 
-        {/* Top-right: viewer count (live tiles only) */}
+        {/* Watching chip top-right (live only) */}
         {!scheduled && liveCount > 0 && (
           <Box
             sx={{
               position: 'absolute',
-              top: 10,
-              right: 10,
-              px: 0.85,
-              py: 0.4,
-              borderRadius: 1,
+              top: 12,
+              right: 12,
+              zIndex: 3,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              px: '10px',
+              py: '5px',
+              borderRadius: 999,
               bgcolor: 'rgba(0,0,0,0.55)',
-              backdropFilter: 'blur(10px)',
-              color: '#fff',
-              fontFamily: inkstashFonts.ui,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: '-0.005em',
-              lineHeight: 1,
-              fontVariantNumeric: 'tabular-nums',
+              border: '1px solid rgba(255,255,255,0.12)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              fontFamily: inkstashFonts.mono,
             }}
           >
-            {liveCount}
+            <Box sx={{ fontSize: 12, fontWeight: 600, color: '#fff', lineHeight: 1 }}>
+              {liveCount}
+            </Box>
+            <Box sx={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>
+              watching
+            </Box>
           </Box>
         )}
 
-        {/* Bottom-left: host pill on the gradient fade */}
+        {/* Info overlay at the bottom of the thumb — host row + title.
+            Sits on top of the bottom-darken gradient from ::before. */}
         <Box
-          onClick={goToHost}
           sx={{
-            position: 'absolute',
-            left: 10,
-            bottom: 10,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.75,
-            pl: 0.4,
-            pr: 1,
-            py: 0.35,
-            borderRadius: 999,
-            bgcolor: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(10px)',
-            maxWidth: 'calc(100% - 20px)',
-            transition: 'background-color 160ms ease',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' },
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            padding: { xs: '12px 12px 14px', sm: '16px 16px 18px' },
           }}
         >
+          {/* Host row */}
           <Box
-            component="img"
-            src={stream.host?.avatar_url || 'https://www.pikpng.com/pngl/b/80-805068_my-profile-icon-blank-profile-picture-circle-clipart.png'}
-            alt={stream.host?.username ?? 'host'}
+            onClick={goToHost}
             sx={{
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '1.5px solid rgba(255,255,255,0.4)',
-              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.9,
+              fontFamily: inkstashFonts.mono,
+              fontSize: { xs: 10.5, sm: 11.5 },
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.85)',
+              mb: 1,
+              cursor: 'pointer',
+              transition: 'color 140ms ease',
+              '&:hover': { color: '#fff' },
             }}
-          />
+          >
+            <Box
+              sx={{
+                width: { xs: 18, sm: 22 },
+                height: { xs: 18, sm: 22 },
+                borderRadius: 999,
+                background: `linear-gradient(135deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontFamily: inkstashFonts.display,
+                fontWeight: 800,
+                fontSize: { xs: 10, sm: 11 },
+                border: '1.5px solid rgba(255,255,255,0.18)',
+                flexShrink: 0,
+                lineHeight: 1,
+              }}
+            >
+              {hostInitial}
+            </Box>
+            <Box component="span">@{hostName}</Box>
+          </Box>
+
+          {/* Title */}
           <Typography
             sx={{
               fontFamily: inkstashFonts.ui,
-              fontSize: 11.5,
-              fontWeight: 700,
+              fontSize: { xs: 13, sm: 14 },
+              fontWeight: 600,
               color: '#fff',
-              letterSpacing: '-0.005em',
+              lineHeight: 1.3,
+              textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              wordBreak: 'break-word',
             }}
           >
-            @{stream.host?.username ?? 'host'}
+            {stream.title}
           </Typography>
         </Box>
-      </Box>
-
-      {/* Title below the thumbnail (home-page layout) */}
-      <Box onClick={goToStream} sx={{ pt: 1.5, cursor: 'pointer' }}>
-        <Typography
-          sx={{
-            fontFamily: inkstashFonts.ui,
-            fontSize: 14,
-            fontWeight: 700,
-            color: titleColor,
-            letterSpacing: '-0.005em',
-            lineHeight: 1.35,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            wordBreak: 'break-word',
-          }}
-        >
-          {stream.title}
-        </Typography>
       </Box>
     </Box>
   );
