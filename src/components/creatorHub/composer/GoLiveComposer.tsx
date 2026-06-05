@@ -80,6 +80,11 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
   // joins the LiveKit room as a publisher.
   const [preparedId, setPreparedId] = useState<string | null>(null);
   const [phonePaired, setPhonePaired] = useState(false);
+  // Flips true the moment goLive() flips the row status to 'live'.
+  // Passed to DualDevicePairing so its unmount cleanup knows NOT to
+  // delete the row (it's a real stream now). Without this, the soft-
+  // delete on unmount would race the goLive() success path.
+  const [published, setPublished] = useState(false);
 
   // Hydrate from a saved draft when the modal opens. Means an accidental
   // backdrop click on Step 3 doesn't nuke the seller's work — reopening
@@ -110,6 +115,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishError(null);
     setPreparedId(null);
     setPhonePaired(false);
+    setPublished(false);
     onClose();
   }
 
@@ -124,6 +130,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishError(null);
     setPreparedId(null);
     setPhonePaired(false);
+    setPublished(false);
     clearDraft(mode);
     onClose();
   }
@@ -151,6 +158,9 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
           }
         }
         await livestreamsAPI.goLive(preparedId);
+        // Tell DualDevicePairing the row is now a real, live stream so
+        // its unmount cleanup doesn't delete it.
+        setPublished(true);
         onPublished?.(preparedId, mode);
         handleHardClose();
         return;
@@ -296,6 +306,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                     coverImageUrl={details.thumb.src || undefined}
                     onPrepared={setPreparedId}
                     onPaired={setPhonePaired}
+                    published={published}
                   />
                 </Box>
               )}
