@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { inkstashFonts } from "../theme/inkstashTokens";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Typography, Button, Stack, Alert, Divider, TextField, InputAdornment, IconButton } from '@mui/material';
 import {
   Package,
@@ -91,6 +91,16 @@ const PREVIEW_CARDS = [
 // ── Splash / Auth page (unauthenticated) ──────────────────────────────────────
 function SplashPage() {
   const navigate = useNavigate();
+  // Stash ?next= to sessionStorage on mount so it survives the Supabase
+  // auth flow (which can replace the URL via OAuth callbacks etc.). Home
+  // pops it after isAuthenticated flips.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const next = new URLSearchParams(window.location.search).get('next');
+    if (next && next.startsWith('/')) {
+      sessionStorage.setItem('inkstash.next', next);
+    }
+  }, []);
   const [tab, setTab] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -355,12 +365,30 @@ const inputSx = {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && !user.onboarding_completed) setShowOnboarding(true);
     else setShowOnboarding(false);
   }, [user, authLoading]);
+
+  // Honor ?next= after a successful login. Stashed in sessionStorage
+  // before login (see SplashPage mount) so it survives any URL changes
+  // the auth flow may cause. Whitelist relative paths only so a
+  // malicious next=https://evil.com can't open-redirect.
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    // Prefer the live URL param, fall back to sessionStorage (set on
+    // SplashPage mount when the user lands here unauthenticated).
+    const fromUrl = searchParams.get('next');
+    const fromStorage = typeof window !== 'undefined' ? sessionStorage.getItem('inkstash.next') : null;
+    const next = fromUrl ?? fromStorage;
+    if (!next || !next.startsWith('/')) return;
+    if (typeof window !== 'undefined') sessionStorage.removeItem('inkstash.next');
+    navigate(next, { replace: true });
+  }, [authLoading, isAuthenticated, searchParams, navigate]);
 
   if (!authLoading && !isAuthenticated) return <SplashPage />;
 

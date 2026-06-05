@@ -25,6 +25,13 @@ interface RequestBody {
   scheduled_start_at?: string | null
   /** Optional listing IDs to pre-populate the stream's item queue. */
   queue?: string[]
+  /** Creator Hub dual-device flow: hold the stream at 'preparing',
+   *  mint a pair_token, and do NOT return a host LiveKit token (the
+   *  laptop is the producer, not the camera — the phone calls
+   *  pair-livestream to get its publish token). The composer flips
+   *  the stream to 'live' via go-live-livestream after the phone is
+   *  paired and publishing. */
+  prepare_dual_device?: boolean
 }
 
 function shortId(): string {
@@ -84,8 +91,18 @@ serve(async (req) => {
     // broadcast experience at the scheduled moment.
     const scheduledAt = body.scheduled_start_at ? new Date(body.scheduled_start_at) : null
     const isScheduledFuture = scheduledAt && scheduledAt.getTime() > Date.now()
-    const initialStatus = isScheduledFuture ? 'preparing' : 'live'
-    const startedAt = isScheduledFuture ? null : new Date().toISOString()
+    // Dual-device: composer keeps the stream in 'preparing' until the
+    // phone is paired AND the composer hits go-live-livestream. Treat
+    // scheduled-future the same way (always 'preparing').
+    const initialStatus = (body.prepare_dual_device || isScheduledFuture) ? 'preparing' : 'live'
+    const startedAt = initialStatus === 'live' ? new Date().toISOString() : null
+    // Mint a short pair token for dual-device. URL-safe, ~64 bits of
+    // entropy — enough to make a guess practically impossible inside
+    // the seconds-to-minutes window between Preview and Go Live.
+    const pairToken = body.prepare_dual_device
+      ? Array.from(crypto.getRandomValues(new Uint8Array(8)))
+          .map((b) => b.toString(16).padStart(2, '0')).join('')
+      : null
 
     const { data: stream, error: insertErr } = await serviceClient
       .from('livestreams')
@@ -98,6 +115,7 @@ serve(async (req) => {
         status: initialStatus,
         started_at: startedAt,
         scheduled_start_at: scheduledAt?.toISOString() ?? null,
+        pair_token: pairToken,
       })
       .select('id, livekit_room_name')
       .single()
@@ -119,6 +137,35 @@ serve(async (req) => {
       if (queueErr) {
         console.warn('[start-livestream] queue insert failed (continuing)', queueErr)
       }
+    }
+
+    // In dual-device flow, the laptop is NOT the camera — it's the
+    // producer console. Don't mint a host token here; the phone gets
+    // its publish token via pair-livestream.
+    if (body.prepare_dual_device) {
+      // Mint a composer viewer token so the laptop can subscribe to
+      // the room and detect the phone joining. Strictly scoped: no
+      // publish rights, view-only, same 4h TTL as the host token.
+      const composerIdentity = `${user.id}#composer-${crypto.randomUUID().slice(0, 8)}`
+      const composerToken = new AccessToken(livekitApiKey, livekitApiSecret, {
+        identity: composerIdentity,
+        name: (userRow as { username?: string }).username ?? 'composer',
+        ttl: 4 * 60 * 60,
+      })
+      composerToken.addGrant({
+        room: roomName,
+        roomJoin: true,
+        canPublish: false,
+        canPublishData: false,
+        canSubscribe: true,
+      })
+      return json({
+        livestream_id: stream.id,
+        livekit_room_name: roomName,
+        livekit_ws_url: livekitWsUrl,
+        pair_token: pairToken,
+        composer_token: await composerToken.toJwt(),
+      }, 200)
     }
 
     // Generate a LiveKit token with publish permissions. Append a random

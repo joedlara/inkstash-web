@@ -67,6 +67,22 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
   return data as T;
 }
 
+/** Public variant — does NOT require a logged-in user. Used by the
+ *  pair-livestream flow on the phone, where the pair token in the URL
+ *  is the auth (no Inkstash session expected). Sends the anon key as
+ *  the Authorization header so the Supabase function gateway lets the
+ *  request through; the function itself does its own validation. */
+async function callPublicFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(fn, { body });
+  if (error) throw new Error(error.message);
+  if (data?.error) {
+    const e = new Error(data.error);
+    e.name = data.error;
+    throw e;
+  }
+  return data as T;
+}
+
 /** Three buckets the /live page renders as horizontal scroll rows.
  *  Featured = future hook for editorial picks; for now we surface the
  *  highest viewer-count live streams as a stand-in so the row isn't empty
@@ -181,6 +197,47 @@ export const livestreamsAPI = {
     return row;
   },
 
+  /** Dual-device variant of start(). Holds the row at 'preparing',
+   *  mints a pair token. The composer encodes the token + livestream id
+   *  into a QR; the phone scans it and calls pair() to get a host token.
+   *  Once the phone is publishing, the composer calls goLive(). */
+  prepareDualDevice: (body: {
+    title: string;
+    description?: string;
+    cover_image_url?: string;
+    scheduled_start_at?: string | null;
+    queue?: string[];
+  }) =>
+    callFn<{
+      livestream_id: string;
+      livekit_room_name: string;
+      livekit_ws_url: string;
+      pair_token: string;
+      /** View-only LiveKit token for the composer to subscribe to the
+       *  room and detect the phone joining as publisher. Scoped:
+       *  canPublish=false, canSubscribe=true, room locked to this id. */
+      composer_token: string;
+    }>('start-livestream', { ...body, prepare_dual_device: true }),
+
+  /** Authenticated as the stream's OWNER. The pair_token in the URL
+   *  proves the user is using a fresh QR; their session proves they're
+   *  the seller. Edge fn rejects with 'not_signed_in' / 'not_owner' /
+   *  'invalid_pair_token' / 'not_preparing' which the phone page maps
+   *  to friendly UX. */
+  pair: (body: { livestream_id: string; pair_token: string }) =>
+    callFn<{
+      livestream_id: string;
+      livekit_room_name: string;
+      livekit_token: string;
+      livekit_ws_url: string;
+    }>('pair-livestream', body),
+
+  /** Authenticated as the host. Flips status preparing -> live and
+   *  nulls the pair_token. Called by the composer after the phone is
+   *  publishing. */
+  goLive: (livestream_id: string) =>
+    callFn<{ status: string }>('go-live-livestream', { livestream_id }),
+
   start: (body: {
     title: string;
     description?: string;
@@ -200,4 +257,72 @@ export const livestreamsAPI = {
 
   banChatter: (livestream_id: string, user_id: string, reason?: string) =>
     callFn<{ status: string }>('ban-chatter', { livestream_id, user_id, reason }),
+
+  /** "Do I have a live or starting stream right now?" used by the Creator
+   *  Hub's Live Control panel to decide between empty state and the real
+   *  producer console. Returns the row + a viewer-mode LiveKit token so
+   *  the laptop can join its own stream as a viewer (the phone is the
+   *  camera; the laptop is the control surface). */
+  async getMyActiveStream(host_user_id: string): Promise<
+    | { stream: Livestream; livekit: { token: string; wsUrl: string } }
+    | null
+  > {
+    const { data, error } = await supabase
+      .from('livestreams')
+      .select('*')
+      .eq('host_user_id', host_user_id)
+      .eq('status', 'live')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const row = data as Livestream;
+    try {
+      // join() is buyer-side viewer join — chat history isn't needed by
+      // the producer surface, but the token + wsUrl are. We drop the rest.
+      const join = await callFn<{ livekit_token: string; livekit_ws_url: string }>(
+        'join-livestream', { livestream_id: row.id },
+      );
+      const hydrated = await hydrateHosts([row]);
+      return {
+        stream: hydrated[0],
+        livekit: { token: join.livekit_token, wsUrl: join.livekit_ws_url },
+      };
+    } catch (err) {
+      console.warn('[livestreamsAPI.getMyActiveStream] join failed', err);
+      return null;
+    }
+  },
+
+  /** Host-scoped lister used by the Creator Hub Shows panel. Returns
+   *  upcoming (scheduled future or live) and past (ended) splits in one
+   *  round trip. The auth user has to match host_user_id, so we expect
+   *  the caller to pass the seller's own id (or use the current user). */
+  async listMyShows(host_user_id: string): Promise<{ upcoming: Livestream[]; past: Livestream[] }> {
+    const { data, error } = await supabase
+      .from('livestreams')
+      .select('*')
+      .eq('host_user_id', host_user_id)
+      .order('scheduled_start_at', { ascending: true, nullsFirst: false })
+      .order('started_at', { ascending: false, nullsFirst: false });
+    if (error) {
+      console.error('[livestreamsAPI.listMyShows] failed', error);
+      return { upcoming: [], past: [] };
+    }
+    const all = await hydrateHosts((data ?? []) as Livestream[]);
+    const upcoming: Livestream[] = [];
+    const past: Livestream[] = [];
+    for (const row of all) {
+      // 'preparing' + future scheduled_start_at OR currently 'live' counts as upcoming.
+      // Everything else (ended, aborted) is past.
+      const isLive = row.status === 'live';
+      const isScheduledFuture =
+        row.status === 'preparing'
+        && !!row.scheduled_start_at
+        && new Date(row.scheduled_start_at).getTime() > Date.now();
+      if (isLive || isScheduledFuture) upcoming.push(row);
+      else past.push(row);
+    }
+    return { upcoming, past };
+  },
 };

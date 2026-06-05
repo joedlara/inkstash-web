@@ -12,7 +12,7 @@ import Packs from './pages/Packs';
 import PackDetail from './pages/PackDetail';
 import Live from './pages/Live';
 import LiveStreamView from './pages/LiveStreamView';
-import LiveStreamHost from './pages/LiveStreamHost';
+import LiveCameraPhone from './pages/LiveCameraPhone';
 import Drops from './pages/Drops';
 import DropDetail from './pages/DropDetail';
 import Marketplace from './pages/Marketplace';
@@ -27,7 +27,7 @@ import Purchases from './pages/Purchases';
 import AccountSettings from './pages/AccountSettings';
 import Onboarding from './pages/Onboarding';
 import SellerOnboarding from './pages/SellerOnboarding';
-import SellerDashboard from './pages/SellerDashboard';
+import CreatorHub from './pages/CreatorHub';
 import ListItem from './pages/ListItem';
 import UserProfile from './pages/UserProfile';
 import VendorProfile from './pages/VendorProfile';
@@ -47,7 +47,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/" element={<Home />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/seller-onboarding" element={<SellerOnboarding />} />
-                <Route path="/seller-dashboard" element={<SellerDashboard />} />
+                <Route path="/seller-dashboard" element={<CreatorHub />} />
                 <Route path="/list-item" element={<ListItem />} />
                 <Route path="/sell" element={<Seller />} />
                 <Route path="/item/:id" element={<ItemDetail />} />
@@ -56,7 +56,15 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/packs/:packId" element={<PackDetail />} />
                 <Route path="/pack-reveal/:purchaseId" element={<Navigate to="/packs" replace />} />
                 <Route path="/live" element={<Live />} />
-                <Route path="/live/start" element={<LiveStreamHost />} />
+                {/* /live/start lived here for Phase 1/2 of the host overhaul.
+                    All stream authoring now happens inside the Creator Hub
+                    (Stream tab + Go Live composer). The page file stays on
+                    disk until the new hub is shipping. */}
+                <Route path="/live/start" element={<Navigate to="/seller-dashboard" replace />} />
+                {/* Dual-device camera page. Reads ?id= and ?pair= from the
+                    QR encoded by the Creator Hub composer. No auth required —
+                    the pair token validates ownership. */}
+                <Route path="/live/host" element={<LiveCameraPhone />} />
                 <Route path="/live/:id" element={<LiveStreamView />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drop/:id" element={<DropDetail />} />
