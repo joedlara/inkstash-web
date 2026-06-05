@@ -1,10 +1,13 @@
 // supabase/functions/pair-livestream/index.ts
 //
-// UNAUTHENTICATED on purpose — the pair token IS the auth here. The
-// phone scans the QR from the composer, posts { livestream_id, pair_token }
-// from any browser (signed in or not), and gets back a host LiveKit
-// token so it can publish the camera. The token is invalidated on
-// go-live-livestream so the same QR can't be reused.
+// Authenticated as the stream's OWNER. Pair token alone isn't enough —
+// the phone must be signed in as the seller who owns the livestream.
+// This stops a snooped QR from being usable by anyone but the owner.
+//
+// Phone-side flow: scan QR → /live/host detects no session → bounces
+// to /?next=... → user logs in → returns to /live/host → posts here
+// with both their session token AND the pair_token. We verify both
+// match the stream's host_user_id before minting a publish token.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -25,10 +28,15 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) return json({ error: 'not_signed_in' }, 401)
+
     // @ts-expect-error Deno env
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     // @ts-expect-error Deno env
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // @ts-expect-error Deno env
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     // @ts-expect-error Deno env
     const livekitApiKey = Deno.env.get('LIVEKIT_API_KEY')!
     // @ts-expect-error Deno env
@@ -36,7 +44,13 @@ serve(async (req) => {
     // @ts-expect-error Deno env
     const livekitWsUrl = Deno.env.get('LIVEKIT_URL')!
 
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
     const service = createClient(supabaseUrl, serviceRoleKey)
+
+    const { data: { user }, error: authErr } = await userClient.auth.getUser()
+    if (authErr || !user) return json({ error: 'not_signed_in' }, 401)
 
     const body: RequestBody = await req.json()
     const livestreamId = (body.livestream_id ?? '').trim()
@@ -45,8 +59,9 @@ serve(async (req) => {
       return json({ error: 'missing_fields' }, 400)
     }
 
-    // Look up the row. Both id and pair_token must match exactly, and
-    // status must still be 'preparing' (post-goLive the token is nulled).
+    // Look up the row. id must exist, status must still be 'preparing'
+    // (post-goLive the pair_token is nulled), pair_token must match,
+    // AND the signed-in user must be the stream's host.
     const { data: stream, error } = await service
       .from('livestreams')
       .select('id, host_user_id, livekit_room_name, status, pair_token')
@@ -63,6 +78,12 @@ serve(async (req) => {
     if (row.status !== 'preparing') return json({ error: 'not_preparing' }, 409)
     if (!row.pair_token || row.pair_token !== pairToken) {
       return json({ error: 'invalid_pair_token' }, 403)
+    }
+    if (row.host_user_id !== user.id) {
+      // The QR was scanned by someone who isn't the seller. Tell the
+      // phone client so it can surface a friendly "this stream belongs
+      // to someone else" message instead of a generic 403.
+      return json({ error: 'not_owner' }, 403)
     }
 
     // Mint a publish token scoped to this room. Identity carries the host

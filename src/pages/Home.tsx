@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { inkstashFonts } from "../theme/inkstashTokens";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Typography, Button, Stack, Alert, Divider, TextField, InputAdornment, IconButton } from '@mui/material';
 import {
   Package,
@@ -355,12 +355,25 @@ const inputSx = {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && !user.onboarding_completed) setShowOnboarding(true);
     else setShowOnboarding(false);
   }, [user, authLoading]);
+
+  // Honor ?next= after a successful login. Used by surfaces that
+  // bounce here when unauthenticated (e.g. /live/host for the dual-
+  // device camera pairing flow). Whitelist relative paths only so
+  // a malicious ?next=https://evil.com can't open-redirect.
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    const next = searchParams.get('next');
+    if (!next || !next.startsWith('/')) return;
+    navigate(next, { replace: true });
+  }, [authLoading, isAuthenticated, searchParams, navigate]);
 
   if (!authLoading && !isAuthenticated) return <SplashPage />;
 

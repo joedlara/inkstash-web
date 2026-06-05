@@ -18,6 +18,7 @@ import LiveStreamVideo, { type LiveStreamVideoHandle } from '../components/lives
 import HostFloatingControls from '../components/livestreams/host/HostFloatingControls';
 import EndStreamConfirmModal from '../components/livestreams/host/EndStreamConfirmModal';
 import { livestreamsAPI } from '../api/livestreams';
+import { supabase } from '../api/supabase/supabaseClient';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../theme/inkstashTokens';
 
@@ -49,7 +50,9 @@ export default function LiveCameraPhone() {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Pair → get host token. Runs once on mount.
+  // Pair → get host token. First checks for a session — if missing,
+  // bounce to /?next=<current url> so the seller can sign in and come
+  // back. Only the stream's owner can pair (edge fn enforces it).
   useEffect(() => {
     if (!livestreamId || !pairToken) {
       setErrorMsg('Missing pairing info. Scan the QR from your Creator Hub again.');
@@ -58,6 +61,15 @@ export default function LiveCameraPhone() {
     }
     let cancelled = false;
     (async () => {
+      // Pre-check session before calling the edge fn. callFn would
+      // throw "Not logged in" with no UX affordance; this gives us a
+      // clean redirect.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        navigate(`/?next=${next}`, { replace: true });
+        return;
+      }
       try {
         const res = await livestreamsAPI.pair({
           livestream_id: livestreamId,
@@ -69,8 +81,15 @@ export default function LiveCameraPhone() {
       } catch (err) {
         if (cancelled) return;
         const msg = (err as Error).message ?? 'Failed to pair';
-        // Friendlier copy for the common cases.
-        if (msg.includes('invalid_pair_token') || msg.includes('not_preparing')) {
+        if (msg.includes('not_signed_in')) {
+          // Session expired between getSession() and edge fn call.
+          const next = encodeURIComponent(window.location.pathname + window.location.search);
+          navigate(`/?next=${next}`, { replace: true });
+          return;
+        }
+        if (msg.includes('not_owner')) {
+          setErrorMsg("This show belongs to another seller. Sign in as the host on this phone, then scan the QR again.");
+        } else if (msg.includes('invalid_pair_token') || msg.includes('not_preparing')) {
           setErrorMsg('This QR has expired. Open the Creator Hub on your laptop and scan a fresh one.');
         } else if (msg.includes('not_found')) {
           setErrorMsg('Stream not found. The host may have ended it.');
@@ -81,7 +100,7 @@ export default function LiveCameraPhone() {
       }
     })();
     return () => { cancelled = true; };
-  }, [livestreamId, pairToken]);
+  }, [livestreamId, pairToken, navigate]);
 
   async function handleToggleMic() {
     const next = !micMuted;

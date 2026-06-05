@@ -215,10 +215,13 @@ export const livestreamsAPI = {
       pair_token: string;
     }>('start-livestream', { ...body, prepare_dual_device: true }),
 
-  /** UNAUTHENTICATED. Called from the phone with the QR-encoded pair
-   *  token. Returns a host LiveKit publish token. */
+  /** Authenticated as the stream's OWNER. The pair_token in the URL
+   *  proves the user is using a fresh QR; their session proves they're
+   *  the seller. Edge fn rejects with 'not_signed_in' / 'not_owner' /
+   *  'invalid_pair_token' / 'not_preparing' which the phone page maps
+   *  to friendly UX. */
   pair: (body: { livestream_id: string; pair_token: string }) =>
-    callPublicFn<{
+    callFn<{
       livestream_id: string;
       livekit_room_name: string;
       livekit_token: string;
