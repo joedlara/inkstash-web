@@ -67,6 +67,22 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
   return data as T;
 }
 
+/** Public variant — does NOT require a logged-in user. Used by the
+ *  pair-livestream flow on the phone, where the pair token in the URL
+ *  is the auth (no Inkstash session expected). Sends the anon key as
+ *  the Authorization header so the Supabase function gateway lets the
+ *  request through; the function itself does its own validation. */
+async function callPublicFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(fn, { body });
+  if (error) throw new Error(error.message);
+  if (data?.error) {
+    const e = new Error(data.error);
+    e.name = data.error;
+    throw e;
+  }
+  return data as T;
+}
+
 /** Three buckets the /live page renders as horizontal scroll rows.
  *  Featured = future hook for editorial picks; for now we surface the
  *  highest viewer-count live streams as a stand-in so the row isn't empty
@@ -202,7 +218,7 @@ export const livestreamsAPI = {
   /** UNAUTHENTICATED. Called from the phone with the QR-encoded pair
    *  token. Returns a host LiveKit publish token. */
   pair: (body: { livestream_id: string; pair_token: string }) =>
-    callFn<{
+    callPublicFn<{
       livestream_id: string;
       livekit_room_name: string;
       livekit_token: string;
