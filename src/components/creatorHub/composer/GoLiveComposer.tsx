@@ -11,7 +11,7 @@
 // step navigation work end-to-end. The real Run of Show + Settings
 // land in follow-up commits.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, IconButton, Modal, Typography, CircularProgress } from '@mui/material';
 import { Check, X as Close, Zap } from 'lucide-react';
 import { livestreamsAPI } from '../../../api/livestreams';
@@ -39,6 +39,34 @@ interface Props {
 
 const STEPS = ['Details', 'Run of show', 'Settings', 'Preview'] as const;
 
+// localStorage key for draft persistence. Keyed by mode so Live and
+// Schedule drafts don't clobber each other. Cleared on successful
+// publish or explicit Cancel; backdrop-click only sets a flag so the
+// next mount re-hydrates from the draft.
+const DRAFT_KEY = (mode: ComposerMode) => `inkstash.creator-hub.compose-draft.${mode}`;
+interface ComposerDraft {
+  step: number;
+  details: ComposerDetails;
+  items: ComposerItem[];
+  settings: ComposerSettings;
+}
+function readDraft(mode: ComposerMode): ComposerDraft | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY(mode));
+    if (!raw) return null;
+    return JSON.parse(raw) as ComposerDraft;
+  } catch { return null; }
+}
+function writeDraft(mode: ComposerMode, draft: ComposerDraft): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(DRAFT_KEY(mode), JSON.stringify(draft)); } catch { /* quota / private mode */ }
+}
+function clearDraft(mode: ComposerMode): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(DRAFT_KEY(mode)); } catch { /* ignore */ }
+}
+
 export default function GoLiveComposer({ open, mode, onClose, onPublished }: Props) {
   const { user } = useAuth();
   const [step, setStep] = useState(0);
@@ -47,17 +75,61 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
   const [settings, setSettings] = useState<ComposerSettings>(DEFAULT_SETTINGS);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  // Dual-device pairing state (Live mode only). preparedId is set when
+  // prepareDualDevice succeeds; phonePaired flips true once the phone
+  // joins the LiveKit room as a publisher.
+  const [preparedId, setPreparedId] = useState<string | null>(null);
+  const [phonePaired, setPhonePaired] = useState(false);
 
-  // Reset on close so reopening the modal doesn't show stale state.
-  function handleClose() {
+  // Hydrate from a saved draft when the modal opens. Means an accidental
+  // backdrop click on Step 3 doesn't nuke the seller's work — reopening
+  // restores Title / Description / lots / settings / step.
+  useEffect(() => {
+    if (!open) return;
+    const draft = readDraft(mode);
+    if (!draft) return;
+    setStep(draft.step);
+    setDetails(draft.details);
+    setItems(draft.items);
+    setSettings(draft.settings);
+    // Pairing state intentionally NOT restored — a fresh phone pair is
+    // required each session since the pair_token gets nulled on publish.
+  }, [open, mode]);
+
+  // Persist draft on any change while the modal is open (debounce-y via
+  // React batching — fine for this size of payload).
+  useEffect(() => {
+    if (!open) return;
+    writeDraft(mode, { step, details, items, settings });
+  }, [open, mode, step, details, items, settings]);
+
+  // Soft close (backdrop / Esc / X). Keeps the draft so reopening
+  // resumes. Used for everything except Cancel + successful publish.
+  function handleSoftClose() {
+    if (publishing) return;
+    setPublishError(null);
+    setPreparedId(null);
+    setPhonePaired(false);
+    onClose();
+  }
+
+  // Hard close: discards the draft. Used by the Cancel button on
+  // Step 1 (intentional abandonment) and after a successful publish.
+  function handleHardClose() {
     if (publishing) return;
     setStep(0);
     setDetails(DEFAULT_DETAILS);
     setItems([]);
     setSettings(DEFAULT_SETTINGS);
     setPublishError(null);
+    setPreparedId(null);
+    setPhonePaired(false);
+    clearDraft(mode);
     onClose();
   }
+
+  // Legacy alias — most callers want the soft variant now.
+  const handleClose = handleSoftClose;
 
   const canAdvance = step === 0 ? details.title.trim().length > 0 : true;
 
@@ -80,7 +152,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
         }
         await livestreamsAPI.goLive(preparedId);
         onPublished?.(preparedId, mode);
-        handleClose();
+        handleHardClose();
         return;
       }
 
@@ -106,7 +178,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
         }
       }
       onPublished?.(res.livestream_id, mode);
-      handleClose();
+      handleHardClose();
     } catch (err) {
       setPublishError((err as Error).message ?? 'Failed to publish');
     } finally {
@@ -239,7 +311,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
           <HBtn
             variant="ghost"
             size="md"
-            onClick={() => step === 0 ? handleClose() : setStep(step - 1)}
+            onClick={() => step === 0 ? handleHardClose() : setStep(step - 1)}
             disabled={publishing}
           >
             {step === 0 ? 'Cancel' : 'Back'}
