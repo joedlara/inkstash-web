@@ -214,8 +214,12 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
           {scheduled ? formatCountdown(stream.scheduled_start_at) : 'Live'}
         </Box>
 
-        {/* Watching chip top-right (live only) */}
-        {!scheduled && liveCount > 0 && (
+        {/* Watching chip top-right (live only). Always visible for live
+         *  streams now — was gated on liveCount>0 but viewers asked to
+         *  see "0 watching" too so the badge reliably reads as a Live
+         *  cue. viewer_peak isn't real-time; it updates when streams
+         *  end + on heartbeat from join-livestream. */}
+        {!scheduled && (
           <Box
             sx={{
               position: 'absolute',

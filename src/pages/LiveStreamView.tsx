@@ -23,6 +23,8 @@ import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
+import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
+import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -173,10 +175,10 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. The page intentionally does NOT scroll below the stage —
-  // pre-2026-06-05 an ExploreMoreRail lived under here and created a
-  // 900-1500px white band when half-scrolled (the stage scrolled out before
-  // the rail entered the viewport). The stage IS the page.
+  // edge-to-edge. The stage uses position:sticky + top:64px (topnav
+  // height) so it stays pinned during early scroll and the ExploreMore
+  // rail beneath reveals cleanly — avoiding the 900-1500px white band
+  // we hit on 2026-06-05 with a non-sticky stage.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -186,6 +188,9 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
+      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
+        <ExploreMoreRail excludeId={stream.id} />
+      </Box>
     </AppShell>
   );
 }
@@ -211,7 +216,12 @@ function LiveDesktopStage({
         // breathing-room padding inside.
         mx: { md: -3 },
         mt: { md: -3 },
-        mb: { md: -3 },
+        // Sticky so the stage stays pinned while the user scrolls down
+        // to reveal the ExploreMore rail below. top:64px clears the
+        // topnav. Without sticky, scrolling would slide the stage off
+        // the top before the rail entered viewport → white gap.
+        position: 'sticky',
+        top: 64,
         height: 'calc(100dvh - 64px)', // 64 = topnav height
         bgcolor: inkstashColors.bg,
         display: 'grid',
@@ -297,12 +307,13 @@ function LiveDesktopStage({
               pointerEvents: 'none',
             }}
           >
-            <Box sx={{ pointerEvents: 'auto' }}>
+            <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
               <HostPill
                 username={stream.host?.username ?? null}
                 avatarUrl={stream.host?.avatar_url}
-            hostUserId={stream.host_user_id}
+                hostUserId={stream.host_user_id}
               />
+              <StreamDescriptionPill description={stream.description} />
             </Box>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
               <ViewerCountBadge count={viewerCount} />
@@ -445,12 +456,13 @@ function FullscreenVideoSurface({
           pointerEvents: 'none',
         }}
       >
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
             hostUserId={stream.host_user_id}
           />
+          <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />
@@ -581,12 +593,13 @@ function MobileVideoStage({
           pointerEvents: 'none',
         }}
       >
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
             hostUserId={stream.host_user_id}
           />
+          <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />

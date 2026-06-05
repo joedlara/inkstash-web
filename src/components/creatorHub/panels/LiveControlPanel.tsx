@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
+import { ArrowUpCircle, Gift, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
@@ -486,6 +486,51 @@ function LiveSurface({ active }: { active: ActiveStream }) {
 
           {/* Stream Health card lived here. Stats moved into the live
               banner so the host has everything at a glance up top. */}
+
+          {/* Start a giveaway — sits above the dual-device card so the
+              host has an obvious mid-stream action without crowding the
+              on-block area. Stub until the raffles backend ships. */}
+          <ButtonBase
+            onClick={() => setStubToast('Giveaways launch alongside the raffles backend.')}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 1.5,
+              p: 1.75,
+              borderRadius: inkstashRadii.lg,
+              bgcolor: inkstashColors.bgElev,
+              border: `1px dashed ${inkstashColors.borderStrong}`,
+              color: inkstashColors.ink, textAlign: 'left',
+              transition: 'background-color 160ms ease, border-color 160ms ease, transform 120ms ease',
+              '&:hover': {
+                bgcolor: inkstashColors.bgSunken,
+                borderColor: inkstashColors.brand,
+              },
+              '&:active': { transform: 'scale(0.992)' },
+            }}
+          >
+            <Box sx={{
+              width: 38, height: 38, borderRadius: 1.5,
+              bgcolor: inkstashColors.brandSoft, color: inkstashColors.brand,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Gift size={18} strokeWidth={2.2} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{
+                fontFamily: inkstashFonts.ui, fontWeight: 700, fontSize: 14,
+                color: inkstashColors.ink,
+              }}>
+                Start a giveaway
+              </Typography>
+              <Typography sx={{
+                fontFamily: inkstashFonts.ui, fontSize: 12.5, color: inkstashColors.muted,
+                mt: 0.25, lineHeight: 1.5,
+              }}>
+                Pull viewers in mid-stream with a free item drop. Wires up with raffles.
+              </Typography>
+            </Box>
+            <Plus size={18} strokeWidth={2.4} color={inkstashColors.muted} />
+          </ButtonBase>
 
           {/* Dual-device card */}
           <Box sx={{
