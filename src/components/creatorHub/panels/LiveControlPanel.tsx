@@ -10,10 +10,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, GripVertical, Heart, Radio, Smartphone, Wifi, Square } from 'lucide-react';
+import { ArrowUpCircle, GripVertical, Radio, Smartphone, Square } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
+import LiveStreamChat from '../../livestreams/LiveStreamChat';
 import EndStreamConfirmModal from '../../livestreams/host/EndStreamConfirmModal';
 import { livestreamsAPI, type Livestream } from '../../../api/livestreams';
 import { supabase } from '../../../api/supabase/supabaseClient';
@@ -257,14 +258,23 @@ function LiveSurface({ active }: { active: ActiveStream }) {
             {stream.title} — running the block from this laptop
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexShrink: 0 }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center', gap: { xs: 1.25, md: 2 },
+          flexShrink: 0, flexWrap: { xs: 'wrap', md: 'nowrap' },
+        }}>
+          {/* Stream health + counts. Bitrate / connection / likes /
+              viewers used to live in a separate card below the camera —
+              consolidated into the banner so the host sees everything
+              that matters at a glance. */}
+          <Stat value={`${bitrate}`} unit="Mbps" label="Bitrate" />
+          <Stat value="Good" label="Connection" tone="ok" />
+          <Stat value={fmtLikes(likes)} label="Likes" />
           <Stat value={String(viewerCount)} label="Viewers" />
-          <Stat value={String(queue.filter((q) => q.status === 'queued').length)} label="In queue" />
-          <Stat value={`$${soldCount * 0}`} label="Sold" />
+          <Stat value={String(queue.filter((q) => q.status === 'queued').length)} label="Queue" />
           <ButtonBase
             onClick={() => setEndConfirmOpen(true)}
             sx={{
-              ml: 1, height: 40, px: 1.75, borderRadius: 999,
+              ml: { md: 1 }, height: 40, px: 1.75, borderRadius: 999,
               bgcolor: 'rgba(0,0,0,0.22)',
               color: '#fff',
               border: '1px solid rgba(255,255,255,0.28)',
@@ -299,7 +309,13 @@ function LiveSurface({ active }: { active: ActiveStream }) {
           }}>
             <Box sx={{
               position: 'relative',
-              aspectRatio: '16 / 9',
+              // Vertical — matches the phone-as-camera framing.
+              // Capped to a reasonable laptop height so the producer
+              // still sees the rest of the panel without scrolling.
+              aspectRatio: '9 / 16',
+              maxHeight: 720,
+              mx: 'auto',
+              maxWidth: 'min(100%, 405px)',
               bgcolor: inkstashColors.stage,
               overflow: 'hidden',
             }}>
@@ -325,14 +341,17 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 }} />
                 ON AIR
               </Box>
-              {/* Bitrate + likes */}
-              <Box sx={{
-                position: 'absolute', top: 12, right: 12, zIndex: 3,
-                display: 'flex', gap: 1,
-              }}>
-                <GlassStat icon={<Wifi size={11} strokeWidth={2.4} />} value={`${bitrate} Mbps`} good />
-                <GlassStat icon={<Heart size={11} strokeWidth={2.4} fill="currentColor" />} value={fmtLikes(likes)} />
-              </Box>
+              {/* Read-only chat overlay docked at the bottom of the
+                  camera. Reuses the same LiveStreamChat the buyer-side
+                  viewer page renders so the host sees exactly what the
+                  audience sees. Composer / input is suppressed via
+                  readOnly because moderation lives on the laptop. */}
+              <LiveStreamChat
+                livestreamId={stream.id}
+                initialMessages={[]}
+                isBanned={false}
+                readOnly
+              />
             </Box>
 
             {/* Block info */}
@@ -398,31 +417,8 @@ function LiveSurface({ active }: { active: ActiveStream }) {
             </Box>
           </Box>
 
-          {/* Stream Health */}
-          <Box sx={{
-            bgcolor: inkstashColors.bgElev,
-            border: `1px solid ${inkstashColors.border}`,
-            borderRadius: inkstashRadii.lg,
-            p: 2,
-          }}>
-            <Typography sx={{
-              fontFamily: inkstashFonts.mono, fontSize: 11,
-              textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600,
-              color: inkstashColors.muted, mb: 1.5,
-            }}>
-              Stream health
-            </Typography>
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
-              gap: 1.5,
-            }}>
-              <HStat label="Bitrate" value={`${bitrate}`} unit="Mbps" bar={Math.min(100, (bitrate / 8) * 100)} />
-              <HStat label="Connection" value="Good" sub="0.1% dropped frames" tone="ok" />
-              <HStat label="Likes" value={fmtLikes(likes)} sub="live reactions" />
-              <HStat label="Viewers" value={String(viewerCount)} sub="" />
-            </Box>
-          </Box>
+          {/* Stream Health card lived here. Stats moved into the live
+              banner so the host has everything at a glance up top. */}
 
           {/* Dual-device card */}
           <Box sx={{
@@ -533,14 +529,32 @@ function LiveSurface({ active }: { active: ActiveStream }) {
 // Sub-components
 // ────────────────────────────────────────────────────────────────────
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({
+  value, label, unit, tone,
+}: {
+  value: string;
+  label: string;
+  unit?: string;
+  tone?: 'ok';
+}) {
   return (
-    <Box sx={{ textAlign: 'center' }}>
+    <Box sx={{ textAlign: 'center', minWidth: 56 }}>
       <Typography sx={{
         fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
-        color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+        color: tone === 'ok' ? '#4ADE80' : '#fff',
+        lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+        display: 'inline-flex', alignItems: 'baseline', gap: 0.4,
+        justifyContent: 'center',
       }}>
         {value}
+        {unit && (
+          <Box component="span" sx={{
+            fontFamily: inkstashFonts.mono, fontSize: 10, fontWeight: 600,
+            color: 'rgba(255,255,255,0.7)',
+          }}>
+            {unit}
+          </Box>
+        )}
       </Typography>
       <Typography sx={{
         fontFamily: inkstashFonts.mono, fontSize: 10, fontWeight: 600,
@@ -553,84 +567,8 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function GlassStat({ icon, value, good = false }: { icon: React.ReactNode; value: string; good?: boolean }) {
-  return (
-    <Box sx={{
-      display: 'inline-flex', alignItems: 'center', gap: 0.5,
-      px: 1, py: '4px', borderRadius: 999,
-      bgcolor: 'rgba(8,7,10,0.55)',
-      border: '1px solid rgba(255,255,255,0.18)',
-      backdropFilter: 'blur(8px)',
-      WebkitBackdropFilter: 'blur(8px)',
-      color: '#fff',
-      fontFamily: inkstashFonts.mono, fontSize: 10.5, fontWeight: 600,
-      lineHeight: 1,
-    }}>
-      {good && (
-        <Box sx={{
-          width: 5, height: 5, borderRadius: '50%', bgcolor: '#4ADE80', mr: 0.25,
-        }} />
-      )}
-      {icon}
-      {value}
-    </Box>
-  );
-}
-
-function HStat({
-  label, value, unit, sub, bar, tone,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  sub?: string;
-  bar?: number;
-  tone?: 'ok';
-}) {
-  return (
-    <Box>
-      <Typography sx={{
-        fontFamily: inkstashFonts.mono, fontSize: 10, fontWeight: 600,
-        color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em',
-        mb: 0.5,
-      }}>
-        {label}
-      </Typography>
-      <Typography sx={{
-        fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
-        color: tone === 'ok' ? inkstashColors.success : inkstashColors.ink,
-        lineHeight: 1, fontVariantNumeric: 'tabular-nums',
-      }}>
-        {value}
-        {unit && (
-          <Box component="span" sx={{
-            fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
-            color: inkstashColors.muted, ml: 0.5,
-          }}>
-            {unit}
-          </Box>
-        )}
-      </Typography>
-      {bar != null ? (
-        <Box sx={{
-          mt: 0.75, height: 4, borderRadius: 999, bgcolor: inkstashColors.bgSunken, overflow: 'hidden',
-        }}>
-          <Box sx={{
-            height: '100%', width: `${bar}%`,
-            bgcolor: inkstashColors.brand,
-            transition: 'width 400ms ease',
-          }} />
-        </Box>
-      ) : sub ? (
-        <Typography sx={{
-          fontFamily: inkstashFonts.ui, fontSize: 11.5, color: inkstashColors.muted, mt: 0.5,
-        }}>
-          {sub}
-        </Typography>
-      ) : null}
-    </Box>
-  );
-}
+// GlassStat + HStat used to live here. Both stats moved into the live
+// banner via the simpler `Stat` component above, so they're gone.
 
 function NextUpRow({ row, onPush }: { row: QueueRow; onPush: () => void }) {
   if (!row.listing) return null;
