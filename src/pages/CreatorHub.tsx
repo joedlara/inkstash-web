@@ -75,12 +75,19 @@ export default function CreatorHub() {
         onOpenSettings={() => setTab('settings')}
         notificationCount={0}
       />
-      <Box sx={{ display: 'grid', gridTemplateColumns: '76px 1fr' }}>
-        <HubRail active={tab} onChange={setTab} streamLive={false} />
-        <Box component="main" sx={{ minWidth: 0, minHeight: 'calc(100vh - 60px)' }}>
-          <Box sx={{ p: { xs: 3, md: '28px 34px 60px' }, maxWidth: 1240 }}>
-            {renderPanel({ tab, streamSub, setStreamSub, openLiveNow, openSchedule })}
-          </Box>
+      <HubRail active={tab} onChange={setTab} streamLive={false} />
+      {/* Main offsets pl: 76px so the page content sits to the right of the
+          fixed rail. The whole main area is what scrolls. */}
+      <Box
+        component="main"
+        sx={{
+          pl: '76px',
+          minWidth: 0,
+          minHeight: 'calc(100vh - 60px)',
+        }}
+      >
+        <Box sx={{ p: { xs: 3, md: '28px 34px 60px' }, maxWidth: 1240 }}>
+          {renderPanel({ tab, streamSub, setStreamSub, openLiveNow, openSchedule })}
         </Box>
       </Box>
 

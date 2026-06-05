@@ -98,21 +98,19 @@ export default function LiveCameraPhone() {
     if (ending) return;
     setEnding(true);
     try {
-      // Only end the stream if it's actually live. While we're paired
-      // but pre-goLive, ending = the seller wants to abort the pairing;
-      // just navigate away (the row stays at 'preparing' with the now-
-      // useless token). The composer can either retry or close.
-      // We don't have a clean "abort prepare" edge fn yet (TODO), so
-      // call end() defensively — it's a no-op on non-live status.
-      await livestreamsAPI.end(livestreamId).catch(() => {
-        // OK if the row is still 'preparing' — end() may refuse, that's fine.
+      // end-livestream is idempotent across statuses and the edge fn
+      // is the authoritative way to tear down the LiveKit room +
+      // mark the row 'ended'. Errors are still navigated-past so the
+      // seller never gets stuck.
+      await livestreamsAPI.end(livestreamId).catch((err) => {
+        console.warn('[LiveCameraPhone] end failed (continuing)', err);
       });
     } finally {
       setEnding(false);
       setEndConfirmOpen(false);
-      // Try to close the tab (works if opened via QR open-in-new-tab);
-      // otherwise just navigate to a friendly landing.
-      window.close();
+      // Land on a friendly confirmation surface instead of trying to
+      // close the tab (window.close() is a no-op for tabs that weren't
+      // opened via script).
       navigate('/');
     }
   }

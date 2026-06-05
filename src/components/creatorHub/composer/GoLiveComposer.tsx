@@ -64,11 +64,26 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishing(true);
     setPublishError(null);
     try {
-      // Upload the thumbnail to user-uploads/livestream-thumbnails/{uid}/
-      // before creating the livestream row, so cover_image_url is a real
-      // public URL instead of a multi-megabyte data URL. If upload fails
-      // we publish without the cover rather than blocking — the warning
-      // shows in the console for follow-up.
+      if (mode === 'live') {
+        // Live mode: stream row already exists from DualDevicePairing's
+        // prepare call on Step 4 mount. Persist items, then flip status
+        // 'preparing' -> 'live' via goLive(). No second start() call.
+        if (!preparedId) throw new Error('Stream not prepared. Close and try again.');
+        if (user?.id && items.length > 0) {
+          const result = await persistComposerItems({
+            items, livestreamId: preparedId, userId: user.id,
+          });
+          if (result.failed > 0) {
+            console.warn(`[GoLiveComposer] ${result.failed}/${items.length} lots failed to persist`);
+          }
+        }
+        await livestreamsAPI.goLive(preparedId);
+        onPublished?.(preparedId, mode);
+        handleClose();
+        return;
+      }
+
+      // Schedule mode: legacy start() path. No phone needed.
       let coverUrl: string | undefined;
       if (user?.id && details.thumb.src) {
         const url = await uploadComposerPhoto(details.thumb.src, user.id, 'livestream-thumbnails');
@@ -78,16 +93,9 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
         title: details.title.trim(),
         description: details.description.trim() || undefined,
         cover_image_url: coverUrl,
-        scheduled_start_at: mode === 'schedule' ? details.scheduledAt : null,
-        // We persist composer items separately AFTER start() succeeds so
-        // we can insert each as a real listing + livestream_items row
-        // with its photo uploaded. Passing the new ids back through
-        // start()'s queue param would require pre-creating the listings,
-        // which we can't do without the stream id existing first.
+        scheduled_start_at: details.scheduledAt,
         queue: undefined,
       });
-      // Persist Run-of-Show items. Errors are logged inside the helper;
-      // we don't block the publish on a single bad lot.
       if (user?.id && items.length > 0) {
         const result = await persistComposerItems({
           items, livestreamId: res.livestream_id, userId: user.id,
@@ -184,7 +192,30 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
             <StepSettings settings={settings} setSettings={setSettings} />
           )}
           {step === 3 && (
-            <StepPreview mode={mode} details={details} items={items} settings={settings} />
+            <Box sx={{ display: 'grid', gridTemplateColumns: mode === 'live' ? { xs: '1fr', md: '1fr 280px' } : '1fr', gap: 3 }}>
+              <StepPreview mode={mode} details={details} items={items} settings={settings} />
+              {mode === 'live' && (
+                <Box sx={{
+                  borderLeft: { md: `1px solid ${inkstashColors.border}` },
+                  pl: { md: 3 },
+                }}>
+                  <Typography sx={{
+                    fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    color: inkstashColors.muted, mb: 2,
+                  }}>
+                    Connect your camera
+                  </Typography>
+                  <DualDevicePairing
+                    title={details.title.trim() || 'Untitled show'}
+                    description={details.description.trim() || undefined}
+                    coverImageUrl={details.thumb.src || undefined}
+                    onPrepared={setPreparedId}
+                    onPaired={setPhonePaired}
+                  />
+                </Box>
+              )}
+            </Box>
           )}
         </Box>
 
@@ -224,12 +255,22 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                 variant="primary"
                 size="md"
                 onClick={handlePublish}
-                disabled={publishing || !details.title.trim()}
+                // Live mode also requires the phone to be paired and
+                // the stream to be prepared before publish enables.
+                disabled={
+                  publishing
+                  || !details.title.trim()
+                  || (mode === 'live' && (!preparedId || !phonePaired))
+                }
                 icon={publishing
                   ? <CircularProgress size={14} sx={{ color: '#fff' }} />
                   : mode === 'live' ? <Zap size={15} strokeWidth={2.4} /> : undefined}
               >
-                {publishing ? 'Publishing…' : mode === 'live' ? 'Go live' : 'Schedule show'}
+                {publishing
+                  ? 'Publishing…'
+                  : mode === 'live'
+                    ? (phonePaired ? 'Go live' : 'Connect phone to go live')
+                    : 'Schedule show'}
               </HBtn>
             ) : (
               <HBtn

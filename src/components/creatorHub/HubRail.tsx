@@ -63,9 +63,11 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
     <Box
       component="nav"
       sx={{
-        position: 'sticky',
-        top: 60, // hub top bar height
-        alignSelf: 'start',
+        // Pinned to the left side. The page scrolls behind it; only the
+        // rail's own content scrolls when there are too many items to fit.
+        position: 'fixed',
+        left: 0,
+        top: 60, // sits under the sticky top bar
         height: 'calc(100vh - 60px)',
         width: 76,
         bgcolor: inkstashColors.bgElev,
@@ -76,6 +78,7 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
         py: 1.75,
         gap: 0.5,
         overflowY: 'auto',
+        zIndex: 40,
       }}
     >
       {mainItems.map((item) => (

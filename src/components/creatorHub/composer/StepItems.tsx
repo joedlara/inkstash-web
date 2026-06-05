@@ -195,10 +195,14 @@ export default function StepItems({ items, setItems, settings }: Props) {
           bgcolor: inkstashColors.bgElev,
           border: `1px solid ${inkstashColors.border}`,
           borderRadius: inkstashRadii.lg,
-          p: 2,
+          // Roomy padding — felt cramped on mobile with p: 2 + jumbled
+          // photo+fields side-by-side.
+          p: { xs: 2.5, md: 3 },
         }}>
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Box sx={{ width: 92, flexShrink: 0 }}>
+          {/* Photo sits on its own row, centered. Keeps the 1:1 frame
+              clean and stops the photo from squishing the fields below. */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2.5 }}>
+            <Box sx={{ width: 140 }}>
               <PhotoEditor
                 photo={draft.photo}
                 onChange={(photo) => setDraft({ ...draft, photo })}
@@ -206,56 +210,64 @@ export default function StepItems({ items, setItems, settings }: Props) {
                 compact
               />
             </Box>
-            <Box sx={{ flex: 1, display: 'grid', gap: 1.25 }}>
-              <Field label="Item name">
+          </Box>
+
+          {/* Fields in their own breathing space below. Type/Start/Qty
+              stack on phones, sit in a 3-col grid on desktop. */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
+            <Field label="Item name">
+              <TextField
+                fullWidth
+                size="small"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLots())}
+                placeholder="e.g. Mythic Pack"
+                inputProps={{ maxLength: 100 }}
+                sx={inputSx}
+              />
+            </Field>
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1.2fr 1fr 1fr' },
+              gap: 1.5,
+            }}>
+              <Field label="Type">
+                <Select
+                  fullWidth size="small"
+                  value={draft.type}
+                  onChange={(e) => setDraft({ ...draft, type: e.target.value as ItemType })}
+                  sx={inputSx}
+                >
+                  <MenuItem value="auction">Auction</MenuItem>
+                  <MenuItem value="buynow">Buy now</MenuItem>
+                  <MenuItem value="giveaway">Giveaway</MenuItem>
+                </Select>
+              </Field>
+              <Field label="Start $">
                 <TextField
-                  fullWidth
-                  size="small"
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLots())}
-                  placeholder="e.g. Mythic Pack"
-                  inputProps={{ maxLength: 100 }}
+                  fullWidth size="small" type="number"
+                  value={draft.start}
+                  onChange={(e) => setDraft({ ...draft, start: e.target.value })}
+                  placeholder="1"
+                  inputProps={{ min: 0 }}
                   sx={inputSx}
                 />
               </Field>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
-                <Field label="Type">
-                  <Select
-                    fullWidth size="small"
-                    value={draft.type}
-                    onChange={(e) => setDraft({ ...draft, type: e.target.value as ItemType })}
-                    sx={inputSx}
-                  >
-                    <MenuItem value="auction">Auction</MenuItem>
-                    <MenuItem value="buynow">Buy now</MenuItem>
-                    <MenuItem value="giveaway">Giveaway</MenuItem>
-                  </Select>
-                </Field>
-                <Field label="Start $">
-                  <TextField
-                    fullWidth size="small" type="number"
-                    value={draft.start}
-                    onChange={(e) => setDraft({ ...draft, start: e.target.value })}
-                    placeholder="1"
-                    inputProps={{ min: 0 }}
-                    sx={inputSx}
-                  />
-                </Field>
-                <Field label="Qty">
-                  <TextField
-                    fullWidth size="small" type="number"
-                    value={draft.qty}
-                    onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
-                    placeholder="1"
-                    inputProps={{ min: 1, max: 100 }}
-                    sx={inputSx}
-                  />
-                </Field>
-              </Box>
+              <Field label="Qty">
+                <TextField
+                  fullWidth size="small" type="number"
+                  value={draft.qty}
+                  onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
+                  placeholder="1"
+                  inputProps={{ min: 1, max: 100 }}
+                  sx={inputSx}
+                />
+              </Field>
             </Box>
           </Box>
-          <Box sx={{ mt: 1.5 }}>
+
+          <Box sx={{ mt: 2.5 }}>
             <HBtn
               variant="dark"
               size="md"
@@ -267,7 +279,7 @@ export default function StepItems({ items, setItems, settings }: Props) {
             </HBtn>
           </Box>
           <Typography sx={{
-            mt: 1.5, fontFamily: inkstashFonts.ui, fontSize: 12,
+            mt: 2, fontFamily: inkstashFonts.ui, fontSize: 12,
             color: inkstashColors.muted, lineHeight: 1.5,
           }}>
             Set <b style={{ color: inkstashColors.ink2 }}>Qty</b> above 1 to add separate numbered

@@ -10,10 +10,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, GripVertical, Heart, Radio, Smartphone, Wifi } from 'lucide-react';
+import { ArrowUpCircle, GripVertical, Heart, Radio, Smartphone, Wifi, Square } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
+import EndStreamConfirmModal from '../../livestreams/host/EndStreamConfirmModal';
 import { livestreamsAPI, type Livestream } from '../../../api/livestreams';
 import { supabase } from '../../../api/supabase/supabaseClient';
 import { useAuth } from '../../../hooks/useAuth';
@@ -132,6 +133,24 @@ function EmptyState({ onGoLive }: { onGoLive: () => void }) {
 
 function LiveSurface({ active }: { active: ActiveStream }) {
   const { stream, livekit } = active;
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+
+  async function handleEnd() {
+    if (ending) return;
+    setEnding(true);
+    try {
+      await livestreamsAPI.end(stream.id);
+    } catch (err) {
+      console.warn('[LiveControlPanel] end stream failed', err);
+    } finally {
+      setEnding(false);
+      setEndConfirmOpen(false);
+      // The parent panel polls getMyActiveStream on mount; reload the
+      // page so it re-renders the empty state cleanly.
+      window.location.reload();
+    }
+  }
 
   // Queue state, hydrated from livestream_items + listings (same pattern
   // as StreamShopRail). Realtime keeps it in sync with whatever the
@@ -238,10 +257,28 @@ function LiveSurface({ active }: { active: ActiveStream }) {
             {stream.title} — running the block from this laptop
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 2.5, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexShrink: 0 }}>
           <Stat value={String(viewerCount)} label="Viewers" />
           <Stat value={String(queue.filter((q) => q.status === 'queued').length)} label="In queue" />
           <Stat value={`$${soldCount * 0}`} label="Sold" />
+          <ButtonBase
+            onClick={() => setEndConfirmOpen(true)}
+            sx={{
+              ml: 1, height: 40, px: 1.75, borderRadius: 999,
+              bgcolor: 'rgba(0,0,0,0.22)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.28)',
+              fontFamily: inkstashFonts.ui, fontWeight: 700, fontSize: 13,
+              letterSpacing: '-0.005em',
+              display: 'inline-flex', alignItems: 'center', gap: 0.75,
+              transition: 'background-color 120ms ease, transform 120ms ease',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.4)' },
+              '&:active': { transform: 'translateY(1px)' },
+            }}
+          >
+            <Square size={13} strokeWidth={2.6} fill="currentColor" />
+            End stream
+          </ButtonBase>
         </Box>
       </Box>
 
@@ -481,6 +518,13 @@ function LiveSurface({ active }: { active: ActiveStream }) {
           </Box>
         </Box>
       </Box>
+
+      <EndStreamConfirmModal
+        open={endConfirmOpen}
+        onCancel={() => setEndConfirmOpen(false)}
+        onConfirm={handleEnd}
+        ending={ending}
+      />
     </>
   );
 }

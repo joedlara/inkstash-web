@@ -162,27 +162,29 @@ export default function PhotoEditor({
       </Box>
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} />
 
-      {/* Tools — only when a photo exists */}
+      {/* Tools — only when a photo exists. Filter strip suppressed in
+          compact mode (Step 2 add-form thumbnails don't need filters). */}
       {photo.src && (
         <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-          {/* Filter strip */}
-          <Box sx={{
-            display: 'flex', gap: 0.75,
-            overflowX: 'auto', pb: 0.5,
-            scrollbarWidth: 'thin',
-          }}>
-            {FILTERS.map((f) => (
-              <FilterChip
-                key={f.id}
-                active={photo.filter === f.id}
-                onClick={() => set({ filter: f.id })}
-                src={photo.src}
-                filter={f.id}
-                name={f.name}
-                compact={compact}
-              />
-            ))}
-          </Box>
+          {!compact && (
+            <Box sx={{
+              display: 'flex', gap: 0.75,
+              overflowX: 'auto', pb: 0.5,
+              scrollbarWidth: 'thin',
+            }}>
+              {FILTERS.map((f) => (
+                <FilterChip
+                  key={f.id}
+                  active={photo.filter === f.id}
+                  onClick={() => set({ filter: f.id })}
+                  src={photo.src}
+                  filter={f.id}
+                  name={f.name}
+                  compact={compact}
+                />
+              ))}
+            </Box>
+          )}
 
           {/* Text + color row */}
           {!compact && (
