@@ -295,6 +295,7 @@ function LiveDesktopStage({
               <HostPill
                 username={stream.host?.username ?? null}
                 avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
               />
             </Box>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
@@ -438,6 +439,7 @@ function FullscreenVideoSurface({
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
           />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
@@ -549,6 +551,7 @@ function MobileVideoStage({
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
           />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>

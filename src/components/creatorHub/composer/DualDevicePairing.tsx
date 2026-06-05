@@ -11,7 +11,7 @@
 // start()) since the stream already exists at 'preparing'.
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { QRCodeSVG } from 'qrcode.react';
 import { Room, RoomEvent, type RemoteParticipant } from 'livekit-client';
 import { Check, Smartphone, AlertCircle } from 'lucide-react';
@@ -41,15 +41,36 @@ export default function DualDevicePairing({
 }: Props) {
   const [state, setState] = useState<PrepareState>({ kind: 'idle' });
   const [paired, setPaired] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const onPairedRef = useRef(onPaired);
   onPairedRef.current = onPaired;
   const onPreparedRef = useRef(onPrepared);
   onPreparedRef.current = onPrepared;
+  // StrictMode double-fires effects in dev; the prepare creates a
+  // livestream row + mints a LiveKit room per call, so we guard against
+  // the second invocation creating an orphan. Production StrictMode
+  // doesn't double-fire, but the guard is cheap.
+  const startedRef = useRef(false);
 
-  // 1. Prepare the stream + mint the pair token. Runs once on mount.
+  // 1. Prepare the stream + mint the pair token. Runs once per mount
+  // OR when the user hits Retry from the error UI. A 20s timeout
+  // surfaces network/auth hangs as an error instead of an infinite
+  // spinner — a pattern we hit on 2026-06-05 where supabase.auth's
+  // getSession() would not resolve after navigating back into Step 4.
   useEffect(() => {
+    if (startedRef.current && attempt === 0) return;
+    startedRef.current = true;
     let cancelled = false;
     setState({ kind: 'preparing' });
+    const TIMEOUT_MS = 20_000;
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setState({
+        kind: 'error',
+        message: "We couldn't reach the server. Check your connection and retry.",
+      });
+    }, TIMEOUT_MS);
     (async () => {
       try {
         const res = await livestreamsAPI.prepareDualDevice({
@@ -59,13 +80,10 @@ export default function DualDevicePairing({
           scheduled_start_at: null,
         });
         if (cancelled) return;
+        window.clearTimeout(timeoutId);
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const pairUrl = `${origin}/live/host?id=${encodeURIComponent(res.livestream_id)}&pair=${encodeURIComponent(res.pair_token)}`;
         if (cancelled) return;
-        // composer_token is a view-only LiveKit token minted by
-        // start-livestream specifically for this purpose. No general
-        // join endpoint needed (join-livestream is buyer-side and
-        // requires status='live'; we're at 'preparing' here).
         setState({
           kind: 'ready',
           livestreamId: res.livestream_id,
@@ -76,13 +94,17 @@ export default function DualDevicePairing({
         onPreparedRef.current(res.livestream_id);
       } catch (err) {
         if (cancelled) return;
+        window.clearTimeout(timeoutId);
         const msg = (err as Error).message ?? 'Failed to prepare';
         setState({ kind: 'error', message: msg });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
 
   // 2. When ready, join the LiveKit room as a viewer and listen for the
   // phone (a publisher participant) joining. Once we see a remote
@@ -162,6 +184,26 @@ export default function DualDevicePairing({
         }}>
           {state.message}
         </Typography>
+        <Button
+          onClick={() => setAttempt((n) => n + 1)}
+          variant="contained"
+          sx={{
+            mt: 2,
+            bgcolor: inkstashColors.ink,
+            color: '#fff',
+            fontFamily: inkstashFonts.ui,
+            fontWeight: 700,
+            fontSize: 12.5,
+            textTransform: 'none',
+            px: 2.25,
+            py: 0.85,
+            borderRadius: 999,
+            boxShadow: 'none',
+            '&:hover': { bgcolor: inkstashColors.ink, boxShadow: 'none' },
+          }}
+        >
+          Retry
+        </Button>
       </Centered>
     );
   }
