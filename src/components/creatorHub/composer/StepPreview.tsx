@@ -46,34 +46,13 @@ export default function StepPreview({ mode, details, items, settings }: Props) {
           }}
         >
           {details.thumb.src ? (
-            <>
-              <Box component="img" src={details.thumb.src} alt=""
-                sx={{
-                  position: 'absolute', inset: 0,
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  filter: details.thumb.filter,
-                }}
-              />
-              {details.thumb.text && (
-                <Box sx={{
-                  position: 'absolute', left: 0, right: 0,
-                  ...(details.thumb.pos === 'top'
-                    ? { top: 14 }
-                    : details.thumb.pos === 'center'
-                      ? { top: '50%', transform: 'translateY(-50%)' }
-                      : { bottom: 14 }),
-                  px: 2,
-                  textAlign: 'center',
-                  color: details.thumb.color,
-                  fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
-                  textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1.1,
-                  textShadow: '0 2px 8px rgba(0,0,0,0.5)',
-                }}>
-                  {details.thumb.text}
-                </Box>
-              )}
-            </>
+            <Box component="img" src={details.thumb.src} alt=""
+              sx={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover',
+              }}
+            />
           ) : (
             mode === 'live'
               ? 'Camera preview ships with the dual-device pairing flow.'

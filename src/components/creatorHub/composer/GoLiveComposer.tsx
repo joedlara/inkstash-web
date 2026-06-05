@@ -80,6 +80,11 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
   // joins the LiveKit room as a publisher.
   const [preparedId, setPreparedId] = useState<string | null>(null);
   const [phonePaired, setPhonePaired] = useState(false);
+  // Flips true the moment goLive() flips the row status to 'live'.
+  // Passed to DualDevicePairing so its unmount cleanup knows NOT to
+  // delete the row (it's a real stream now). Without this, the soft-
+  // delete on unmount would race the goLive() success path.
+  const [published, setPublished] = useState(false);
 
   // Hydrate from a saved draft when the modal opens. Means an accidental
   // backdrop click on Step 3 doesn't nuke the seller's work — reopening
@@ -110,6 +115,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishError(null);
     setPreparedId(null);
     setPhonePaired(false);
+    setPublished(false);
     onClose();
   }
 
@@ -124,6 +130,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishError(null);
     setPreparedId(null);
     setPhonePaired(false);
+    setPublished(false);
     clearDraft(mode);
     onClose();
   }
@@ -151,12 +158,26 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
           }
         }
         await livestreamsAPI.goLive(preparedId);
+        // Tell DualDevicePairing the row is now a real, live stream so
+        // its unmount cleanup doesn't delete it.
+        setPublished(true);
         onPublished?.(preparedId, mode);
         handleHardClose();
         return;
       }
 
       // Schedule mode: legacy start() path. No phone needed.
+      // Validate the scheduled time before hitting the edge fn — without
+      // this, a missing/past timestamp would silently fall through the
+      // backend's "no future scheduled_start_at = go live immediately"
+      // branch, which is the opposite of what scheduling means.
+      if (!details.scheduledAt) {
+        throw new Error('Pick a date and time before scheduling.');
+      }
+      const scheduledMs = new Date(details.scheduledAt).getTime();
+      if (Number.isNaN(scheduledMs) || scheduledMs <= Date.now()) {
+        throw new Error('Scheduled time must be in the future.');
+      }
       let coverUrl: string | undefined;
       if (user?.id && details.thumb.src) {
         const url = await uploadComposerPhoto(details.thumb.src, user.id, 'livestream-thumbnails');
@@ -285,6 +306,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                     coverImageUrl={details.thumb.src || undefined}
                     onPrepared={setPreparedId}
                     onPaired={setPhonePaired}
+                    published={published}
                   />
                 </Box>
               )}
@@ -334,6 +356,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                   publishing
                   || !details.title.trim()
                   || (mode === 'live' && (!preparedId || !phonePaired))
+                  || (mode === 'schedule' && !details.scheduledAt)
                 }
                 icon={publishing
                   ? <CircularProgress size={14} sx={{ color: '#fff' }} />

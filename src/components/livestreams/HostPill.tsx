@@ -12,10 +12,12 @@
 // check and the rating row are optional — they only render when the
 // corresponding props are set.
 
-import { useState } from 'react';
-import { Box, Typography, ButtonBase } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, ButtonBase } from '@mui/material';
 import { Star } from 'lucide-react';
 import HostAvatar from './HostAvatar';
+import { useAuth } from '../../hooks/useAuth';
+import { followUser, isFollowing, unfollowUser } from '../../api/users/profile';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -27,6 +29,9 @@ interface Props {
   verified?: boolean;
   /** Show the rating row (e.g. 4.9) under the username. */
   rating?: number | null;
+  /** Host's user id. Required for the Follow button to persist; without
+   *  it the button hides (we never want a button that pretends to work). */
+  hostUserId?: string | null;
 }
 
 function VerifiedCheck() {
@@ -55,11 +60,50 @@ function VerifiedCheck() {
 }
 
 export default function HostPill({
-  username, avatarUrl, verified = false, rating = null,
+  username, avatarUrl, verified = false, rating = null, hostUserId = null,
 }: Props) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
   const [followed, setFollowed] = useState(false);
+  const [busy, setBusy] = useState(false);
   const displayName = username ?? 'host';
   const showRating = rating != null && rating > 0;
+  // Hide the button when there's no host id (we don't know who to follow)
+  // or when the viewer is the host themselves (no self-follow per the
+  // follows table's CHECK constraint).
+  const canFollow = !!viewerId && !!hostUserId && viewerId !== hostUserId;
+
+  // Hydrate the followed state on mount + when the (viewer, host) pair
+  // changes. Without this the button always renders as 'Follow' on
+  // page load, then jumps to 'Following' only after the viewer clicks.
+  useEffect(() => {
+    if (!canFollow || !viewerId || !hostUserId) {
+      setFollowed(false);
+      return;
+    }
+    let cancelled = false;
+    isFollowing(viewerId, hostUserId)
+      .then((f) => { if (!cancelled) setFollowed(f); })
+      .catch(() => { /* leave default */ });
+    return () => { cancelled = true; };
+  }, [canFollow, viewerId, hostUserId]);
+
+  async function handleToggle() {
+    if (!canFollow || !viewerId || !hostUserId || busy) return;
+    setBusy(true);
+    // Optimistic toggle; revert on failure.
+    const nextState = !followed;
+    setFollowed(nextState);
+    try {
+      if (nextState) await followUser(viewerId, hostUserId);
+      else await unfollowUser(viewerId, hostUserId);
+    } catch (err) {
+      console.warn('[HostPill] follow toggle failed', err);
+      setFollowed(!nextState);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <Box
@@ -134,30 +178,35 @@ export default function HostPill({
         )}
       </Box>
 
-      {/* Follow button — brand-red pill, separate from the name block */}
-      <ButtonBase
-        onClick={() => setFollowed((v) => !v)}
-        sx={{
-          ml: 0.5,
-          px: 1.5,
-          py: 0.7,
-          borderRadius: 999,
-          bgcolor: followed ? 'rgba(255,255,255,0.18)' : inkstashColors.brand,
-          color: '#fff',
-          fontFamily: inkstashFonts.ui,
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1,
-          transition: 'background-color 160ms ease, transform 120ms ease',
-          '&:hover': {
-            bgcolor: followed ? 'rgba(255,255,255,0.26)' : inkstashColors.brandDeep,
-          },
-          '&:active': { transform: 'scale(0.97)' },
-        }}
-        aria-pressed={followed}
-      >
-        {followed ? 'Following' : 'Follow'}
-      </ButtonBase>
+      {/* Follow button — brand-red pill, separate from the name block.
+          Hidden when there's no host id OR the viewer is the host. */}
+      {canFollow && (
+        <ButtonBase
+          onClick={handleToggle}
+          disabled={busy}
+          sx={{
+            ml: 0.5,
+            px: 1.5,
+            py: 0.7,
+            borderRadius: 999,
+            bgcolor: followed ? 'rgba(255,255,255,0.18)' : inkstashColors.brand,
+            color: '#fff',
+            fontFamily: inkstashFonts.ui,
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1,
+            transition: 'background-color 160ms ease, transform 120ms ease',
+            '&:hover': {
+              bgcolor: followed ? 'rgba(255,255,255,0.26)' : inkstashColors.brandDeep,
+            },
+            '&:active': { transform: 'scale(0.97)' },
+            '&.Mui-disabled': { opacity: 0.65 },
+          }}
+          aria-pressed={followed}
+        >
+          {followed ? 'Following' : 'Follow'}
+        </ButtonBase>
+      )}
     </Box>
   );
 }

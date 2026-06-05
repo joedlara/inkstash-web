@@ -18,9 +18,9 @@ export interface ComposerDetails {
   description: string;
   category: string;
   language: string;
-  /** Thumbnail with filter + optional caption. Photo.src is a data
-   *  URL while editing; gets uploaded to Supabase Storage at publish
-   *  time so the public URL can be written to livestreams.cover_image_url. */
+  /** Thumbnail. Photo.src is a data URL while editing; uploaded to
+   *  Supabase Storage at publish time so the public URL can be written
+   *  to livestreams.cover_image_url. */
   thumb: Photo;
   /** Only set in 'schedule' mode. ISO string. */
   scheduledAt: string | null;

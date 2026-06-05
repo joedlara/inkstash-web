@@ -22,7 +22,7 @@ import StreamShopRail from '../components/livestreams/StreamShopRail';
 import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
-import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
+import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -50,7 +50,12 @@ function useCollapseSidebarForLive() {
 
 export default function LiveStreamView() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // Use the full-bleed mobile surface for anything under md (900px).
+  // The 600-899px band tried to fit the desktop 3-panel grid into a
+  // viewport too narrow for it, leaving a blank stage. The shop/chat
+  // rails were already hidden in that band anyway — only the video
+  // column rendered, and the grid math left it empty.
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useCollapseSidebarForLive();
 
@@ -168,7 +173,10 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. The Explore More rail sits beneath on desktop only.
+  // edge-to-edge. The page intentionally does NOT scroll below the stage —
+  // pre-2026-06-05 an ExploreMoreRail lived under here and created a
+  // 900-1500px white band when half-scrolled (the stage scrolled out before
+  // the rail entered the viewport). The stage IS the page.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -178,12 +186,6 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
-      {/* Hidden on mobile (the 3-panel stage is overflow:hidden anyway,
-          but ≤1024 viewports go to a video-only treatment so this rail
-          would feel out of place). */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: -1.5 }}>
-        <ExploreMoreRail excludeId={stream.id} />
-      </Box>
     </AppShell>
   );
 }
@@ -224,9 +226,15 @@ function LiveDesktopStage({
         overflow: 'hidden',
       }}
     >
-      {/* Left: Shop */}
+      {/* Left: Shop — pulls the host's marketplace listings, not the
+          stream queue. Buyer tiles open a Buy modal or add to cart in-
+          stream so the viewer never navigates away. */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
-        <StreamShopRail livestreamId={stream.id} streamTitle={stream.title} />
+        <StreamShopRail
+          livestreamId={stream.id}
+          hostUserId={stream.host_user_id}
+          streamTitle={stream.title}
+        />
       </Box>
 
       {/* Center: Video card, vertically centered with breathing room */}
@@ -293,6 +301,7 @@ function LiveDesktopStage({
               <HostPill
                 username={stream.host?.username ?? null}
                 avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
               />
             </Box>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
@@ -436,6 +445,7 @@ function FullscreenVideoSurface({
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
           />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
@@ -470,6 +480,21 @@ function FullscreenVideoSurface({
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
       />
+
+      {/* Auction info card pinned to the bottom, below the chat composer.
+          Collapsible — viewers who only want to watch + chat can hide it.
+          Renders null when no item is on the block. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          zIndex: 6,
+        }}
+      >
+        <MobileAuctionCard livestreamId={stream.id} />
+      </Box>
     </Box>
   );
 }
@@ -547,6 +572,7 @@ function MobileVideoStage({
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
+            hostUserId={stream.host_user_id}
           />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
@@ -578,6 +604,21 @@ function MobileVideoStage({
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
       />
+
+      {/* Auction info card pinned to the bottom, below the chat composer.
+          Collapsible — viewers who only want to watch + chat can hide it.
+          Renders null when no item is on the block. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          zIndex: 6,
+        }}
+      >
+        <MobileAuctionCard livestreamId={stream.id} />
+      </Box>
     </Box>
   );
 }

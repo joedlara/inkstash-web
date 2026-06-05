@@ -444,7 +444,6 @@ export default function StepItems({ items, setItems, settings }: Props) {
                       position: 'absolute', inset: 0,
                       width: '100%', height: '100%',
                       objectFit: 'cover',
-                      filter: it.photo.filter,
                     }}
                   />
                 ) : (

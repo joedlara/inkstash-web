@@ -314,12 +314,19 @@ export const livestreamsAPI = {
     const past: Livestream[] = [];
     for (const row of all) {
       // 'preparing' + future scheduled_start_at OR currently 'live' counts as upcoming.
-      // Everything else (ended, aborted) is past.
+      // 'preparing' rows that never started (started_at is null AND no
+      // future scheduled_start_at) are orphans from an abandoned
+      // composer session — exclude them entirely so they don't pollute
+      // the Past tab. Everything else (ended, aborted with a real
+      // started_at) is past.
       const isLive = row.status === 'live';
       const isScheduledFuture =
         row.status === 'preparing'
         && !!row.scheduled_start_at
         && new Date(row.scheduled_start_at).getTime() > Date.now();
+      const isOrphanPrepare =
+        row.status === 'preparing' && !row.started_at && !isScheduledFuture;
+      if (isOrphanPrepare) continue;
       if (isLive || isScheduledFuture) upcoming.push(row);
       else past.push(row);
     }
