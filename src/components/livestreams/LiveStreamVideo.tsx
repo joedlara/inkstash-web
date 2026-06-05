@@ -96,13 +96,25 @@ const LiveStreamVideo = forwardRef<LiveStreamVideoHandle, Props>(function LiveSt
           });
         }
 
-        // Presence subscription: emit numParticipants every time someone
-        // joins or leaves. numParticipants reports remote participants only,
-        // so add 1 for the local participant (host or viewer) to get the
-        // actual head count.
+        // Audience-only count. The LiveKit room may contain:
+        //   - the host's phone (identity contains '#phone-')
+        //   - the composer/producer laptop (identity contains '#composer-')
+        //   - real viewers (everyone else)
+        // Without filtering, a single buyer + a paired phone + a composer
+        // laptop reports as 3 viewers when the audience is really 1.
         if (onParticipantCountChange) {
+          const isInfrastructure = (identity: string | undefined) =>
+            !!identity && (identity.includes('#phone-') || identity.includes('#composer-'));
           const emit = () => {
-            if (!cancelled) onParticipantCountChange(room.numParticipants + 1);
+            if (cancelled) return;
+            let remoteViewers = 0;
+            room.remoteParticipants.forEach((p) => {
+              if (!isInfrastructure(p.identity)) remoteViewers++;
+            });
+            // Add 1 only if local is a buyer (mode=viewer). In host mode
+            // the local participant IS the broadcaster.
+            const localIsViewer = mode === 'viewer';
+            onParticipantCountChange(remoteViewers + (localIsViewer ? 1 : 0));
           };
           room.on(RoomEvent.ParticipantConnected, emit);
           room.on(RoomEvent.ParticipantDisconnected, emit);

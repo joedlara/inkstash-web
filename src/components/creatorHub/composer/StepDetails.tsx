@@ -7,6 +7,8 @@
 // placeholder slot so the layout matches the spec.
 
 import { Box, MenuItem, Select, TextField, Typography } from '@mui/material';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs, { type Dayjs } from 'dayjs';
 import type { ComposerDetails } from './types';
 import { CATEGORIES, LANGUAGES } from './types';
 import PhotoEditor from './PhotoEditor';
@@ -75,16 +77,37 @@ export default function StepDetails({ details, setDetails, mode }: Props) {
         </Box>
 
         {mode === 'schedule' && (
-          <Field label="When">
-            <TextField
-              fullWidth
-              type="datetime-local"
-              value={details.scheduledAt ? details.scheduledAt.slice(0, 16) : ''}
-              onChange={(e) => update(
+          <Field label="When" required>
+            <DateTimePicker
+              value={details.scheduledAt ? dayjs(details.scheduledAt) : null}
+              onChange={(next: Dayjs | null) => update(
                 'scheduledAt',
-                e.target.value ? new Date(e.target.value).toISOString() : null,
+                next && next.isValid() ? next.toISOString() : null,
               )}
-              sx={inputSx}
+              disablePast
+              minutesStep={5}
+              format="MMM D, YYYY · h:mm A"
+              slotProps={{
+                textField: { fullWidth: true, sx: inputSx, placeholder: 'Pick a date and time' },
+                popper: {
+                  sx: {
+                    '& .MuiPaper-root': {
+                      bgcolor: inkstashColors.bgElev,
+                      border: `1px solid ${inkstashColors.border}`,
+                      borderRadius: 2,
+                      boxShadow: '0 16px 40px rgba(0,0,0,0.45)',
+                      fontFamily: inkstashFonts.ui,
+                    },
+                    '& .MuiPickersDay-root.Mui-selected, & .MuiClock-pin, & .MuiClockPointer-root': {
+                      bgcolor: inkstashColors.brand,
+                    },
+                    '& .MuiClockPointer-thumb': {
+                      borderColor: inkstashColors.brand,
+                      bgcolor: inkstashColors.brand,
+                    },
+                  },
+                },
+              }}
             />
           </Field>
         )}

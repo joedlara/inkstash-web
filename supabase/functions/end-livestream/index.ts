@@ -46,13 +46,28 @@ serve(async (req) => {
 
     const { data: stream } = await serviceClient
       .from('livestreams')
-      .select('id, host_user_id, livekit_room_name, status')
+      .select('id, host_user_id, livekit_room_name, status, scheduled_start_at')
       .eq('id', body.livestream_id)
       .maybeSingle()
     if (!stream) return json({ error: 'stream_not_found' }, 404)
-    const s = stream as { id: string; host_user_id: string; livekit_room_name: string; status: string }
+    const s = stream as {
+      id: string; host_user_id: string; livekit_room_name: string;
+      status: string; scheduled_start_at: string | null;
+    }
     if (s.host_user_id !== user.id) return json({ error: 'not_host' }, 403)
     if (s.status === 'ended') return json({ status: 'already_ended' }, 200)
+    // Don't aborts/end a future-scheduled stream that hasn't gone live yet.
+    // 2026-06-04: a scheduled row got hard-aborted while still in
+    // 'preparing' with a future scheduled_start_at, which made it
+    // disappear from the upcoming list. Hosts should explicitly delete
+    // scheduled shows from the Shows panel instead.
+    if (
+      s.status === 'preparing'
+      && s.scheduled_start_at
+      && new Date(s.scheduled_start_at).getTime() > Date.now()
+    ) {
+      return json({ error: 'scheduled_in_future_use_delete' }, 409)
+    }
 
     // Close the LiveKit room. Best effort; failure shouldn't block the DB
     // status flip — viewers will get disconnected next time they reconnect.

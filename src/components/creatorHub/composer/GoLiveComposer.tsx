@@ -157,6 +157,17 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
       }
 
       // Schedule mode: legacy start() path. No phone needed.
+      // Validate the scheduled time before hitting the edge fn — without
+      // this, a missing/past timestamp would silently fall through the
+      // backend's "no future scheduled_start_at = go live immediately"
+      // branch, which is the opposite of what scheduling means.
+      if (!details.scheduledAt) {
+        throw new Error('Pick a date and time before scheduling.');
+      }
+      const scheduledMs = new Date(details.scheduledAt).getTime();
+      if (Number.isNaN(scheduledMs) || scheduledMs <= Date.now()) {
+        throw new Error('Scheduled time must be in the future.');
+      }
       let coverUrl: string | undefined;
       if (user?.id && details.thumb.src) {
         const url = await uploadComposerPhoto(details.thumb.src, user.id, 'livestream-thumbnails');
@@ -334,6 +345,7 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                   publishing
                   || !details.title.trim()
                   || (mode === 'live' && (!preparedId || !phonePaired))
+                  || (mode === 'schedule' && !details.scheduledAt)
                 }
                 icon={publishing
                   ? <CircularProgress size={14} sx={{ color: '#fff' }} />

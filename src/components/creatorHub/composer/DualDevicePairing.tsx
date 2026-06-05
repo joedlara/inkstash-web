@@ -94,16 +94,30 @@ export default function DualDevicePairing({
 
     function checkPaired() {
       if (cancelled) return;
-      // Any remote participant in this private prepared room is the
-      // phone. (Buyers can't join until status='live'.)
-      const hasPhone = room.numParticipants > 0;
+      // Use remoteParticipants.size — numParticipants doesn't always
+      // update synchronously inside the ParticipantDisconnected event.
+      // Any remote participant in this prepared room IS the phone since
+      // buyers can't join until status='live'.
+      const hasPhone = room.remoteParticipants.size > 0;
       setPaired(hasPhone);
       onPairedRef.current(hasPhone);
+    }
+
+    function forceUnpair() {
+      if (cancelled) return;
+      // Room-level disconnect (composer lost its viewer connection, or
+      // LiveKit kicked us). Without this, an abrupt phone tab close
+      // that also drops the composer's connection would leave the UI
+      // claiming the phone is still paired.
+      setPaired(false);
+      onPairedRef.current(false);
     }
 
     room.on(RoomEvent.ParticipantConnected, checkPaired);
     room.on(RoomEvent.ParticipantDisconnected, checkPaired);
     room.on(RoomEvent.Connected, checkPaired);
+    room.on(RoomEvent.Disconnected, forceUnpair);
+    room.on(RoomEvent.Reconnecting, forceUnpair);
 
     (async () => {
       try {
