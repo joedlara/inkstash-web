@@ -4,18 +4,24 @@
 // below the chat. Tap the chevron to collapse so users who only care
 // about chatting can hide it.
 //
-// Default expanded. Pulls the same "current item" data CurrentItemBar
-// uses (newest livestream_items row by priority sold > live > passed)
-// joined to the listing for thumbnail + title + price.
+// Default expanded. Pulls auction state directly from livestream_items
+// (current_price_cents, bid_count, bidding_ends_at) and joins the
+// listing for thumbnail + title. Realtime keeps the price + timer
+// in sync after each bid.
 //
-// The Bid button is a placeholder until the auction backend ships —
-// tapping it does nothing for now. Wiring real bids is a follow-on
-// phase per the user's "skip the bid slider for now" decision.
+// The Bid button is enabled only when the on-block item has
+// bidding_ends_at in the future. Tap → places a $1 bump via
+// place-bid edge fn. The function pre-gates on card-on-file; on
+// 402 we surface a snackbar prompting the bidder to buy a Ruby
+// bundle (which saves a card automatically per the current
+// payments architecture).
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Snackbar, Typography } from '@mui/material';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { livestreamsAPI } from '../../api/livestreams';
+import { useAuth } from '../../hooks/useAuth';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -27,22 +33,37 @@ interface Props {
 }
 
 interface CurrentItem {
+  itemId: string;
   listingId: string;
   title: string;
-  price: number | null;
   coverUrl: string | null;
   status: 'live' | 'sold' | 'passed';
+  // Auction state. price falls back to listing's buy_now_price when
+  // bidding hasn't started yet so the card always shows something.
+  priceCents: number;
+  bidCount: number;
+  biddingEndsAt: string | null;
+  currentWinnerId: string | null;
 }
 
 export default function MobileAuctionCard({ livestreamId, onHeightChange }: Props) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
   const [item, setItem] = useState<CurrentItem | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [bidding, setBidding] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  // Tick the countdown every 250ms so the seconds remaining feels
+  // live. Doesn't trigger a fetch — only re-renders.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 250);
+    return () => clearInterval(id);
+  }, []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const onHeightChangeRef = useRef(onHeightChange);
   onHeightChangeRef.current = onHeightChange;
 
-  // Report height changes (collapse/expand/no-item) so the chat
-  // composer can sit cleanly above us.
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === 'undefined') {
@@ -57,8 +78,6 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     return () => { ro.disconnect(); };
   }, [item, expanded]);
 
-  // When the card is removed (no item), tell the parent to release
-  // the reserved space.
   useEffect(() => {
     if (!item) onHeightChangeRef.current?.(0);
   }, [item]);
@@ -69,7 +88,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     async function fetchCurrent() {
       const { data: items } = await supabase
         .from('livestream_items')
-        .select('id, listing_id, status, position')
+        .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at, current_winner_id')
         .eq('livestream_id', livestreamId)
         .in('status', ['sold', 'live', 'passed'])
         .order('position', { ascending: false })
@@ -78,10 +97,14 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         if (!cancelled) setItem(null);
         return;
       }
-      type LIRow = { id: string; listing_id: string; status: 'sold' | 'live' | 'passed'; position: number };
+      type LIRow = {
+        id: string; listing_id: string; status: 'sold' | 'live' | 'passed'; position: number;
+        current_price_cents: number | null; bid_count: number | null;
+        bidding_ends_at: string | null; current_winner_id: string | null;
+      };
       const rows = items as LIRow[];
-      const pick = rows.find((r) => r.status === 'sold')
-        ?? rows.find((r) => r.status === 'live')
+      const pick = rows.find((r) => r.status === 'live')
+        ?? rows.find((r) => r.status === 'sold')
         ?? rows.find((r) => r.status === 'passed');
       if (!pick) { if (!cancelled) setItem(null); return; }
       const { data: listing } = await supabase
@@ -95,12 +118,17 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         id: string; title: string; buy_now_price: number | null;
         photos: Array<{ url?: string }> | null;
       };
+      const fallbackCents = Math.round(Number(l.buy_now_price ?? 1) * 100);
       setItem({
+        itemId: pick.id,
         listingId: l.id,
         title: l.title,
-        price: l.buy_now_price,
         coverUrl: l.photos?.[0]?.url ?? null,
         status: pick.status,
+        priceCents: pick.current_price_cents ?? fallbackCents,
+        bidCount: pick.bid_count ?? 0,
+        biddingEndsAt: pick.bidding_ends_at,
+        currentWinnerId: pick.current_winner_id,
       });
     }
 
@@ -116,143 +144,182 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     return () => { cancelled = true; supabase.removeChannel(channel); };
   }, [livestreamId]);
 
-  // Nothing to show: don't take vertical space.
   if (!item) return null;
 
+  const bidActive = !!item.biddingEndsAt && new Date(item.biddingEndsAt).getTime() > Date.now();
+  const secondsRemaining = item.biddingEndsAt
+    ? Math.max(0, Math.ceil((new Date(item.biddingEndsAt).getTime() - Date.now()) / 1000))
+    : null;
+  const isWinning = !!viewerId && item.currentWinnerId === viewerId;
+
   const statusLabel = item.status === 'sold' ? 'Sold'
+    : bidActive ? `Bidding · ${secondsRemaining}s`
     : item.status === 'live' ? 'On the block' : 'Passed';
   const statusColor = item.status === 'sold' ? '#FF6B6B'
+    : bidActive && (secondsRemaining ?? 0) <= 3 ? '#FF6B6B'
     : item.status === 'live' ? '#FFC53D' : 'rgba(255,255,255,0.55)';
 
-  return (
-    <Box
-      ref={rootRef}
-      sx={{
-        bgcolor: 'rgba(8,7,10,0.78)',
-        backdropFilter: 'blur(10px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: inkstashRadii.md,
-        color: '#fff',
-        overflow: 'hidden',
-        transition: 'all 200ms cubic-bezier(0.23, 1, 0.32, 1)',
-      }}
-    >
-      {/* Header row — always visible. Tap to collapse/expand. */}
-      <ButtonBase
-        onClick={() => setExpanded((v) => !v)}
-        sx={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          px: 1.5,
-          py: 0.85,
-          color: '#fff',
-        }}
-        aria-expanded={expanded}
-      >
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-          <Box
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: 999,
-              bgcolor: statusColor,
-              flexShrink: 0,
-            }}
-          />
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: statusColor,
-              lineHeight: 1,
-            }}
-          >
-            {statusLabel}
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.ui,
-              fontSize: 13,
-              fontWeight: 700,
-              color: '#fff',
-              opacity: 0.85,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: 180,
-            }}
-          >
-            {item.title}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-          {item.price != null && !expanded && (
-            <Typography
-              sx={{
-                fontFamily: inkstashFonts.display,
-                fontWeight: 900,
-                fontSize: 14,
-                color: '#fff',
-                fontVariantNumeric: 'tabular-nums',
-                lineHeight: 1,
-              }}
-            >
-              ${Number(item.price).toFixed(0)}
-            </Typography>
-          )}
-          {expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </Box>
-      </ButtonBase>
+  const priceLabel = `$${(item.priceCents / 100).toFixed(2).replace(/\.00$/, '')}`;
+  const nextBidLabel = `$${((item.priceCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
 
-      {/* Expanded body — thumbnail + name + current bid + bid button */}
-      {expanded && (
-        <Box
+  async function handleBid() {
+    if (bidding || !bidActive) return;
+    setBidding(true);
+    try {
+      await livestreamsAPI.placeBid(item!.itemId);
+      // Realtime broadcast updates priceCents + biddingEndsAt; no
+      // local optimistic write needed.
+    } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('no_card_on_file')) {
+        setToast('Buy any Ruby bundle once to save a card, then come back to bid.');
+      } else if (msg.includes('cannot_self_bid')) {
+        setToast("You can't bid on your own stream.");
+      } else if (msg.includes('bidding_closed')) {
+        setToast('Too late — bidding just closed.');
+      } else if (msg.includes('not_bidding')) {
+        setToast('Bidding isn\'t open on this item yet.');
+      } else {
+        setToast("Couldn't place your bid — try again.");
+      }
+    } finally {
+      setBidding(false);
+    }
+  }
+
+  return (
+    <>
+      <Box
+        ref={rootRef}
+        sx={{
+          bgcolor: 'rgba(8,7,10,0.78)',
+          backdropFilter: 'blur(10px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+          border: `1px solid ${isWinning ? inkstashColors.success : 'rgba(255,255,255,0.12)'}`,
+          borderRadius: inkstashRadii.md,
+          color: '#fff',
+          overflow: 'hidden',
+          transition: 'all 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+        }}
+      >
+        <ButtonBase
+          onClick={() => setExpanded((v) => !v)}
           sx={{
+            width: '100%',
             display: 'flex',
             alignItems: 'center',
-            gap: 1.25,
+            justifyContent: 'space-between',
+            gap: 1,
             px: 1.5,
-            pb: 1.25,
+            py: 0.85,
+            color: '#fff',
           }}
+          aria-expanded={expanded}
         >
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: inkstashRadii.sm,
-              backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : 'none',
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              flexShrink: 0,
-            }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                bgcolor: statusColor,
+                flexShrink: 0,
+                animation: bidActive ? 'inkstashBidPulse 1s ease-in-out infinite' : 'none',
+                '@keyframes inkstashBidPulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.3 },
+                },
+              }}
+            />
             <Typography
               sx={{
-                fontFamily: inkstashFonts.display,
-                fontWeight: 900,
-                fontSize: 15,
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                fontWeight: 700,
                 textTransform: 'uppercase',
-                lineHeight: 1.1,
-                letterSpacing: '0.005em',
+                letterSpacing: '0.06em',
+                color: statusColor,
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {statusLabel}
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: inkstashFonts.ui,
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#fff',
+                opacity: 0.85,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
+                whiteSpace: 'nowrap',
+                maxWidth: 180,
               }}
             >
               {item.title}
             </Typography>
-            {item.price != null && (
+          </Box>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            {!expanded && (
+              <Typography
+                sx={{
+                  fontFamily: inkstashFonts.display,
+                  fontWeight: 900,
+                  fontSize: 14,
+                  color: '#fff',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1,
+                }}
+              >
+                {priceLabel}
+              </Typography>
+            )}
+            {expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </Box>
+        </ButtonBase>
+
+        {expanded && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              px: 1.5,
+              pb: 1.25,
+            }}
+          >
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: inkstashRadii.sm,
+                backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : 'none',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                flexShrink: 0,
+              }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontFamily: inkstashFonts.display,
+                  fontWeight: 900,
+                  fontSize: 15,
+                  textTransform: 'uppercase',
+                  lineHeight: 1.1,
+                  letterSpacing: '0.005em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
+                {item.title}
+              </Typography>
               <Typography
                 sx={{
                   fontFamily: inkstashFonts.ui,
@@ -261,7 +328,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                   mt: 0.35,
                 }}
               >
-                Current bid
+                {bidActive ? 'Current bid' : 'Starting bid'}
                 {' '}
                 <Box
                   component="span"
@@ -271,39 +338,52 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
-                  ${Number(item.price).toFixed(0)}
+                  {priceLabel}
                 </Box>
+                {item.bidCount > 0 && (
+                  <Box component="span" sx={{ ml: 1, opacity: 0.55, fontSize: 11.5 }}>
+                    · {item.bidCount} {item.bidCount === 1 ? 'bid' : 'bids'}
+                  </Box>
+                )}
               </Typography>
-            )}
+            </Box>
+            <ButtonBase
+              onClick={(e) => { e.stopPropagation(); handleBid(); }}
+              disabled={!bidActive || bidding}
+              sx={{
+                px: 1.75,
+                py: 0.85,
+                borderRadius: 999,
+                bgcolor: bidActive ? inkstashColors.brand : 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                fontFamily: inkstashFonts.ui,
+                fontSize: 12.5,
+                fontWeight: 800,
+                lineHeight: 1,
+                flexShrink: 0,
+                transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
+                '&:hover': {
+                  bgcolor: bidActive ? inkstashColors.brandDeep : 'rgba(255,255,255,0.22)',
+                },
+                '&:active': { transform: 'scale(0.97)' },
+                '&.Mui-disabled': { opacity: 0.55, color: '#fff' },
+              }}
+            >
+              {bidActive
+                ? (bidding ? '…' : `Bid ${nextBidLabel}`)
+                : 'Bid'}
+            </ButtonBase>
           </Box>
-          <ButtonBase
-            // Bid mechanic wires up in a later phase; for now this is a
-            // visual placeholder so the layout reads correctly.
-            onClick={(e) => { e.stopPropagation(); }}
-            disabled={item.status !== 'live'}
-            sx={{
-              px: 1.75,
-              py: 0.85,
-              borderRadius: 999,
-              bgcolor: item.status === 'live' ? inkstashColors.brand : 'rgba(255,255,255,0.16)',
-              color: '#fff',
-              fontFamily: inkstashFonts.ui,
-              fontSize: 12.5,
-              fontWeight: 800,
-              lineHeight: 1,
-              flexShrink: 0,
-              transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-              '&:hover': {
-                bgcolor: item.status === 'live' ? inkstashColors.brandDeep : 'rgba(255,255,255,0.22)',
-              },
-              '&:active': { transform: 'scale(0.97)' },
-              '&.Mui-disabled': { opacity: 0.55, color: '#fff' },
-            }}
-          >
-            Bid
-          </ButtonBase>
-        </Box>
-      )}
-    </Box>
+        )}
+      </Box>
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={4000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        message={toast ?? ''}
+      />
+    </>
   );
 }

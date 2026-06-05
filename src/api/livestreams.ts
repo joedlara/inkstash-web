@@ -252,6 +252,35 @@ export const livestreamsAPI = {
   end: (livestream_id: string) =>
     callFn<{ status: string }>('end-livestream', { livestream_id }),
 
+  /** Host-only. Flips an on-block item into bidding-active state +
+   *  sets the 10s soft-close timer. Body's start_price_cents is
+   *  optional — backend falls back to the listing's buy_now_price. */
+  startBidding: (item_id: string, start_price_cents?: number) =>
+    callFn<{ item_id: string; start_price_cents: number; bidding_ends_at: string }>(
+      'start-bidding', { item_id, start_price_cents },
+    ),
+
+  /** Viewer-side single $1 increment bid. Returns 402 'no_card_on_file'
+   *  when the bidder hasn't saved a payment method; UI should surface
+   *  the add-card prompt then. */
+  placeBid: (item_id: string) =>
+    callFn<{
+      current_price_cents: number;
+      current_winner_id: string;
+      bid_count: number;
+      bidding_ends_at: string;
+    }>('place-bid', { item_id }),
+
+  /** Calls the resolve_livestream_bid RPC directly (no edge fn). The
+   *  host's local timer expiry fires this to flip the item sold/passed.
+   *  Idempotent — calling on an already-resolved item just returns
+   *  the existing status. */
+  async resolveBidding(item_id: string): Promise<string> {
+    const { data, error } = await supabase.rpc('resolve_livestream_bid', { p_item_id: item_id });
+    if (error) throw new Error(error.message);
+    return data as string;
+  },
+
   postChat: (livestream_id: string, body: string) =>
     callFn<{ id: string; created_at: string }>('post-chat-message', { livestream_id, body }),
 

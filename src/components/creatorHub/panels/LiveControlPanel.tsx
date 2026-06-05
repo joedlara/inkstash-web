@@ -8,7 +8,7 @@
 // No active stream → empty state with a Go Live CTA that opens the
 // composer (parent wires this via onGoLive).
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
 import { ArrowUpCircle, Gift, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
@@ -36,6 +36,10 @@ interface QueueRow {
   id: string;
   position: number;
   status: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
+  // Auction state. Null on items that have never had bidding started.
+  current_price_cents: number | null;
+  bid_count: number;
+  bidding_ends_at: string | null;
   listing: {
     id: string;
     title: string;
@@ -138,8 +142,22 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   const [ending, setEnding] = useState(false);
   // Stub toast for Add/Edit affordances. The real editor surface lives
   // in a future phase alongside the auction backend; for now the
-  // buttons render to communicate intent.
+  // buttons render to communicate intent. Also used for auction error
+  // surface ("Couldn't start bidding", etc).
   const [stubToast, setStubToast] = useState<string | null>(null);
+  // The host pressed Start Bidding; we lock the CTA while the edge fn
+  // round-trips so they can't double-fire.
+  const [startingBid, setStartingBid] = useState(false);
+  // Local tick to drive the countdown display + resolver firing. We
+  // can't trust the realtime broadcast as the only timer source — the
+  // realtime row update fires when bidding_ends_at changes (each bid),
+  // but the SOLD transition needs a client-side observer because no
+  // row event fires when the timer simply elapses.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 250);
+    return () => clearInterval(id);
+  }, []);
 
   async function handleEnd() {
     if (ending) return;
@@ -147,6 +165,13 @@ function LiveSurface({ active }: { active: ActiveStream }) {
     try {
       await livestreamsAPI.end(stream.id);
     } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('active_bidding') || msg.includes('item_on_block_with_bids')) {
+        setStubToast("Wait for the current bidding to finish before ending the stream.");
+        setEnding(false);
+        setEndConfirmOpen(false);
+        return;
+      }
       console.warn('[LiveControlPanel] end stream failed', err);
     } finally {
       setEnding(false);
@@ -179,7 +204,7 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   const refreshQueue = useCallback(async () => {
     const { data: items } = await supabase
       .from('livestream_items')
-      .select('id, position, status, listing_id')
+      .select('id, position, status, listing_id, current_price_cents, bid_count, bidding_ends_at')
       .eq('livestream_id', stream.id)
       .neq('status', 'removed')
       .order('position', { ascending: true });
@@ -190,12 +215,19 @@ function LiveSurface({ active }: { active: ActiveStream }) {
       .select('id, title, buy_now_price, photos')
       .in('id', ids);
     type LRow = { id: string; title: string; buy_now_price: number | null; photos: Array<{ url?: string }> | null };
+    type IRow = {
+      id: string; position: number; status: QueueRow['status']; listing_id: string;
+      current_price_cents: number | null; bid_count: number | null; bidding_ends_at: string | null;
+    };
     const byId = new Map((listings ?? []).map((l: LRow) => [l.id, l] as const));
     setQueue(
-      (items ?? []).map((i: { id: string; position: number; status: QueueRow['status']; listing_id: string }) => ({
+      (items ?? []).map((i: IRow) => ({
         id: i.id,
         position: i.position,
         status: i.status,
+        current_price_cents: i.current_price_cents,
+        bid_count: i.bid_count ?? 0,
+        bidding_ends_at: i.bidding_ends_at,
         listing: byId.get(i.listing_id) ?? null,
       })),
     );
@@ -226,6 +258,86 @@ function LiveSurface({ active }: { active: ActiveStream }) {
     }
     await supabase.from('livestream_items').update({ status: 'live' }).eq('id', row.id);
   }
+
+  // Auction action: flip the on-block item into bidding-active state.
+  // Backend defaults start_price_cents to listing.buy_now_price; host
+  // can override later via an Edit Start Price modal (not in scope).
+  async function handleStartBidding() {
+    if (!onBlock || startingBid) return;
+    setStartingBid(true);
+    try {
+      await livestreamsAPI.startBidding(onBlock.id);
+    } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('bidding_already_started')) {
+        setStubToast('Bidding has already started on this item.');
+      } else if (msg.includes('item_not_on_block')) {
+        setStubToast('Push the item onto the block before starting bidding.');
+      } else {
+        setStubToast("Couldn't start bidding — try again.");
+      }
+    } finally {
+      setStartingBid(false);
+    }
+  }
+
+  // Soft-close resolver: when the on-block item's bidding_ends_at
+  // passes, flip it to 'sold' or 'passed' via the RPC. We watch from
+  // the host's surface so only one client fires the resolve call (the
+  // RPC is idempotent but it's still chatty to have every viewer
+  // hammering it). Realtime then broadcasts the status change to all
+  // viewers' MobileAuctionCards.
+  useEffect(() => {
+    if (!onBlock?.bidding_ends_at) return;
+    const endsMs = new Date(onBlock.bidding_ends_at).getTime();
+    const fire = () => {
+      // Re-read from latest queue snapshot; row may have been
+      // resolved by realtime before this fires.
+      const fresh = queueRef.current.find((q) => q.id === onBlock.id);
+      if (!fresh || fresh.status !== 'live') return;
+      livestreamsAPI.resolveBidding(onBlock.id).catch((err) => {
+        // Swallow expected races (bidding_still_open if a late bid
+        // resets the timer between checks; item not found if
+        // someone deleted the row).
+        const msg = (err as Error).message ?? '';
+        if (!msg.includes('bidding_still_open')) {
+          console.warn('[LiveControlPanel] resolveBidding failed', err);
+        }
+      });
+    };
+    const delay = endsMs - Date.now();
+    if (delay <= 0) { fire(); return; }
+    const id = window.setTimeout(fire, delay + 150);
+    return () => window.clearTimeout(id);
+  }, [onBlock?.id, onBlock?.bidding_ends_at]);
+
+  // Latest queue snapshot, accessible from inside setTimeout closures
+  // without re-firing the effect on every refresh.
+  const queueRef = useRef<QueueRow[]>([]);
+  queueRef.current = queue;
+
+  // For the end-stream guard: any item currently in bidding-active
+  // state blocks the End Stream click. We check it BEFORE the modal
+  // opens so the host sees the toast immediately instead of a stale
+  // modal that then errors on confirm.
+  const hasActiveBidding = queue.some((q) =>
+    q.status === 'live'
+    && !!q.bidding_ends_at
+    && new Date(q.bidding_ends_at).getTime() > Date.now()
+  );
+  function handleEndClick() {
+    if (hasActiveBidding) {
+      setStubToast("Wait for the current bidding to finish before ending the stream.");
+      return;
+    }
+    setEndConfirmOpen(true);
+  }
+
+  // Remaining seconds on the on-block timer. Negative ⇒ resolver
+  // fired but realtime hasn't caught up yet.
+  const secondsRemaining = onBlock?.bidding_ends_at
+    ? Math.max(0, Math.ceil((new Date(onBlock.bidding_ends_at).getTime() - Date.now()) / 1000))
+    : null;
 
   const fmtLikes = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
   const soldCount = queue.filter((q) => q.status === 'sold').length;
@@ -276,7 +388,7 @@ function LiveSurface({ active }: { active: ActiveStream }) {
           <Stat value={String(viewerCount)} label="Viewers" />
           <Stat value={String(queue.filter((q) => q.status === 'queued').length)} label="Queue" />
           <ButtonBase
-            onClick={() => setEndConfirmOpen(true)}
+            onClick={handleEndClick}
             sx={{
               ml: { md: 1 }, height: 40, px: 1.75, borderRadius: 999,
               bgcolor: 'rgba(0,0,0,0.22)',
@@ -368,6 +480,16 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 On the block
               </Typography>
               {onBlock?.listing ? (
+                (() => {
+                  // Display values come from the auction state when
+                  // bidding is active, otherwise fall back to the
+                  // listing's buy_now_price as the proposed start.
+                  const bidActive = !!onBlock.bidding_ends_at
+                    && new Date(onBlock.bidding_ends_at).getTime() > Date.now();
+                  const showCents = onBlock.current_price_cents
+                    ?? Math.round(Number(onBlock.listing.buy_now_price ?? 1) * 100);
+                  const priceLabel = `$${(showCents / 100).toFixed(2).replace(/\.00$/, '')}`;
+                  return (
                 <Box sx={{
                   // Brand-edge treatment so the on-block item reads as
                   // the "next thing to do" instead of a passive readout.
@@ -414,57 +536,90 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                           color: inkstashColors.ink, lineHeight: 1,
                           fontVariantNumeric: 'tabular-nums',
                         }}>
-                          ${onBlock.listing.buy_now_price ?? 0}
+                          {priceLabel}
                         </Typography>
-                        <ButtonBase
-                          onClick={() => setStubToast('Editing the start price wires up with auctions.')}
-                          title="Edit start price"
-                          sx={{
-                            display: 'inline-flex', alignItems: 'center', gap: 0.35,
-                            color: inkstashColors.muted,
-                            px: 0.6, py: 0.25, borderRadius: 1,
-                            fontFamily: inkstashFonts.ui, fontSize: 11, fontWeight: 600,
-                            '&:hover': { bgcolor: 'rgba(0,0,0,0.04)', color: inkstashColors.ink },
-                          }}
-                        >
-                          <Pencil size={11} strokeWidth={2.2} />
-                          Edit
-                        </ButtonBase>
+                        {!bidActive && (
+                          <ButtonBase
+                            onClick={() => setStubToast('Editing the start price comes in the next phase.')}
+                            title="Edit start price"
+                            sx={{
+                              display: 'inline-flex', alignItems: 'center', gap: 0.35,
+                              color: inkstashColors.muted,
+                              px: 0.6, py: 0.25, borderRadius: 1,
+                              fontFamily: inkstashFonts.ui, fontSize: 11, fontWeight: 600,
+                              '&:hover': { bgcolor: 'rgba(0,0,0,0.04)', color: inkstashColors.ink },
+                            }}
+                          >
+                            <Pencil size={11} strokeWidth={2.2} />
+                            Edit
+                          </ButtonBase>
+                        )}
                       </Box>
                       <Typography sx={{
                         fontFamily: inkstashFonts.ui, fontSize: 12, color: inkstashColors.muted, mt: 0.5,
                       }}>
-                        Starting bid
+                        {bidActive ? 'Current bid' : 'Starting bid'}
                       </Typography>
                     </Box>
-                    <Typography sx={{
-                      fontFamily: inkstashFonts.mono, fontSize: 11.5, color: inkstashColors.muted,
-                      textAlign: 'right',
-                    }}>
-                      0 bids
-                    </Typography>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography sx={{
+                        fontFamily: inkstashFonts.mono, fontSize: 11.5, color: inkstashColors.muted,
+                      }}>
+                        {onBlock.bid_count} bid{onBlock.bid_count === 1 ? '' : 's'}
+                      </Typography>
+                      {bidActive && secondsRemaining != null && (
+                        <Typography sx={{
+                          fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
+                          color: secondsRemaining <= 3 ? inkstashColors.live : inkstashColors.ink,
+                          lineHeight: 1, mt: 0.4, fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          {secondsRemaining}s
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
-                  {/* Start bidding CTA — visual stub; auction phase wires
-                      the real timer + bid acceptance. */}
-                  <ButtonBase
-                    onClick={() => setStubToast('Starting the bidding will go live when the auction backend ships.')}
-                    sx={{
+                  {/* Start bidding CTA. Once bidding is active the
+                      button is replaced with a passive "Bidding live"
+                      readout — the host can't restart bidding on the
+                      same item. The auction will resolve itself when
+                      the timer elapses (resolver effect above). */}
+                  {bidActive ? (
+                    <Box sx={{
                       width: '100%',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      gap: 0.85,
-                      py: 1.1, borderRadius: 999,
-                      bgcolor: inkstashColors.brand, color: '#fff',
+                      gap: 0.85, py: 1.1, borderRadius: 999,
+                      bgcolor: 'rgba(0,0,0,0.05)',
+                      color: inkstashColors.ink2,
                       fontFamily: inkstashFonts.ui, fontSize: 13.5, fontWeight: 800,
-                      letterSpacing: '0.005em',
-                      transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-                      '&:hover': { bgcolor: inkstashColors.brandDeep },
-                      '&:active': { transform: 'scale(0.985)' },
-                    }}
-                  >
-                    <Zap size={15} strokeWidth={2.4} />
-                    Start bidding
-                  </ButtonBase>
+                    }}>
+                      <Zap size={15} strokeWidth={2.4} />
+                      Bidding live
+                    </Box>
+                  ) : (
+                    <ButtonBase
+                      onClick={handleStartBidding}
+                      disabled={startingBid}
+                      sx={{
+                        width: '100%',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        gap: 0.85,
+                        py: 1.1, borderRadius: 999,
+                        bgcolor: inkstashColors.brand, color: '#fff',
+                        fontFamily: inkstashFonts.ui, fontSize: 13.5, fontWeight: 800,
+                        letterSpacing: '0.005em',
+                        transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
+                        '&:hover': { bgcolor: inkstashColors.brandDeep },
+                        '&:active': { transform: 'scale(0.985)' },
+                        '&.Mui-disabled': { opacity: 0.65, color: '#fff' },
+                      }}
+                    >
+                      <Zap size={15} strokeWidth={2.4} />
+                      {startingBid ? 'Starting…' : 'Start bidding'}
+                    </ButtonBase>
+                  )}
                 </Box>
+                  );
+                })()
               ) : (
                 <Typography sx={{
                   fontFamily: inkstashFonts.ui, fontSize: 14, color: inkstashColors.muted,
