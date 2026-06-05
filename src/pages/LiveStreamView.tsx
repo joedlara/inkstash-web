@@ -22,6 +22,7 @@ import StreamShopRail from '../components/livestreams/StreamShopRail';
 import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
+import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -49,7 +50,12 @@ function useCollapseSidebarForLive() {
 
 export default function LiveStreamView() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // Use the full-bleed mobile surface for anything under md (900px).
+  // The 600-899px band tried to fit the desktop 3-panel grid into a
+  // viewport too narrow for it, leaving a blank stage. The shop/chat
+  // rails were already hidden in that band anyway — only the video
+  // column rendered, and the grid math left it empty.
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useCollapseSidebarForLive();
 
@@ -474,6 +480,21 @@ function FullscreenVideoSurface({
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
       />
+
+      {/* Auction info card pinned to the bottom, below the chat composer.
+          Collapsible — viewers who only want to watch + chat can hide it.
+          Renders null when no item is on the block. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          zIndex: 6,
+        }}
+      >
+        <MobileAuctionCard livestreamId={stream.id} />
+      </Box>
     </Box>
   );
 }
@@ -583,6 +604,21 @@ function MobileVideoStage({
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
       />
+
+      {/* Auction info card pinned to the bottom, below the chat composer.
+          Collapsible — viewers who only want to watch + chat can hide it.
+          Renders null when no item is on the block. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          zIndex: 6,
+        }}
+      >
+        <MobileAuctionCard livestreamId={stream.id} />
+      </Box>
     </Box>
   );
 }
