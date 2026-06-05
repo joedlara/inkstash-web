@@ -9,8 +9,8 @@
 // composer (parent wires this via onGoLive).
 
 import { useEffect, useState, useCallback } from 'react';
-import { Box, CircularProgress, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, GripVertical, Radio, Smartphone, Square } from 'lucide-react';
+import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
+import { ArrowUpCircle, Pencil, Plus, Radio, Smartphone, Square } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
@@ -136,6 +136,10 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   const { stream, livekit } = active;
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [ending, setEnding] = useState(false);
+  // Stub toast for Add/Edit affordances. The real editor surface lives
+  // in a future phase alongside the auction backend; for now the
+  // buttons render to communicate intent.
+  const [stubToast, setStubToast] = useState<string | null>(null);
 
   async function handleEnd() {
     if (ending) return;
@@ -467,7 +471,11 @@ function LiveSurface({ active }: { active: ActiveStream }) {
           </Box>
         </Box>
 
-        {/* RIGHT — Run of show */}
+        {/* RIGHT — Run of show. Compact roster: Add at top, per-row
+            Edit. The per-row Push action moved under the camera (it's
+            in the on-block card as "Next up"). The roster is now an
+            at-a-glance list, not an action panel — keeps the producer
+            surface camera-first. */}
         <Box sx={{
           bgcolor: inkstashColors.bgElev,
           border: `1px solid ${inkstashColors.border}`,
@@ -479,21 +487,41 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         }}>
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 1,
             p: 2, borderBottom: `1px solid ${inkstashColors.border}`,
           }}>
-            <Typography sx={{
-              fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 16,
-              textTransform: 'uppercase', letterSpacing: '0.01em',
-              color: inkstashColors.ink,
-            }}>
-              Run of show
-            </Typography>
-            <Typography sx={{
-              fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
-              color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>
-              {queue.length} queued
-            </Typography>
+            <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 1.25, minWidth: 0 }}>
+              <Typography sx={{
+                fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 16,
+                textTransform: 'uppercase', letterSpacing: '0.01em',
+                color: inkstashColors.ink,
+              }}>
+                Run of show
+              </Typography>
+              <Typography sx={{
+                fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
+                color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                {queue.length} queued
+              </Typography>
+            </Box>
+            <ButtonBase
+              onClick={() => setStubToast('Adding items mid-stream is coming next phase.')}
+              title="Add item to queue"
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                px: 1.25, py: 0.6, borderRadius: 999,
+                bgcolor: inkstashColors.ink, color: '#fff',
+                fontFamily: inkstashFonts.ui, fontSize: 12, fontWeight: 700,
+                lineHeight: 1, flexShrink: 0,
+                transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
+                '&:hover': { bgcolor: inkstashColors.ink2 },
+                '&:active': { transform: 'scale(0.96)' },
+              }}
+            >
+              <Plus size={13} strokeWidth={2.6} />
+              Add item
+            </ButtonBase>
           </Box>
           <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {queue.length === 0 ? (
@@ -501,13 +529,13 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 p: 3, textAlign: 'center', fontFamily: inkstashFonts.ui, fontSize: 13,
                 color: inkstashColors.muted,
               }}>
-                Queue empty — add items from the composer or the Stream tab.
+                Queue empty — add items from the composer or hit Add item above.
               </Typography>
             ) : queue.map((row) => (
               <QueueRowItem
                 key={row.id}
                 row={row}
-                onPush={() => pushToBlock(row)}
+                onEdit={() => setStubToast('Editing queued items is coming next phase.')}
                 isLive={row.id === onBlock?.id}
               />
             ))}
@@ -520,6 +548,14 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         onCancel={() => setEndConfirmOpen(false)}
         onConfirm={handleEnd}
         ending={ending}
+      />
+
+      <Snackbar
+        open={!!stubToast}
+        autoHideDuration={3200}
+        onClose={() => setStubToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={stubToast ?? ''}
       />
     </>
   );
@@ -627,10 +663,10 @@ function NextUpRow({ row, onPush }: { row: QueueRow; onPush: () => void }) {
 }
 
 function QueueRowItem({
-  row, onPush, isLive,
+  row, onEdit, isLive,
 }: {
   row: QueueRow;
-  onPush: () => void;
+  onEdit: () => void;
   isLive: boolean;
 }) {
   if (!row.listing) return null;
@@ -639,7 +675,7 @@ function QueueRowItem({
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: 'auto 44px 1fr auto',
+      gridTemplateColumns: '44px 1fr auto',
       alignItems: 'center', gap: 1.25,
       px: 1.5, py: 1.25,
       borderBottom: `1px solid ${inkstashColors.border}`,
@@ -647,13 +683,6 @@ function QueueRowItem({
       opacity: isSold ? 0.55 : 1,
       '&:last-of-type': { borderBottom: 0 },
     }}>
-      <Box sx={{
-        display: 'inline-flex', color: inkstashColors.muted2,
-        cursor: 'grab',
-        '&:active': { cursor: 'grabbing' },
-      }}>
-        <GripVertical size={14} strokeWidth={2.2} />
-      </Box>
       <Box sx={{
         width: 44, height: 44, borderRadius: inkstashRadii.sm,
         backgroundImage: `url(${cover})`,
@@ -693,19 +722,20 @@ function QueueRowItem({
           )}
         </Box>
       </Box>
-      {!isLive && !isSold && (
+      {!isSold && (
         <ButtonBase
-          onClick={onPush}
-          title="Put on the block"
+          onClick={onEdit}
+          title="Edit item"
           sx={{
-            width: 34, height: 34, borderRadius: '50%',
-            bgcolor: inkstashColors.brand,
-            color: '#fff',
-            '&:hover': { bgcolor: inkstashColors.brandDeep },
-            '&:active': { transform: 'scale(0.96)' },
+            width: 32, height: 32, borderRadius: '50%',
+            color: inkstashColors.muted,
+            border: `1px solid ${inkstashColors.border}`,
+            transition: 'background-color 160ms ease, color 160ms ease, transform 120ms ease',
+            '&:hover': { bgcolor: inkstashColors.bgSunken, color: inkstashColors.ink },
+            '&:active': { transform: 'scale(0.94)' },
           }}
         >
-          <ArrowUpCircle size={18} strokeWidth={2.2} />
+          <Pencil size={14} strokeWidth={2.2} />
         </ButtonBase>
       )}
     </Box>
