@@ -22,10 +22,14 @@ interface Props {
   isBanned: boolean;
   // Host-overlay mode: hide composer, keep the scrollable message list.
   readOnly?: boolean;
+  /** Reserved space at the bottom in px, e.g. for the MobileAuctionCard
+   *  sitting under the chat. Composer lifts by this much so the input
+   *  isn't covered by the card. */
+  bottomReserve?: number;
 }
 
 export default function LiveStreamChat({
-  livestreamId, initialMessages, isBanned, readOnly = false,
+  livestreamId, initialMessages, isBanned, readOnly = false, bottomReserve = 0,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
@@ -214,10 +218,16 @@ export default function LiveStreamChat({
           display: 'flex',
           gap: 1,
           px: 1.5,
-          pb: keyboardOffset > 0 ? '12px' : 'max(env(safe-area-inset-bottom), 12px)',
+          // Lift the composer above any reserved bottom space (e.g. the
+          // MobileAuctionCard underneath). When the keyboard is open we
+          // also collapse the safe-area + reserve into a flat 12px so the
+          // input rides directly above the keyboard.
+          pb: keyboardOffset > 0
+            ? '12px'
+            : `calc(max(env(safe-area-inset-bottom), 12px) + ${bottomReserve}px)`,
           pointerEvents: 'auto',
           transform: `translateY(${-keyboardOffset}px)`,
-          transition: 'transform 180ms ease-out',
+          transition: 'transform 180ms ease-out, padding-bottom 180ms ease-out',
         }}
       >
         <TextField

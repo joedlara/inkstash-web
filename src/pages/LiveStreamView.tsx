@@ -395,6 +395,10 @@ function FullscreenVideoSurface({
   onParticipantCountChange: (n: number) => void;
   onExit: () => void;
 }) {
+  // Track the auction card's height so we can push the chat composer
+  // above it. Card is rendered absolute at the bottom; without this
+  // the composer would overlap and the input becomes untappable.
+  const [auctionHeight, setAuctionHeight] = useState(0);
   return (
     <Box
       sx={{
@@ -474,11 +478,14 @@ function FullscreenVideoSurface({
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
       />
 
-      {/* Bottom chat overlay — read-only, fade-mask at top */}
+      {/* Bottom chat overlay — read-only, fade-mask at top. bottomReserve
+          lifts the composer above the auction card below. +10px matches
+          the auction card's bottom offset so the spacing reads even. */}
       <LiveStreamChat
         livestreamId={stream.id}
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
+        bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -493,7 +500,10 @@ function FullscreenVideoSurface({
           zIndex: 6,
         }}
       >
-        <MobileAuctionCard livestreamId={stream.id} />
+        <MobileAuctionCard
+          livestreamId={stream.id}
+          onHeightChange={setAuctionHeight}
+        />
       </Box>
     </Box>
   );
@@ -545,6 +555,9 @@ function MobileVideoStage({
   onParticipantCountChange: (n: number) => void;
   onClose: () => void;
 }) {
+  // Track the auction card height so the chat composer can sit above
+  // it instead of being covered (the input was untappable pre-fix).
+  const [auctionHeight, setAuctionHeight] = useState(0);
   return (
     <Box sx={{ position: 'absolute', inset: 0 }}>
       <LiveStreamVideo
@@ -603,6 +616,7 @@ function MobileVideoStage({
         livestreamId={stream.id}
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
+        bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -617,7 +631,10 @@ function MobileVideoStage({
           zIndex: 6,
         }}
       >
-        <MobileAuctionCard livestreamId={stream.id} />
+        <MobileAuctionCard
+          livestreamId={stream.id}
+          onHeightChange={setAuctionHeight}
+        />
       </Box>
     </Box>
   );

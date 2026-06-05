@@ -10,7 +10,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, Pencil, Plus, Radio, Smartphone, Square } from 'lucide-react';
+import { ArrowUpCircle, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
@@ -368,30 +368,73 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 On the block
               </Typography>
               {onBlock?.listing ? (
-                <>
+                <Box sx={{
+                  // Brand-edge treatment so the on-block item reads as
+                  // the "next thing to do" instead of a passive readout.
+                  position: 'relative',
+                  p: 2,
+                  borderRadius: inkstashRadii.md,
+                  bgcolor: inkstashColors.brandSoft,
+                  border: `1.5px solid ${inkstashColors.brand}`,
+                  boxShadow: `0 0 0 4px ${inkstashColors.brand}14`,
+                }}>
+                  <Box sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.65,
+                    px: 0.85, py: 0.3, borderRadius: 999,
+                    bgcolor: inkstashColors.brand, color: '#fff',
+                    fontFamily: inkstashFonts.mono, fontSize: 9.5, fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    mb: 1, lineHeight: 1,
+                  }}>
+                    <Box sx={{
+                      width: 6, height: 6, borderRadius: '50%', bgcolor: '#fff',
+                      animation: 'inkstashOnBlockPulse 1.4s ease-in-out infinite',
+                      '@keyframes inkstashOnBlockPulse': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0.35 },
+                      },
+                    }} />
+                    On the block
+                  </Box>
                   <Typography sx={{
-                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 20,
+                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
                     textTransform: 'uppercase', letterSpacing: '-0.005em',
-                    color: inkstashColors.ink, mb: 1.5, lineHeight: 1.1,
+                    color: inkstashColors.ink, mb: 1.25, lineHeight: 1.1,
                   }}>
                     {onBlock.listing.title}
                   </Typography>
                   <Box sx={{
                     display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-                    gap: 1.5,
+                    gap: 1.5, mb: 1.5,
                   }}>
                     <Box>
-                      <Typography sx={{
-                        fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 28,
-                        color: inkstashColors.ink, lineHeight: 1,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        ${onBlock.listing.buy_now_price ?? 0}
-                      </Typography>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.75 }}>
+                        <Typography sx={{
+                          fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 30,
+                          color: inkstashColors.ink, lineHeight: 1,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          ${onBlock.listing.buy_now_price ?? 0}
+                        </Typography>
+                        <ButtonBase
+                          onClick={() => setStubToast('Editing the start price wires up with auctions.')}
+                          title="Edit start price"
+                          sx={{
+                            display: 'inline-flex', alignItems: 'center', gap: 0.35,
+                            color: inkstashColors.muted,
+                            px: 0.6, py: 0.25, borderRadius: 1,
+                            fontFamily: inkstashFonts.ui, fontSize: 11, fontWeight: 600,
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.04)', color: inkstashColors.ink },
+                          }}
+                        >
+                          <Pencil size={11} strokeWidth={2.2} />
+                          Edit
+                        </ButtonBase>
+                      </Box>
                       <Typography sx={{
                         fontFamily: inkstashFonts.ui, fontSize: 12, color: inkstashColors.muted, mt: 0.5,
                       }}>
-                        Starting bid · L2 auctions wire live bidders
+                        Starting bid
                       </Typography>
                     </Box>
                     <Typography sx={{
@@ -401,7 +444,27 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                       0 bids
                     </Typography>
                   </Box>
-                </>
+                  {/* Start bidding CTA — visual stub; auction phase wires
+                      the real timer + bid acceptance. */}
+                  <ButtonBase
+                    onClick={() => setStubToast('Starting the bidding will go live when the auction backend ships.')}
+                    sx={{
+                      width: '100%',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 0.85,
+                      py: 1.1, borderRadius: 999,
+                      bgcolor: inkstashColors.brand, color: '#fff',
+                      fontFamily: inkstashFonts.ui, fontSize: 13.5, fontWeight: 800,
+                      letterSpacing: '0.005em',
+                      transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
+                      '&:hover': { bgcolor: inkstashColors.brandDeep },
+                      '&:active': { transform: 'scale(0.985)' },
+                    }}
+                  >
+                    <Zap size={15} strokeWidth={2.4} />
+                    Start bidding
+                  </ButtonBase>
+                </Box>
               ) : (
                 <Typography sx={{
                   fontFamily: inkstashFonts.ui, fontSize: 14, color: inkstashColors.muted,
@@ -675,7 +738,7 @@ function QueueRowItem({
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: '44px 1fr auto',
+      gridTemplateColumns: 'auto 44px 1fr auto',
       alignItems: 'center', gap: 1.25,
       px: 1.5, py: 1.25,
       borderBottom: `1px solid ${inkstashColors.border}`,
@@ -683,6 +746,16 @@ function QueueRowItem({
       opacity: isSold ? 0.55 : 1,
       '&:last-of-type': { borderBottom: 0 },
     }}>
+      {/* Drag handle — visual affordance. Reorder wiring lands with the
+          auction phase; for now it conveys "you can rearrange this".
+          Cursor stays grab-style so the intent is obvious. */}
+      <Box sx={{
+        display: 'inline-flex', color: inkstashColors.muted2,
+        cursor: 'grab',
+        '&:active': { cursor: 'grabbing' },
+      }}>
+        <GripVertical size={14} strokeWidth={2.2} />
+      </Box>
       <Box sx={{
         width: 44, height: 44, borderRadius: inkstashRadii.sm,
         backgroundImage: `url(${cover})`,
