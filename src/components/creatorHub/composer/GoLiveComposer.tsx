@@ -24,6 +24,7 @@ import StepDetails from './StepDetails';
 import StepItems from './StepItems';
 import StepSettings from './StepSettings';
 import StepPreview from './StepPreview';
+import DualDevicePairing from './DualDevicePairing';
 import type { ComposerDetails, ComposerItem, ComposerMode, ComposerSettings } from './types';
 import { DEFAULT_DETAILS, DEFAULT_SETTINGS } from './types';
 
