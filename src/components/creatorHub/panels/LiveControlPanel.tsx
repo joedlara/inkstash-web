@@ -9,8 +9,8 @@
 // composer (parent wires this via onGoLive).
 
 import { useEffect, useState, useCallback } from 'react';
-import { Box, CircularProgress, Typography, ButtonBase } from '@mui/material';
-import { ArrowUpCircle, GripVertical, Radio, Smartphone, Square } from 'lucide-react';
+import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
+import { ArrowUpCircle, Gift, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
 import LiveStreamVideo from '../../livestreams/LiveStreamVideo';
@@ -136,6 +136,10 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   const { stream, livekit } = active;
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [ending, setEnding] = useState(false);
+  // Stub toast for Add/Edit affordances. The real editor surface lives
+  // in a future phase alongside the auction backend; for now the
+  // buttons render to communicate intent.
+  const [stubToast, setStubToast] = useState<string | null>(null);
 
   async function handleEnd() {
     if (ending) return;
@@ -364,30 +368,73 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 On the block
               </Typography>
               {onBlock?.listing ? (
-                <>
+                <Box sx={{
+                  // Brand-edge treatment so the on-block item reads as
+                  // the "next thing to do" instead of a passive readout.
+                  position: 'relative',
+                  p: 2,
+                  borderRadius: inkstashRadii.md,
+                  bgcolor: inkstashColors.brandSoft,
+                  border: `1.5px solid ${inkstashColors.brand}`,
+                  boxShadow: `0 0 0 4px ${inkstashColors.brand}14`,
+                }}>
+                  <Box sx={{
+                    display: 'inline-flex', alignItems: 'center', gap: 0.65,
+                    px: 0.85, py: 0.3, borderRadius: 999,
+                    bgcolor: inkstashColors.brand, color: '#fff',
+                    fontFamily: inkstashFonts.mono, fontSize: 9.5, fontWeight: 800,
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    mb: 1, lineHeight: 1,
+                  }}>
+                    <Box sx={{
+                      width: 6, height: 6, borderRadius: '50%', bgcolor: '#fff',
+                      animation: 'inkstashOnBlockPulse 1.4s ease-in-out infinite',
+                      '@keyframes inkstashOnBlockPulse': {
+                        '0%, 100%': { opacity: 1 },
+                        '50%': { opacity: 0.35 },
+                      },
+                    }} />
+                    On the block
+                  </Box>
                   <Typography sx={{
-                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 20,
+                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 22,
                     textTransform: 'uppercase', letterSpacing: '-0.005em',
-                    color: inkstashColors.ink, mb: 1.5, lineHeight: 1.1,
+                    color: inkstashColors.ink, mb: 1.25, lineHeight: 1.1,
                   }}>
                     {onBlock.listing.title}
                   </Typography>
                   <Box sx={{
                     display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-                    gap: 1.5,
+                    gap: 1.5, mb: 1.5,
                   }}>
                     <Box>
-                      <Typography sx={{
-                        fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 28,
-                        color: inkstashColors.ink, lineHeight: 1,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        ${onBlock.listing.buy_now_price ?? 0}
-                      </Typography>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.75 }}>
+                        <Typography sx={{
+                          fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 30,
+                          color: inkstashColors.ink, lineHeight: 1,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          ${onBlock.listing.buy_now_price ?? 0}
+                        </Typography>
+                        <ButtonBase
+                          onClick={() => setStubToast('Editing the start price wires up with auctions.')}
+                          title="Edit start price"
+                          sx={{
+                            display: 'inline-flex', alignItems: 'center', gap: 0.35,
+                            color: inkstashColors.muted,
+                            px: 0.6, py: 0.25, borderRadius: 1,
+                            fontFamily: inkstashFonts.ui, fontSize: 11, fontWeight: 600,
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.04)', color: inkstashColors.ink },
+                          }}
+                        >
+                          <Pencil size={11} strokeWidth={2.2} />
+                          Edit
+                        </ButtonBase>
+                      </Box>
                       <Typography sx={{
                         fontFamily: inkstashFonts.ui, fontSize: 12, color: inkstashColors.muted, mt: 0.5,
                       }}>
-                        Starting bid · L2 auctions wire live bidders
+                        Starting bid
                       </Typography>
                     </Box>
                     <Typography sx={{
@@ -397,7 +444,27 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                       0 bids
                     </Typography>
                   </Box>
-                </>
+                  {/* Start bidding CTA — visual stub; auction phase wires
+                      the real timer + bid acceptance. */}
+                  <ButtonBase
+                    onClick={() => setStubToast('Starting the bidding will go live when the auction backend ships.')}
+                    sx={{
+                      width: '100%',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 0.85,
+                      py: 1.1, borderRadius: 999,
+                      bgcolor: inkstashColors.brand, color: '#fff',
+                      fontFamily: inkstashFonts.ui, fontSize: 13.5, fontWeight: 800,
+                      letterSpacing: '0.005em',
+                      transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
+                      '&:hover': { bgcolor: inkstashColors.brandDeep },
+                      '&:active': { transform: 'scale(0.985)' },
+                    }}
+                  >
+                    <Zap size={15} strokeWidth={2.4} />
+                    Start bidding
+                  </ButtonBase>
+                </Box>
               ) : (
                 <Typography sx={{
                   fontFamily: inkstashFonts.ui, fontSize: 14, color: inkstashColors.muted,
@@ -419,6 +486,51 @@ function LiveSurface({ active }: { active: ActiveStream }) {
 
           {/* Stream Health card lived here. Stats moved into the live
               banner so the host has everything at a glance up top. */}
+
+          {/* Start a giveaway — sits above the dual-device card so the
+              host has an obvious mid-stream action without crowding the
+              on-block area. Stub until the raffles backend ships. */}
+          <ButtonBase
+            onClick={() => setStubToast('Giveaways launch alongside the raffles backend.')}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 1.5,
+              p: 1.75,
+              borderRadius: inkstashRadii.lg,
+              bgcolor: inkstashColors.bgElev,
+              border: `1px dashed ${inkstashColors.borderStrong}`,
+              color: inkstashColors.ink, textAlign: 'left',
+              transition: 'background-color 160ms ease, border-color 160ms ease, transform 120ms ease',
+              '&:hover': {
+                bgcolor: inkstashColors.bgSunken,
+                borderColor: inkstashColors.brand,
+              },
+              '&:active': { transform: 'scale(0.992)' },
+            }}
+          >
+            <Box sx={{
+              width: 38, height: 38, borderRadius: 1.5,
+              bgcolor: inkstashColors.brandSoft, color: inkstashColors.brand,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <Gift size={18} strokeWidth={2.2} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{
+                fontFamily: inkstashFonts.ui, fontWeight: 700, fontSize: 14,
+                color: inkstashColors.ink,
+              }}>
+                Start a giveaway
+              </Typography>
+              <Typography sx={{
+                fontFamily: inkstashFonts.ui, fontSize: 12.5, color: inkstashColors.muted,
+                mt: 0.25, lineHeight: 1.5,
+              }}>
+                Pull viewers in mid-stream with a free item drop. Wires up with raffles.
+              </Typography>
+            </Box>
+            <Plus size={18} strokeWidth={2.4} color={inkstashColors.muted} />
+          </ButtonBase>
 
           {/* Dual-device card */}
           <Box sx={{
@@ -467,7 +579,11 @@ function LiveSurface({ active }: { active: ActiveStream }) {
           </Box>
         </Box>
 
-        {/* RIGHT — Run of show */}
+        {/* RIGHT — Run of show. Compact roster: Add at top, per-row
+            Edit. The per-row Push action moved under the camera (it's
+            in the on-block card as "Next up"). The roster is now an
+            at-a-glance list, not an action panel — keeps the producer
+            surface camera-first. */}
         <Box sx={{
           bgcolor: inkstashColors.bgElev,
           border: `1px solid ${inkstashColors.border}`,
@@ -479,21 +595,41 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         }}>
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 1,
             p: 2, borderBottom: `1px solid ${inkstashColors.border}`,
           }}>
-            <Typography sx={{
-              fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 16,
-              textTransform: 'uppercase', letterSpacing: '0.01em',
-              color: inkstashColors.ink,
-            }}>
-              Run of show
-            </Typography>
-            <Typography sx={{
-              fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
-              color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>
-              {queue.length} queued
-            </Typography>
+            <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 1.25, minWidth: 0 }}>
+              <Typography sx={{
+                fontFamily: inkstashFonts.display, fontWeight: 800, fontSize: 16,
+                textTransform: 'uppercase', letterSpacing: '0.01em',
+                color: inkstashColors.ink,
+              }}>
+                Run of show
+              </Typography>
+              <Typography sx={{
+                fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
+                color: inkstashColors.muted, textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                {queue.length} queued
+              </Typography>
+            </Box>
+            <ButtonBase
+              onClick={() => setStubToast('Adding items mid-stream is coming next phase.')}
+              title="Add item to queue"
+              sx={{
+                display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                px: 1.25, py: 0.6, borderRadius: 999,
+                bgcolor: inkstashColors.ink, color: '#fff',
+                fontFamily: inkstashFonts.ui, fontSize: 12, fontWeight: 700,
+                lineHeight: 1, flexShrink: 0,
+                transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
+                '&:hover': { bgcolor: inkstashColors.ink2 },
+                '&:active': { transform: 'scale(0.96)' },
+              }}
+            >
+              <Plus size={13} strokeWidth={2.6} />
+              Add item
+            </ButtonBase>
           </Box>
           <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {queue.length === 0 ? (
@@ -501,13 +637,13 @@ function LiveSurface({ active }: { active: ActiveStream }) {
                 p: 3, textAlign: 'center', fontFamily: inkstashFonts.ui, fontSize: 13,
                 color: inkstashColors.muted,
               }}>
-                Queue empty — add items from the composer or the Stream tab.
+                Queue empty — add items from the composer or hit Add item above.
               </Typography>
             ) : queue.map((row) => (
               <QueueRowItem
                 key={row.id}
                 row={row}
-                onPush={() => pushToBlock(row)}
+                onEdit={() => setStubToast('Editing queued items is coming next phase.')}
                 isLive={row.id === onBlock?.id}
               />
             ))}
@@ -520,6 +656,14 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         onCancel={() => setEndConfirmOpen(false)}
         onConfirm={handleEnd}
         ending={ending}
+      />
+
+      <Snackbar
+        open={!!stubToast}
+        autoHideDuration={3200}
+        onClose={() => setStubToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={stubToast ?? ''}
       />
     </>
   );
@@ -627,10 +771,10 @@ function NextUpRow({ row, onPush }: { row: QueueRow; onPush: () => void }) {
 }
 
 function QueueRowItem({
-  row, onPush, isLive,
+  row, onEdit, isLive,
 }: {
   row: QueueRow;
-  onPush: () => void;
+  onEdit: () => void;
   isLive: boolean;
 }) {
   if (!row.listing) return null;
@@ -647,6 +791,9 @@ function QueueRowItem({
       opacity: isSold ? 0.55 : 1,
       '&:last-of-type': { borderBottom: 0 },
     }}>
+      {/* Drag handle — visual affordance. Reorder wiring lands with the
+          auction phase; for now it conveys "you can rearrange this".
+          Cursor stays grab-style so the intent is obvious. */}
       <Box sx={{
         display: 'inline-flex', color: inkstashColors.muted2,
         cursor: 'grab',
@@ -693,19 +840,20 @@ function QueueRowItem({
           )}
         </Box>
       </Box>
-      {!isLive && !isSold && (
+      {!isSold && (
         <ButtonBase
-          onClick={onPush}
-          title="Put on the block"
+          onClick={onEdit}
+          title="Edit item"
           sx={{
-            width: 34, height: 34, borderRadius: '50%',
-            bgcolor: inkstashColors.brand,
-            color: '#fff',
-            '&:hover': { bgcolor: inkstashColors.brandDeep },
-            '&:active': { transform: 'scale(0.96)' },
+            width: 32, height: 32, borderRadius: '50%',
+            color: inkstashColors.muted,
+            border: `1px solid ${inkstashColors.border}`,
+            transition: 'background-color 160ms ease, color 160ms ease, transform 120ms ease',
+            '&:hover': { bgcolor: inkstashColors.bgSunken, color: inkstashColors.ink },
+            '&:active': { transform: 'scale(0.94)' },
           }}
         >
-          <ArrowUpCircle size={18} strokeWidth={2.2} />
+          <Pencil size={14} strokeWidth={2.2} />
         </ButtonBase>
       )}
     </Box>

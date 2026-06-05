@@ -12,7 +12,7 @@
 // tapping it does nothing for now. Wiring real bids is a follow-on
 // phase per the user's "skip the bid slider for now" decision.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, ButtonBase, Typography } from '@mui/material';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
@@ -20,6 +20,10 @@ import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inksta
 
 interface Props {
   livestreamId: string;
+  /** Fires whenever the card's rendered height changes (collapse,
+   *  expand, item swap, no-item → null). Parent uses this to push the
+   *  chat composer up by the right amount so the input isn't covered. */
+  onHeightChange?: (px: number) => void;
 }
 
 interface CurrentItem {
@@ -30,9 +34,34 @@ interface CurrentItem {
   status: 'live' | 'sold' | 'passed';
 }
 
-export default function MobileAuctionCard({ livestreamId }: Props) {
+export default function MobileAuctionCard({ livestreamId, onHeightChange }: Props) {
   const [item, setItem] = useState<CurrentItem | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const onHeightChangeRef = useRef(onHeightChange);
+  onHeightChangeRef.current = onHeightChange;
+
+  // Report height changes (collapse/expand/no-item) so the chat
+  // composer can sit cleanly above us.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      onHeightChangeRef.current?.(0);
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      onHeightChangeRef.current?.(el.offsetHeight);
+    });
+    ro.observe(el);
+    onHeightChangeRef.current?.(el.offsetHeight);
+    return () => { ro.disconnect(); };
+  }, [item, expanded]);
+
+  // When the card is removed (no item), tell the parent to release
+  // the reserved space.
+  useEffect(() => {
+    if (!item) onHeightChangeRef.current?.(0);
+  }, [item]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +126,7 @@ export default function MobileAuctionCard({ livestreamId }: Props) {
 
   return (
     <Box
+      ref={rootRef}
       sx={{
         bgcolor: 'rgba(8,7,10,0.78)',
         backdropFilter: 'blur(10px) saturate(140%)',

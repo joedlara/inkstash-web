@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { Box, ButtonBase } from '@mui/material';
 import { Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import HostAvatar from './HostAvatar';
 import { useAuth } from '../../hooks/useAuth';
 import { followUser, isFollowing, unfollowUser } from '../../api/users/profile';
@@ -63,6 +64,7 @@ export default function HostPill({
   username, avatarUrl, verified = false, rating = null, hostUserId = null,
 }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const viewerId = user?.id ?? null;
   const [followed, setFollowed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -125,15 +127,27 @@ export default function HostPill({
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 18px -6px rgba(0,0,0,0.4)',
       }}
     >
-      <HostAvatar
-        username={username}
-        avatarUrl={avatarUrl ?? null}
-        size={34}
-      />
+      {/* Avatar links to the host's profile when we know who they are. */}
+      <ButtonBase
+        onClick={() => username && navigate(`/@${username}`)}
+        disabled={!username}
+        sx={{ borderRadius: '50%', '&:active': { transform: 'scale(0.96)' } }}
+        aria-label={username ? `View ${displayName}'s profile` : undefined}
+      >
+        <HostAvatar
+          username={username}
+          avatarUrl={avatarUrl ?? null}
+          size={34}
+        />
+      </ButtonBase>
 
-      {/* Name + rating column */}
+      {/* Name + rating column. Username itself is a tap target that
+       *  navigates to the host's profile page (same path used by the
+       *  rest of the app: /@username). */}
       <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <Box
+        <ButtonBase
+          onClick={() => username && navigate(`/@${username}`)}
+          disabled={!username}
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -144,6 +158,9 @@ export default function HostPill({
             color: '#fff',
             lineHeight: 1.1,
             textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+            borderRadius: 0.5,
+            transition: 'opacity 120ms ease',
+            '&:hover': { opacity: 0.85, textDecoration: 'underline' },
           }}
         >
           <Box
@@ -158,7 +175,7 @@ export default function HostPill({
             @{displayName}
           </Box>
           {verified && <VerifiedCheck />}
-        </Box>
+        </ButtonBase>
         {showRating && (
           <Box
             sx={{

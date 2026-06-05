@@ -23,6 +23,8 @@ import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
+import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
+import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -173,10 +175,10 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. The page intentionally does NOT scroll below the stage —
-  // pre-2026-06-05 an ExploreMoreRail lived under here and created a
-  // 900-1500px white band when half-scrolled (the stage scrolled out before
-  // the rail entered the viewport). The stage IS the page.
+  // edge-to-edge. The stage uses position:sticky + top:64px (topnav
+  // height) so it stays pinned during early scroll and the ExploreMore
+  // rail beneath reveals cleanly — avoiding the 900-1500px white band
+  // we hit on 2026-06-05 with a non-sticky stage.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -186,6 +188,9 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
+      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
+        <ExploreMoreRail excludeId={stream.id} />
+      </Box>
     </AppShell>
   );
 }
@@ -211,7 +216,12 @@ function LiveDesktopStage({
         // breathing-room padding inside.
         mx: { md: -3 },
         mt: { md: -3 },
-        mb: { md: -3 },
+        // Sticky so the stage stays pinned while the user scrolls down
+        // to reveal the ExploreMore rail below. top:64px clears the
+        // topnav. Without sticky, scrolling would slide the stage off
+        // the top before the rail entered viewport → white gap.
+        position: 'sticky',
+        top: 64,
         height: 'calc(100dvh - 64px)', // 64 = topnav height
         bgcolor: inkstashColors.bg,
         display: 'grid',
@@ -297,12 +307,13 @@ function LiveDesktopStage({
               pointerEvents: 'none',
             }}
           >
-            <Box sx={{ pointerEvents: 'auto' }}>
+            <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
               <HostPill
                 username={stream.host?.username ?? null}
                 avatarUrl={stream.host?.avatar_url}
-            hostUserId={stream.host_user_id}
+                hostUserId={stream.host_user_id}
               />
+              <StreamDescriptionPill description={stream.description} />
             </Box>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
               <ViewerCountBadge count={viewerCount} />
@@ -395,6 +406,10 @@ function FullscreenVideoSurface({
   onParticipantCountChange: (n: number) => void;
   onExit: () => void;
 }) {
+  // Track the auction card's height so we can push the chat composer
+  // above it. Card is rendered absolute at the bottom; without this
+  // the composer would overlap and the input becomes untappable.
+  const [auctionHeight, setAuctionHeight] = useState(0);
   return (
     <Box
       sx={{
@@ -441,12 +456,13 @@ function FullscreenVideoSurface({
           pointerEvents: 'none',
         }}
       >
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
             hostUserId={stream.host_user_id}
           />
+          <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />
@@ -474,11 +490,14 @@ function FullscreenVideoSurface({
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
       />
 
-      {/* Bottom chat overlay — read-only, fade-mask at top */}
+      {/* Bottom chat overlay — read-only, fade-mask at top. bottomReserve
+          lifts the composer above the auction card below. +10px matches
+          the auction card's bottom offset so the spacing reads even. */}
       <LiveStreamChat
         livestreamId={stream.id}
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
+        bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -493,7 +512,10 @@ function FullscreenVideoSurface({
           zIndex: 6,
         }}
       >
-        <MobileAuctionCard livestreamId={stream.id} />
+        <MobileAuctionCard
+          livestreamId={stream.id}
+          onHeightChange={setAuctionHeight}
+        />
       </Box>
     </Box>
   );
@@ -545,6 +567,9 @@ function MobileVideoStage({
   onParticipantCountChange: (n: number) => void;
   onClose: () => void;
 }) {
+  // Track the auction card height so the chat composer can sit above
+  // it instead of being covered (the input was untappable pre-fix).
+  const [auctionHeight, setAuctionHeight] = useState(0);
   return (
     <Box sx={{ position: 'absolute', inset: 0 }}>
       <LiveStreamVideo
@@ -568,12 +593,13 @@ function MobileVideoStage({
           pointerEvents: 'none',
         }}
       >
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <Box sx={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
           <HostPill
             username={stream.host?.username ?? null}
             avatarUrl={stream.host?.avatar_url}
             hostUserId={stream.host_user_id}
           />
+          <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
           <ViewerCountBadge count={viewerCount} />
@@ -603,6 +629,7 @@ function MobileVideoStage({
         livestreamId={stream.id}
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
+        bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -617,7 +644,10 @@ function MobileVideoStage({
           zIndex: 6,
         }}
       >
-        <MobileAuctionCard livestreamId={stream.id} />
+        <MobileAuctionCard
+          livestreamId={stream.id}
+          onHeightChange={setAuctionHeight}
+        />
       </Box>
     </Box>
   );
