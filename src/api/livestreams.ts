@@ -213,6 +213,10 @@ export const livestreamsAPI = {
       livekit_room_name: string;
       livekit_ws_url: string;
       pair_token: string;
+      /** View-only LiveKit token for the composer to subscribe to the
+       *  room and detect the phone joining as publisher. Scoped:
+       *  canPublish=false, canSubscribe=true, room locked to this id. */
+      composer_token: string;
     }>('start-livestream', { ...body, prepare_dual_device: true }),
 
   /** Authenticated as the stream's OWNER. The pair_token in the URL

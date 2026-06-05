@@ -143,11 +143,28 @@ serve(async (req) => {
     // producer console. Don't mint a host token here; the phone gets
     // its publish token via pair-livestream.
     if (body.prepare_dual_device) {
+      // Mint a composer viewer token so the laptop can subscribe to
+      // the room and detect the phone joining. Strictly scoped: no
+      // publish rights, view-only, same 4h TTL as the host token.
+      const composerIdentity = `${user.id}#composer-${crypto.randomUUID().slice(0, 8)}`
+      const composerToken = new AccessToken(livekitApiKey, livekitApiSecret, {
+        identity: composerIdentity,
+        name: (userRow as { username?: string }).username ?? 'composer',
+        ttl: 4 * 60 * 60,
+      })
+      composerToken.addGrant({
+        room: roomName,
+        roomJoin: true,
+        canPublish: false,
+        canPublishData: false,
+        canSubscribe: true,
+      })
       return json({
         livestream_id: stream.id,
         livekit_room_name: roomName,
         livekit_ws_url: livekitWsUrl,
         pair_token: pairToken,
+        composer_token: await composerToken.toJwt(),
       }, 200)
     }
 

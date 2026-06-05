@@ -61,23 +61,17 @@ export default function DualDevicePairing({
         if (cancelled) return;
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const pairUrl = `${origin}/live/host?id=${encodeURIComponent(res.livestream_id)}&pair=${encodeURIComponent(res.pair_token)}`;
-        // Mint a viewer token via the existing join flow so we can
-        // subscribe to the room and listen for the phone joining.
-        let viewerToken: string | undefined;
-        try {
-          const join = await livestreamsAPI.join(res.livestream_id);
-          viewerToken = join.livekit_token;
-        } catch (err) {
-          // Non-fatal — paired detection falls back to a poll if needed.
-          console.warn('[DualDevicePairing] join failed (paired detection degraded)', err);
-        }
         if (cancelled) return;
+        // composer_token is a view-only LiveKit token minted by
+        // start-livestream specifically for this purpose. No general
+        // join endpoint needed (join-livestream is buyer-side and
+        // requires status='live'; we're at 'preparing' here).
         setState({
           kind: 'ready',
           livestreamId: res.livestream_id,
           pairUrl,
           wsUrl: res.livekit_ws_url,
-          viewerToken,
+          viewerToken: res.composer_token,
         });
         onPreparedRef.current(res.livestream_id);
       } catch (err) {
