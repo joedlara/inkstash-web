@@ -22,7 +22,6 @@ import StreamShopRail from '../components/livestreams/StreamShopRail';
 import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
-import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -168,7 +167,10 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. The Explore More rail sits beneath on desktop only.
+  // edge-to-edge. The page intentionally does NOT scroll below the stage —
+  // pre-2026-06-05 an ExploreMoreRail lived under here and created a
+  // 900-1500px white band when half-scrolled (the stage scrolled out before
+  // the rail entered the viewport). The stage IS the page.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -178,12 +180,6 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
-      {/* Hidden on mobile (the 3-panel stage is overflow:hidden anyway,
-          but ≤1024 viewports go to a video-only treatment so this rail
-          would feel out of place). */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: -1.5 }}>
-        <ExploreMoreRail excludeId={stream.id} />
-      </Box>
     </AppShell>
   );
 }
@@ -224,9 +220,15 @@ function LiveDesktopStage({
         overflow: 'hidden',
       }}
     >
-      {/* Left: Shop */}
+      {/* Left: Shop — pulls the host's marketplace listings, not the
+          stream queue. Buyer tiles open a Buy modal or add to cart in-
+          stream so the viewer never navigates away. */}
       <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
-        <StreamShopRail livestreamId={stream.id} streamTitle={stream.title} />
+        <StreamShopRail
+          livestreamId={stream.id}
+          hostUserId={stream.host_user_id}
+          streamTitle={stream.title}
+        />
       </Box>
 
       {/* Center: Video card, vertically centered with breathing room */}
