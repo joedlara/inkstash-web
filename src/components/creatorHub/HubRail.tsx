@@ -126,7 +126,7 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
       }}
     >
       {/* Main items */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.25 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, px: '12px' }}>
         {mainItems.map((item) => (
           <RailButton
             key={item.id}
@@ -145,7 +145,7 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
       <Box sx={{ flex: 1 }} />
 
       {/* Bottom block: Settings + collapse toggle */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.25 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, px: '12px' }}>
         {bottomItems.map((item) => (
           <RailButton
             key={item.id}
@@ -190,44 +190,56 @@ function RailButton({
       sx={{
         position: 'relative',
         width: '100%',
-        height: 44,
-        borderRadius: '11px',
+        // Per design (sidebar.css :: .side-item): 9px/12px padding,
+        // 8px radius, 13.5px label. Smaller + lighter than the old
+        // 44px square tile.
+        py: '9px',
+        px: collapsed ? 0 : '12px',
+        borderRadius: '8px',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: collapsed ? 0 : 1.25,
-        px: collapsed ? 0 : 1.5,
+        gap: collapsed ? 0 : '12px',
         border: 0,
         cursor: 'pointer',
         bgcolor: active ? inkstashColors.ink : 'transparent',
-        color: active ? '#fff' : inkstashColors.muted,
+        color: active ? '#fff' : inkstashColors.ink2,
+        textAlign: 'left',
         transition: 'background-color 120ms ease, color 120ms ease',
-        // Crimson accent bar on the right edge on hover only. Active
-        // state uses the black fill alone — per the design's
-        // `.side-item.active { background: var(--ink) }` +
-        // `.side-item.active::after { height: 0 }`. Crimson + black
-        // would compete; ink-only reads as "this is where you are."
+        // Crimson accent bar sits at the SIDEBAR'S right edge (the
+        // nav/page divider), not the button edge. Per design:
+        // `.side-item::after { right: -12px }`. The rail itself has
+        // 12px of horizontal padding, so right: calc(-12px - 1px)
+        // pushes the bar all the way out to align with the
+        // border-right divider line.
         '&::after': {
           content: '""',
           position: 'absolute',
-          right: -1.5,           // sits flush with the rail's borderRight
-          top: 8, bottom: 8,
-          width: 3,
+          right: '-13px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '3px',
+          height: 0,
           borderRadius: '3px 0 0 3px',
-          bgcolor: 'transparent',
-          transition: 'background-color 140ms ease',
+          bgcolor: inkstashColors.brand,
+          transition: 'height 160ms ease',
         },
         '&:hover': active ? {} : {
           bgcolor: inkstashColors.bgSunken,
           color: inkstashColors.ink,
         },
-        '&:hover::after': active ? {} : { bgcolor: inkstashColors.brand },
-        // Tooltip only renders when collapsed (full labels show inline
-        // when expanded).
+        '&:hover::after': active ? {} : { height: collapsed ? '22px' : '20px' },
         '&:hover .hub-rail-tip': { opacity: collapsed ? 1 : 0 },
       }}
     >
-      <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+      <Box sx={{
+        position: 'relative',
+        display: 'inline-flex',
+        flexShrink: 0,
+        // Per design: icon color follows the muted scale when idle,
+        // flips to white on active. Hover inherits via parent.
+        color: active ? '#fff' : inkstashColors.muted,
+      }}>
         {item.icon}
         {attention && (
           <Box
@@ -248,13 +260,14 @@ function RailButton({
           component="span"
           sx={{
             fontFamily: inkstashFonts.ui,
-            fontSize: 13.5,
-            fontWeight: active ? 700 : 600,
+            fontSize: '13.5px',
+            fontWeight: 500,                        // design uses 500, not 600/700
             color: 'inherit',
             letterSpacing: '-0.005em',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            flex: 1,
           }}
         >
           {item.label}
