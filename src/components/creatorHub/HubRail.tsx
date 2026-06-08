@@ -1,10 +1,18 @@
 // src/components/creatorHub/HubRail.tsx
 //
-// Sticky vertical icon rail down the left edge of the Creator Hub.
-// 76px wide. Each button is 48x48 with a 13px radius; the active item
-// flips ink-on-white. A tooltip slides out to the right on hover and a
-// small brand-red dot can flag attention-needed items (Live by default).
+// Sticky vertical nav down the left edge of the Creator Hub. Collapsible
+// (76px icons-only ↔ 240px icons + labels) with an expand toggle at the
+// bottom, mirroring the global AppSidebar pattern. Collapse state
+// persists to localStorage so it sticks across reloads.
+//
+// Per QA 2026-06-08:
+// - the always-on scrollbar + flex spacer "grey column" between the
+//   main items and Settings is gone (the rail has 9 items — it will
+//   never overflow even at small heights)
+// - tabs get more vertical breathing room (gap 12px)
+// - active + hover paint a 3px crimson accent bar on the right edge
 
+import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -16,6 +24,8 @@ import {
   Truck,
   Receipt,
   Settings as SettingsIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
@@ -31,7 +41,7 @@ interface RailItem {
   /** When true, render a brand-red dot in the top-right while inactive
    *  (e.g. when a stream is currently live). */
   attention?: boolean;
-  /** Separated from the main rail by a hairline + spacer (Settings at bottom). */
+  /** Separated from the main rail by a spacer (Settings at bottom). */
   bottom?: boolean;
 }
 
@@ -47,6 +57,10 @@ const ITEMS: RailItem[] = [
   { id: 'settings',  label: 'Settings',     icon: <SettingsIcon size={21} strokeWidth={2.1} />, bottom: true },
 ];
 
+const COLLAPSE_KEY = 'inkstash.creatorhub.rail.collapsed';
+const WIDTH_COLLAPSED = 76;
+const WIDTH_EXPANDED  = 240;
+
 interface Props {
   active: HubTabId;
   onChange: (id: HubTabId) => void;
@@ -55,63 +69,116 @@ interface Props {
   streamLive?: boolean;
 }
 
+/** Public helper for CreatorHub to know the rail's current width so the
+ *  main content offset matches. Reads the same localStorage the rail
+ *  uses. Safe to call before mount. */
+export function getHubRailWidth(): number {
+  if (typeof window === 'undefined') return WIDTH_COLLAPSED;
+  return window.localStorage.getItem(COLLAPSE_KEY) === 'false'
+    ? WIDTH_EXPANDED
+    : WIDTH_COLLAPSED;
+}
+
 export default function HubRail({ active, onChange, streamLive = false }: Props) {
+  // Default collapsed (matches the historical 76px shape). Persisted
+  // across reloads via the same pattern AppSidebar uses.
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem(COLLAPSE_KEY);
+    return stored === null ? true : stored === 'true';
+  });
+  useEffect(() => {
+    window.localStorage.setItem(COLLAPSE_KEY, String(collapsed));
+    // Broadcast so CreatorHub's main offset reacts without a remount.
+    window.dispatchEvent(new CustomEvent('inkstash:hubrail:toggle', {
+      detail: { collapsed, width: collapsed ? WIDTH_COLLAPSED : WIDTH_EXPANDED },
+    }));
+  }, [collapsed]);
+
   const mainItems = ITEMS.filter((i) => !i.bottom);
   const bottomItems = ITEMS.filter((i) => i.bottom);
+  const width = collapsed ? WIDTH_COLLAPSED : WIDTH_EXPANDED;
 
   return (
     <Box
       component="nav"
       sx={{
-        // Pinned to the left side. The page scrolls behind it; only the
-        // rail's own content scrolls when there are too many items to fit.
         position: 'fixed',
         left: 0,
-        top: 60, // sits under the sticky top bar
+        top: 60,
         height: 'calc(100vh - 60px)',
-        width: 76,
+        width,
         bgcolor: inkstashColors.bgElev,
         borderRight: `1px solid ${inkstashColors.border}`,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        py: 1.75,
-        gap: 0.5,
-        overflowY: 'auto',
+        py: 2.5,
+        // No overflow:auto — rail has 9 fixed items; the scrollbar that
+        // appeared on macOS was the cause of the "grey vertical bar"
+        // in QA screenshots. Belt-and-suspenders: hide any incidental
+        // scrollbar too.
+        overflow: 'hidden',
+        '&::-webkit-scrollbar': { display: 'none' },
+        scrollbarWidth: 'none',
+        // Width animates so the rail visibly slides open/closed.
+        transition: 'width 220ms cubic-bezier(0.23, 1, 0.32, 1)',
         zIndex: 40,
       }}
     >
-      {mainItems.map((item) => (
-        <RailButton
-          key={item.id}
-          item={item}
-          active={active === item.id}
-          attention={item.id === 'stream' && streamLive && active !== item.id}
-          onClick={() => onChange(item.id)}
-        />
-      ))}
+      {/* Main items */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.25 }}>
+        {mainItems.map((item) => (
+          <RailButton
+            key={item.id}
+            item={item}
+            active={active === item.id}
+            collapsed={collapsed}
+            attention={item.id === 'stream' && streamLive && active !== item.id}
+            onClick={() => onChange(item.id)}
+          />
+        ))}
+      </Box>
 
+      {/* Spacer fills remaining height so Settings + collapse toggle
+          sit at the bottom. No visible divider line — the old hairline
+          was reading as part of the "grey bar" complaint. */}
       <Box sx={{ flex: 1 }} />
-      <Box sx={{ width: 26, height: 1, bgcolor: inkstashColors.border, my: 1 }} />
 
-      {bottomItems.map((item) => (
+      {/* Bottom block: Settings + collapse toggle */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.25 }}>
+        {bottomItems.map((item) => (
+          <RailButton
+            key={item.id}
+            item={item}
+            active={active === item.id}
+            collapsed={collapsed}
+            onClick={() => onChange(item.id)}
+          />
+        ))}
         <RailButton
-          key={item.id}
-          item={item}
-          active={active === item.id}
-          onClick={() => onChange(item.id)}
+          item={{
+            id: 'settings' as HubTabId, // never active, label is the only thing read
+            label: collapsed ? 'Expand' : 'Collapse',
+            icon: collapsed
+              ? <ChevronRight size={20} strokeWidth={2.2} />
+              : <ChevronLeft size={20} strokeWidth={2.2} />,
+          }}
+          active={false}
+          collapsed={collapsed}
+          onClick={() => setCollapsed((v) => !v)}
         />
-      ))}
+      </Box>
     </Box>
   );
 }
 
 function RailButton({
-  item, active, attention = false, onClick,
+  item, active, attention = false, collapsed, onClick,
 }: {
   item: RailItem;
   active: boolean;
   attention?: boolean;
+  collapsed: boolean;
   onClick: () => void;
 }) {
   return (
@@ -122,63 +189,100 @@ function RailButton({
       aria-current={active ? 'page' : undefined}
       sx={{
         position: 'relative',
-        width: 48,
-        height: 48,
-        borderRadius: '13px',
+        width: '100%',
+        height: 44,
+        borderRadius: '11px',
         display: 'inline-flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: collapsed ? 0 : 1.25,
+        px: collapsed ? 0 : 1.5,
         border: 0,
         cursor: 'pointer',
         bgcolor: active ? inkstashColors.ink : 'transparent',
         color: active ? '#fff' : inkstashColors.muted,
         transition: 'background-color 120ms ease, color 120ms ease',
+        // Crimson accent bar on the right edge for hover + active.
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          right: -1.5,           // sits flush with the rail's borderRight
+          top: 8, bottom: 8,
+          width: 3,
+          borderRadius: '3px 0 0 3px',
+          bgcolor: active ? inkstashColors.brand : 'transparent',
+          transition: 'background-color 140ms ease',
+        },
         '&:hover': active ? {} : {
           bgcolor: inkstashColors.bgSunken,
           color: inkstashColors.ink,
         },
-        '&:hover .hub-rail-tip': { opacity: 1 },
+        '&:hover::after': active ? {} : { bgcolor: inkstashColors.brand },
+        // Tooltip only renders when collapsed (full labels show inline
+        // when expanded).
+        '&:hover .hub-rail-tip': { opacity: collapsed ? 1 : 0 },
       }}
     >
-      {item.icon}
-      {attention && (
-        <Box
+      <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+        {item.icon}
+        {attention && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: -3, right: -3,
+              width: 7, height: 7,
+              borderRadius: '50%',
+              bgcolor: inkstashColors.brand,
+              border: `1.5px solid ${inkstashColors.bgElev}`,
+            }}
+          />
+        )}
+      </Box>
+
+      {!collapsed && (
+        <Typography
+          component="span"
+          sx={{
+            fontFamily: inkstashFonts.ui,
+            fontSize: 13.5,
+            fontWeight: active ? 700 : 600,
+            color: 'inherit',
+            letterSpacing: '-0.005em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {item.label}
+        </Typography>
+      )}
+
+      {collapsed && (
+        <Typography
+          className="hub-rail-tip"
           sx={{
             position: 'absolute',
-            top: 9,
-            right: 9,
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            bgcolor: inkstashColors.brand,
-            border: `1.5px solid ${inkstashColors.bgElev}`,
+            left: 'calc(100% + 10px)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            whiteSpace: 'nowrap',
+            bgcolor: inkstashColors.ink,
+            color: '#fff',
+            fontFamily: inkstashFonts.ui,
+            fontSize: 12,
+            fontWeight: 600,
+            px: 1.25,
+            py: 0.75,
+            borderRadius: 1,
+            opacity: 0,
+            pointerEvents: 'none',
+            transition: 'opacity 120ms ease',
+            zIndex: 60,
           }}
-        />
+        >
+          {item.label}
+        </Typography>
       )}
-      <Typography
-        className="hub-rail-tip"
-        sx={{
-          position: 'absolute',
-          left: 'calc(100% + 10px)',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          whiteSpace: 'nowrap',
-          bgcolor: inkstashColors.ink,
-          color: '#fff',
-          fontFamily: inkstashFonts.ui,
-          fontSize: 12,
-          fontWeight: 600,
-          px: 1.25,
-          py: 0.75,
-          borderRadius: 1,
-          opacity: 0,
-          pointerEvents: 'none',
-          transition: 'opacity 120ms ease',
-          zIndex: 60,
-        }}
-      >
-        {item.label}
-      </Typography>
     </Box>
   );
 }

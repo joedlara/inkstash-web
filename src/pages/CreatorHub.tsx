@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import HubTopBar from '../components/creatorHub/HubTopBar';
-import HubRail, { type HubTabId } from '../components/creatorHub/HubRail';
+import HubRail, { getHubRailWidth, type HubTabId } from '../components/creatorHub/HubRail';
 import OverviewPanel from '../components/creatorHub/panels/OverviewPanel';
 import ShowsPanel from '../components/creatorHub/panels/ShowsPanel';
 import LiveControlPanel from '../components/creatorHub/panels/LiveControlPanel';
@@ -29,6 +29,18 @@ export default function CreatorHub() {
 
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Mirror HubRail's collapse state so the main content offset stays
+  // flush against it as it animates open/closed.
+  const [railWidth, setRailWidth] = useState<number>(() => getHubRailWidth());
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      const detail = (e as CustomEvent<{ width: number }>).detail;
+      if (detail?.width != null) setRailWidth(detail.width);
+    };
+    window.addEventListener('inkstash:hubrail:toggle', onToggle);
+    return () => window.removeEventListener('inkstash:hubrail:toggle', onToggle);
+  }, []);
 
   // Active sellers only. Anyone else gets bounced to /sell where they
   // can start Stripe Connect.
@@ -69,21 +81,33 @@ export default function CreatorHub() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: inkstashColors.bg, color: inkstashColors.ink }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: inkstashColors.bg,
+        color: inkstashColors.ink,
+        // Stops the whole page from horizontally scrolling on certain
+        // breakpoints when a panel's inner content edges past the
+        // viewport — was reported in QA on the Creator Hub.
+        overflowX: 'hidden',
+      }}
+    >
       <HubTopBar
         onCreateShow={openSchedule}
         onOpenSettings={() => setTab('settings')}
         notificationCount={0}
       />
       <HubRail active={tab} onChange={setTab} streamLive={false} />
-      {/* Main offsets pl: 76px so the page content sits to the right of the
-          fixed rail. The whole main area is what scrolls. */}
+      {/* Main offsets to clear the fixed HubRail. Width changes when
+          the rail collapses/expands; we listen for HubRail's broadcast
+          and shift the offset to match (smoothly via CSS transition). */}
       <Box
         component="main"
         sx={{
-          pl: '76px',
+          pl: `${railWidth}px`,
           minWidth: 0,
           minHeight: 'calc(100vh - 60px)',
+          transition: 'padding-left 220ms cubic-bezier(0.23, 1, 0.32, 1)',
         }}
       >
         <Box sx={{ p: { xs: 3, md: '28px 34px 60px' }, maxWidth: 1240 }}>
