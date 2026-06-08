@@ -14,8 +14,11 @@
 // an auction backend writes a winning bidder per item (L2).
 
 import { useEffect, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Snackbar, Typography } from '@mui/material';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { livestreamsAPI } from '../../api/livestreams';
+import { useAuth } from '../../hooks/useAuth';
+import SlideToBid from './SlideToBid';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -31,10 +34,15 @@ interface CurrentItem {
   currentPriceCents: number | null;
   bidCount: number;
   biddingEndsAt: string | null;
+  currentWinnerId: string | null;
 }
 
 export default function CurrentItemBar({ livestreamId }: Props) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
   const [item, setItem] = useState<CurrentItem | null>(null);
+  const [bidding, setBidding] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   // Tick to refresh the countdown display without re-fetching. The
   // realtime row-update broadcast handles the "new bid" case; this
   // just animates the seconds-remaining label between updates.
@@ -43,6 +51,31 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     const id = setInterval(() => setNowTick((n) => n + 1), 500);
     return () => clearInterval(id);
   }, []);
+
+  async function handleBid() {
+    if (!item || bidding) return;
+    setBidding(true);
+    try {
+      await livestreamsAPI.placeBid(item.itemId);
+      // Realtime + 3s polling fallback will refresh priceCents +
+      // biddingEndsAt; no local optimistic update needed.
+    } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('no_card_on_file')) {
+        setToast('Buy any Ruby bundle once to save a card, then come back to bid.');
+      } else if (msg.includes('cannot_self_bid')) {
+        setToast("You can't bid on your own stream.");
+      } else if (msg.includes('bidding_closed')) {
+        setToast('Too late — bidding just closed.');
+      } else if (msg.includes('not_bidding')) {
+        setToast("Bidding isn't open on this item yet.");
+      } else {
+        setToast("Couldn't place your bid — try again.");
+      }
+    } finally {
+      setBidding(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +86,7 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       // by position so the latest entry of the kind wins.
       const { data: items } = await supabase
         .from('livestream_items')
-        .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at')
+        .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at, current_winner_id')
         .eq('livestream_id', livestreamId)
         .in('status', ['sold', 'sold_pending_payment', 'live', 'passed'])
         .order('position', { ascending: false })
@@ -66,7 +99,8 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       type RawStatus = 'sold' | 'sold_pending_payment' | 'live' | 'passed';
       type LIRow = {
         id: string; listing_id: string; status: RawStatus; position: number;
-        current_price_cents: number | null; bid_count: number | null; bidding_ends_at: string | null;
+        current_price_cents: number | null; bid_count: number | null;
+        bidding_ends_at: string | null; current_winner_id: string | null;
       };
       const rows = items as LIRow[];
       const pick = rows.find((r) => r.status === 'live')
@@ -82,7 +116,9 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       if (!listing) { setItem(null); return; }
       const l = listing as { id: string; title: string; buy_now_price: number | null };
       setItem({
-        itemId: l.id,
+        // The id Supabase joined back is the livestream_items id —
+        // store the listing id for display + the item id for bidding.
+        itemId: pick.id,
         title: l.title,
         price: l.buy_now_price,
         // Collapse sold_pending_payment → sold for viewer display.
@@ -90,6 +126,7 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         currentPriceCents: pick.current_price_cents,
         bidCount: pick.bid_count ?? 0,
         biddingEndsAt: pick.bidding_ends_at,
+        currentWinnerId: pick.current_winner_id,
       });
     }
 
@@ -124,6 +161,8 @@ export default function CurrentItemBar({ livestreamId }: Props) {
   const displayCents = item.currentPriceCents
     ?? Math.round(Number(item.price ?? 1) * 100);
   const displayPriceLabel = `$${(displayCents / 100).toFixed(2).replace(/\.00$/, '')}`;
+  const nextBidLabel = `$${((displayCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
+  const isWinning = !!viewerId && item.currentWinnerId === viewerId;
 
   const statusLabel = item.status === 'sold' ? 'Sold'
     : bidActive ? `Bidding · ${secondsRemaining}s`
@@ -251,6 +290,33 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           </Typography>
         </Box>
       </Box>
+
+      {/* Slide-to-bid pill — only renders while bidding is active.
+          Sits beneath the item info row inside the same overlay so
+          the bid surface is paired visually with the price + status
+          it's bidding on. isWinning paints a green hint via the
+          label so the viewer knows they're ahead without parsing
+          the winner id. */}
+      {bidActive && (
+        <Box sx={{ mt: 1.5 }}>
+          <SlideToBid
+            label={isWinning
+              ? `You're winning — Bid ${nextBidLabel} again`
+              : `Bid ${nextBidLabel}`}
+            onConfirm={handleBid}
+            disabled={false}
+            busy={bidding}
+          />
+        </Box>
+      )}
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={4000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        message={toast ?? ''}
+      />
     </Box>
   );
 }
