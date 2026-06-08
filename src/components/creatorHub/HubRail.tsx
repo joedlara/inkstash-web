@@ -100,6 +100,7 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
   const width = collapsed ? WIDTH_COLLAPSED : WIDTH_EXPANDED;
 
   return (
+    <>
     <Box
       component="nav"
       sx={{
@@ -113,14 +114,13 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
         display: 'flex',
         flexDirection: 'column',
         py: 2.5,
-        // No overflow:auto — rail has 9 fixed items; the scrollbar that
-        // appeared on macOS was the cause of the "grey vertical bar"
-        // in QA screenshots. Belt-and-suspenders: hide any incidental
-        // scrollbar too.
-        overflow: 'hidden',
+        // Vertical-only clip. Horizontal stays visible so the floating
+        // collapse toggle below (rendered outside this Box) can sit
+        // half-off the right edge without being chopped.
+        overflowY: 'hidden',
+        overflowX: 'visible',
         '&::-webkit-scrollbar': { display: 'none' },
         scrollbarWidth: 'none',
-        // Width animates so the rail visibly slides open/closed.
         transition: 'width 220ms cubic-bezier(0.23, 1, 0.32, 1)',
         zIndex: 40,
       }}
@@ -169,39 +169,52 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
       {/* Floating circular collapse toggle. Anchored to the bottom of
           the rail's right edge so it visually pairs with the Settings
           cog without taking up a tab row. half-off the edge per design. */}
-      <Box
-        component="button"
-        onClick={() => setCollapsed((v) => !v)}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          right: '-14px',         // half-off the rail's right border
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: inkstashColors.bgElev,
-          border: `1px solid ${inkstashColors.border}`,
-          color: inkstashColors.muted,
-          cursor: 'pointer',
-          boxShadow: '0 1px 2px rgba(22,17,14,0.06), 0 1px 0 rgba(22,17,14,0.03)',
-          zIndex: 5,
-          transition: 'color 120ms ease, background-color 120ms ease',
-          '&:hover': {
-            color: inkstashColors.ink,
-            bgcolor: inkstashColors.bg,
-          },
-          '&:active': { transform: 'scale(0.94)' },
-        }}
-      >
-        {collapsed
-          ? <ChevronRight size={15} strokeWidth={2.2} />
-          : <ChevronLeft size={15} strokeWidth={2.2} />}
-      </Box>
     </Box>
+
+    {/* Floating collapse toggle. Lives OUTSIDE the nav Box so it
+        isn't constrained by any clipping. Fixed-positioned so it
+        slides as the rail's width changes (rail itself transitions
+        width, the chevron's `left` transitions with it). Vertically
+        aligned with the Settings cog. */}
+    <Box
+      component="button"
+      onClick={() => setCollapsed((v) => !v)}
+      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      sx={{
+        position: 'fixed',
+        // Center of the toggle sits ON the rail's right border. The
+        // rail is at left:0 with width=`width`, so the border is at
+        // x=width. half-off → left = width - 14.
+        left: `${width - 14}px`,
+        // Settings cog vertical center: nav py-2.5 (20) from bottom,
+        // then the cog tab is ~38px tall; its center is ~20 + 19 = 39
+        // from the bottom of the rail.
+        bottom: 'calc(20px + 19px - 14px)',  // -14 to center the 28px circle
+        width: 28,
+        height: 28,
+        borderRadius: '50%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: inkstashColors.bgElev,
+        border: `1px solid ${inkstashColors.border}`,
+        color: inkstashColors.muted,
+        cursor: 'pointer',
+        boxShadow: '0 1px 2px rgba(22,17,14,0.06), 0 1px 0 rgba(22,17,14,0.03)',
+        zIndex: 45,
+        transition: 'color 120ms ease, background-color 120ms ease, left 220ms cubic-bezier(0.23, 1, 0.32, 1)',
+        '&:hover': {
+          color: inkstashColors.ink,
+          bgcolor: inkstashColors.bg,
+        },
+        '&:active': { transform: 'scale(0.94)' },
+      }}
+    >
+      {collapsed
+        ? <ChevronRight size={15} strokeWidth={2.2} />
+        : <ChevronLeft size={15} strokeWidth={2.2} />}
+    </Box>
+    </>
   );
 }
 
@@ -257,9 +270,12 @@ function RailButton({
           bgcolor: inkstashColors.brand,
           transition: 'height 160ms ease',
         },
+        // Hover paints crimson on idle tabs (matches the right-edge
+        // accent bar). On active tabs hover is a no-op so the black
+        // fill never flickers to a different color mid-transition.
         '&:hover': active ? {} : {
-          bgcolor: inkstashColors.bgSunken,
-          color: inkstashColors.ink,
+          bgcolor: inkstashColors.brandSoft,
+          color: inkstashColors.brand,
         },
         '&:hover::after': active ? {} : { height: collapsed ? '22px' : '20px' },
         '&:hover .hub-rail-tip': { opacity: collapsed ? 1 : 0 },
@@ -269,9 +285,11 @@ function RailButton({
         position: 'relative',
         display: 'inline-flex',
         flexShrink: 0,
-        // Per design: icon color follows the muted scale when idle,
-        // flips to white on active. Hover inherits via parent.
-        color: active ? '#fff' : inkstashColors.muted,
+        // Idle: muted gray. Active: white. Hover: inherits the parent
+        // button's color (crimson on idle hover, white on active hover-
+        // no-op). 'inherit' from the parent's color cascade handles
+        // the hover transition for us.
+        color: active ? '#fff' : 'inherit',
       }}>
         {item.icon}
         {attention && (
