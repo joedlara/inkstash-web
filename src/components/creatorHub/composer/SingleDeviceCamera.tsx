@@ -84,6 +84,10 @@ export default function SingleDeviceCamera({
           title,
           description: description ?? undefined,
           cover_image_url: coverImageUrl,
+          // Prepare-only: row stays 'preparing' so it doesn't appear
+          // on /live before the host hits Publish. Composer calls
+          // goLive() on Publish to flip to 'live', same as dual-device.
+          prepare_single_device: true,
         });
         window.clearTimeout(timeoutId);
         if (cancelled) {
@@ -112,18 +116,22 @@ export default function SingleDeviceCamera({
   }, [attempt]);
 
   // Component-level cleanup: if the user closes the composer without
-  // hitting Publish, soft-delete the row so the seller's Past Shows
-  // list doesn't fill up with abandoned attempts. Note: start() flips
-  // to 'live' immediately, so we end-livestream rather than delete
-  // (delete on a live row would orphan the LiveKit room).
+  // hitting Publish, soft-delete the prepared row so the seller's
+  // Past Shows list doesn't fill up with abandoned attempts. The row
+  // is in 'preparing' state (start was called with
+  // prepare_single_device:true), so delete is the right cleanup —
+  // it never went live and there's no LiveKit room to orphan.
   useEffect(() => {
     return () => {
       const rowId = preparedRowRef.current;
       if (!rowId || publishedRef.current) return;
-      // Best-effort end. If it fails (network drop on tab close) the
-      // listMyShows filter on started_at + no items still treats it as
-      // a quick test stream — not ideal but not corrupting.
-      livestreamsAPI.end(rowId).catch(() => { /* swallow */ });
+      supabase
+        .from('livestreams')
+        .delete()
+        .eq('id', rowId)
+        .eq('status', 'preparing')
+        .is('started_at', null)
+        .then(() => { /* swallow */ }, () => { /* swallow */ });
     };
   }, []);
 

@@ -244,6 +244,10 @@ export const livestreamsAPI = {
     cover_image_url?: string;
     scheduled_start_at?: string | null;
     queue?: string[];
+    /** Single-device flow: hold at 'preparing' until Publish, but
+     *  return a host publish token so the composer can preview the
+     *  camera. Composer calls goLive() on Publish. */
+    prepare_single_device?: boolean;
   }) => callFn<StartResponse>('start-livestream', body),
 
   join: (livestream_id: string) =>

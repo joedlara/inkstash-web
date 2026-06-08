@@ -177,12 +177,10 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
             console.warn(`[GoLiveComposer] ${result.failed}/${items.length} lots failed to persist`);
           }
         }
-        // Dual-device: row is 'preparing', flip to 'live'.
-        // Single-device: start() already flipped to 'live' on prepare,
-        // so goLive would be a no-op or error. Skip it.
-        if (cameraMode === 'dual') {
-          await livestreamsAPI.goLive(preparedId);
-        }
+        // Both modes use prepare-only semantics now (row stays
+        // 'preparing' until the host hits Publish). Flip to 'live'
+        // here so the row doesn't appear on /live before Publish.
+        await livestreamsAPI.goLive(preparedId);
         // Tell Step 4 the row is now a real, live stream so its
         // unmount cleanup doesn't delete/end it.
         setPublished(true);

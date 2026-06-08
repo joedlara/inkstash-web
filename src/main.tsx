@@ -1,5 +1,13 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { setLogLevel, LogLevel } from 'livekit-client';
+
+// Silence LiveKit SDK's default chatter (Connecting…, ParticipantJoined,
+// TrackSubscribed, ICE candidates, etc). Keeps real failures visible —
+// warn surfaces e.g. ConnectionError / publish errors but cuts the
+// per-second status spam that was making console errors hard to find.
+setLogLevel(LogLevel.warn);
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';

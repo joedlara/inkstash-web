@@ -32,6 +32,11 @@ interface RequestBody {
    *  the stream to 'live' via go-live-livestream after the phone is
    *  paired and publishing. */
   prepare_dual_device?: boolean
+  /** Single-device flow (phone is the camera): hold at 'preparing' so
+   *  the row doesn't show up on /live before Publish, BUT mint a host
+   *  publish token so the composer can preview the device's own camera.
+   *  Composer calls go-live-livestream on Publish, same as dual-device. */
+  prepare_single_device?: boolean
 }
 
 function shortId(): string {
@@ -91,10 +96,12 @@ serve(async (req) => {
     // broadcast experience at the scheduled moment.
     const scheduledAt = body.scheduled_start_at ? new Date(body.scheduled_start_at) : null
     const isScheduledFuture = scheduledAt && scheduledAt.getTime() > Date.now()
-    // Dual-device: composer keeps the stream in 'preparing' until the
-    // phone is paired AND the composer hits go-live-livestream. Treat
-    // scheduled-future the same way (always 'preparing').
-    const initialStatus = (body.prepare_dual_device || isScheduledFuture) ? 'preparing' : 'live'
+    // Stream stays at 'preparing' for any prepare-only flow (dual-
+    // device, single-device, or scheduled-future). Composer flips to
+    // 'live' on Publish via go-live-livestream so streams never appear
+    // on /live before the host commits.
+    const isPrepareOnly = body.prepare_dual_device || body.prepare_single_device || isScheduledFuture
+    const initialStatus = isPrepareOnly ? 'preparing' : 'live'
     const startedAt = initialStatus === 'live' ? new Date().toISOString() : null
     // Mint a short pair token for dual-device. URL-safe, ~64 bits of
     // entropy — enough to make a guess practically impossible inside
