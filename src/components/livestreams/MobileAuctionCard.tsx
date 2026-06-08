@@ -22,6 +22,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
+import SlideToBid from './SlideToBid';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -178,6 +179,24 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   const priceLabel = `$${(item.priceCents / 100).toFixed(2).replace(/\.00$/, '')}`;
   const nextBidLabel = `$${((item.priceCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
 
+  // After the wallet drawer reports a card was added, retry the bid
+  // we just rejected. The pendingBidItemIdRef holds the itemId from
+  // the failing attempt — if it doesn't match the current on-block
+  // item by the time the user finishes adding their card, the user
+  // most likely moved on, so we skip the auto-retry.
+  const pendingBidItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const onCardReady = () => {
+      const pending = pendingBidItemIdRef.current;
+      pendingBidItemIdRef.current = null;
+      if (!pending || pending !== item?.itemId) return;
+      handleBid();
+    };
+    window.addEventListener('inkstash:wallet-card-ready', onCardReady);
+    return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.itemId]);
+
   async function handleBid() {
     if (bidding || !bidActive) return;
     setBidding(true);
@@ -188,7 +207,12 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
-        setToast('Buy any Ruby bundle once to save a card, then come back to bid.');
+        // Stash the item we wanted to bid on so we can auto-retry
+        // once the wallet drawer reports a card was saved.
+        pendingBidItemIdRef.current = item!.itemId;
+        window.dispatchEvent(new CustomEvent('inkstash:open-wallet', {
+          detail: { autoOpenAddCard: true },
+        }));
       } else if (msg.includes('cannot_self_bid')) {
         setToast("You can't bid on your own stream.");
       } else if (msg.includes('bidding_closed')) {
@@ -297,13 +321,12 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         </ButtonBase>
 
         {expanded && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.5, pb: 1.25 }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1.25,
-              px: 1.5,
-              pb: 1.25,
             }}
           >
             <Box
@@ -363,32 +386,32 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                 )}
               </Typography>
             </Box>
-            <ButtonBase
-              onClick={(e) => { e.stopPropagation(); handleBid(); }}
-              disabled={!bidActive || bidding}
-              sx={{
-                px: 1.75,
-                py: 0.85,
-                borderRadius: 999,
-                bgcolor: bidActive ? inkstashColors.brand : 'rgba(255,255,255,0.16)',
-                color: '#fff',
-                fontFamily: inkstashFonts.ui,
-                fontSize: 12.5,
-                fontWeight: 800,
-                lineHeight: 1,
-                flexShrink: 0,
-                transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-                '&:hover': {
-                  bgcolor: bidActive ? inkstashColors.brandDeep : 'rgba(255,255,255,0.22)',
-                },
-                '&:active': { transform: 'scale(0.97)' },
-                '&.Mui-disabled': { opacity: 0.55, color: '#fff' },
-              }}
-            >
-              {bidActive
-                ? (bidding ? '…' : `Bid ${nextBidLabel}`)
-                : 'Bid'}
-            </ButtonBase>
+          </Box>
+
+          {/* Slide-to-bid pill — full width below the lot info.
+              When the viewer is the current high bidder, swap the
+              slider for a "You're the highest bidder" lock so they
+              can't outbid themselves. Re-enables the moment
+              someone else bids. */}
+          {bidActive && isWinning ? (
+            <Box sx={{
+              py: 1.25, px: 2, borderRadius: 999,
+              bgcolor: 'rgba(46,111,79,0.85)',
+              color: '#fff',
+              fontFamily: inkstashFonts.ui,
+              fontSize: 13, fontWeight: 700,
+              textAlign: 'center',
+            }}>
+              You're the highest bidder. Wait for someone else to bid.
+            </Box>
+          ) : (
+            <SlideToBid
+              label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
+              onConfirm={handleBid}
+              disabled={!bidActive}
+              busy={bidding}
+            />
+          )}
           </Box>
         )}
       </Box>

@@ -29,7 +29,7 @@ interface Props {
 
 interface ActiveStream {
   stream: Livestream;
-  livekit: { token: string; wsUrl: string };
+  livekit: { token: string; wsUrl: string; isHost: boolean };
 }
 
 interface QueueRow {
@@ -143,14 +143,19 @@ function EmptyState({ onGoLive }: { onGoLive: () => void }) {
 
 function LiveSurface({ active }: { active: ActiveStream }) {
   const { stream, livekit } = active;
-  // On mobile the host IS the camera (single-device flow). Subscribing
-  // to the room as a viewer from the SAME device that's publishing
-  // either echoes itself or shows a black frame because the LiveKit
-  // SDK can't render its own publisher track via viewer subscription.
-  // Skip the subscribed preview on mobile and show a "broadcasting
-  // from this device" placeholder instead.
+  // On mobile single-device, this panel IS the camera. The composer's
+  // publisher track dies the moment the modal closes (component
+  // unmounts → LiveKit disconnects), so the Live Control surface has
+  // to take over publishing — otherwise viewers see a dead stream.
+  // join-livestream detects when the requester is the host and mints
+  // a publish-capable token; we use that to mount LiveStreamVideo in
+  // host mode here, which keeps the camera alive for the full session.
+  // Desktop hosts use dual-device (phone publishes from /live/host),
+  // so the laptop joins as a viewer and the in-room preview works
+  // normally.
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const videoMode: 'host' | 'viewer' = isMobile && livekit.isHost ? 'host' : 'viewer';
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   // Stub toast for Add/Edit affordances. The real editor surface lives
@@ -482,51 +487,28 @@ function LiveSurface({ active }: { active: ActiveStream }) {
               bgcolor: inkstashColors.stage,
               overflow: 'hidden',
             }}>
-              {isMobile ? (
-                // Single-device host: the phone is the camera AND
-                // the producer surface. We can't subscribe to our own
-                // publisher track (black frame), so show a friendly
-                // placeholder that confirms the broadcast is live.
-                // The actual camera is publishing from a sibling tab
-                // OR — more commonly — the host page that was opened
-                // when the composer Published.
+              <LiveStreamVideo
+                wsUrl={livekit.wsUrl}
+                token={livekit.token}
+                mode={videoMode}
+                onParticipantCountChange={videoMode === 'viewer' ? setViewerCount : undefined}
+              />
+              {videoMode === 'host' && (
+                // Tiny corner badge so the mobile host knows their
+                // device is broadcasting (no self-preview confusion
+                // — they see their own camera output and that means
+                // it's working).
                 <Box sx={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 1.5,
-                  color: 'rgba(255,255,255,0.7)',
-                  textAlign: 'center', px: 3,
+                  position: 'absolute', top: 12, right: 12, zIndex: 3,
+                  display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                  px: 1, py: '4px', borderRadius: 999,
+                  bgcolor: 'rgba(0,0,0,0.55)', color: '#fff',
+                  fontFamily: inkstashFonts.mono, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
                 }}>
-                  <Box sx={{
-                    width: 56, height: 56, borderRadius: '50%',
-                    bgcolor: inkstashColors.brand,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 0 0 4px rgba(220,38,38,0.25), 0 0 0 12px rgba(220,38,38,0.1)',
-                    animation: 'lc-pulse 2s ease-in-out infinite',
-                  }}>
-                    <Radio size={26} strokeWidth={2.2} color="#fff" />
-                  </Box>
-                  <Box sx={{
-                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 18,
-                    color: '#fff', textTransform: 'uppercase', letterSpacing: '0.02em',
-                  }}>
-                    Broadcasting
-                  </Box>
-                  <Box sx={{
-                    fontFamily: inkstashFonts.ui, fontSize: 12.5,
-                    color: 'rgba(255,255,255,0.7)', maxWidth: 260, lineHeight: 1.5,
-                  }}>
-                    This device is the camera. Keep the broadcast tab
-                    open in the background to stay live.
-                  </Box>
+                  <Smartphone size={11} strokeWidth={2.6} />
+                  This device
                 </Box>
-              ) : (
-                <LiveStreamVideo
-                  wsUrl={livekit.wsUrl}
-                  token={livekit.token}
-                  mode="viewer"
-                  onParticipantCountChange={setViewerCount}
-                />
               )}
               {/* ON AIR */}
               <Box sx={{

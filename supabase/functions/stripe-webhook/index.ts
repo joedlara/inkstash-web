@@ -4,6 +4,10 @@
 //   - payment_intent.succeeded → handlePaymentIntentSucceeded
 //       → creditRubyBundle (payment_type='ruby_bundle' or legacy intents)
 //       → openVendorPack   (payment_type='vendor_pack')
+//   - setup_intent.succeeded → handleSetupIntentSucceeded
+//       → saves the card to public.user_payment_methods (fingerprint
+//         dedupe matches the PaymentIntent path) so viewers who add a
+//         card via the in-stream WalletDrawer can immediately bid.
 //   - account.updated → handleAccountUpdated (flips vendor status to 'active'
 //       once Connect onboarding completes)
 //
@@ -73,12 +77,116 @@ serve(async (req) => {
     return await handlePaymentIntentSucceeded(event, stripe, serviceClient, supabaseUrl, serviceRoleKey)
   }
 
+  if (event.type === 'setup_intent.succeeded') {
+    return await handleSetupIntentSucceeded(event, stripe, serviceClient)
+  }
+
   if (event.type === 'account.updated') {
     return await handleAccountUpdated(event, serviceClient)
   }
 
   return new Response('ok', { status: 200 })
 })
+
+// SetupIntent path: viewer added a card via the in-stream WalletDrawer
+// (no purchase). Save the card to user_payment_methods using the same
+// fingerprint-dedupe logic as the PaymentIntent path. Resolves user
+// from the SetupIntent's metadata.supabase_user_id (set by
+// create-setup-intent) and falls back to the Stripe Customer's
+// metadata if needed.
+async function handleSetupIntentSucceeded(
+  event: Stripe.Event,
+  stripe: Stripe,
+  serviceClient: ReturnType<typeof createClient>,
+): Promise<Response> {
+  const setupIntent = event.data.object as Stripe.SetupIntent
+
+  let userId = setupIntent.metadata?.supabase_user_id ?? null
+  if (!userId && setupIntent.customer) {
+    const customerId = typeof setupIntent.customer === 'string'
+      ? setupIntent.customer
+      : setupIntent.customer.id
+    try {
+      const customer = await stripe.customers.retrieve(customerId)
+      if (customer && !customer.deleted) {
+        userId = (customer as Stripe.Customer).metadata?.supabase_user_id ?? null
+      }
+    } catch (err) {
+      console.warn('[stripe-webhook] setup_intent: customer retrieve failed', err)
+    }
+  }
+  if (!userId) {
+    console.error('[stripe-webhook] setup_intent missing supabase_user_id', setupIntent.id)
+    return new Response('ok', { status: 200 }) // ack but skip
+  }
+
+  const paymentMethodId = typeof setupIntent.payment_method === 'string'
+    ? setupIntent.payment_method
+    : setupIntent.payment_method?.id
+  if (!paymentMethodId) {
+    console.warn('[stripe-webhook] setup_intent has no payment_method', setupIntent.id)
+    return new Response('ok', { status: 200 })
+  }
+
+  try {
+    const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
+    const card = pm.card
+    if (!card) return new Response('ok', { status: 200 })
+    const fingerprint = card.fingerprint ?? null
+
+    let existing: { id: string; is_default: boolean } | null = null
+    if (fingerprint) {
+      const { data } = await serviceClient
+        .from('user_payment_methods')
+        .select('id, is_default')
+        .eq('user_id', userId)
+        .eq('card_fingerprint', fingerprint)
+        .maybeSingle()
+      existing = data as { id: string; is_default: boolean } | null
+    }
+
+    if (existing) {
+      const { error: updateErr } = await serviceClient
+        .from('user_payment_methods')
+        .update({
+          stripe_payment_method_id: paymentMethodId,
+          card_brand: card.brand,
+          card_last4: card.last4,
+          exp_month: card.exp_month,
+          exp_year: card.exp_year,
+        })
+        .eq('id', existing.id)
+      if (updateErr) console.error('[stripe-webhook] setup_intent: refresh pm failed', updateErr)
+      return new Response('ok', { status: 200 })
+    }
+
+    const { count } = await serviceClient
+      .from('user_payment_methods')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    const isFirstCard = (count ?? 0) === 0
+
+    const { error: pmError } = await serviceClient
+      .from('user_payment_methods')
+      .insert({
+        user_id: userId,
+        stripe_payment_method_id: paymentMethodId,
+        card_brand: card.brand,
+        card_last4: card.last4,
+        exp_month: card.exp_month,
+        exp_year: card.exp_year,
+        card_fingerprint: fingerprint,
+        is_default: isFirstCard,
+      })
+    if (pmError && pmError.code !== '23505') {
+      console.error('[stripe-webhook] setup_intent: save pm failed', pmError)
+    }
+  } catch (err) {
+    console.error('[stripe-webhook] setup_intent: retrieve pm failed', err)
+  }
+  return new Response('ok', { status: 200 })
+}
+
 
 async function handlePaymentIntentSucceeded(
   event: Stripe.Event,

@@ -4,7 +4,7 @@
 // floating popover anchored to itself (not a full-width bottom drawer)
 // so the popover never blocks the camera feed.
 
-import { forwardRef, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Box, Typography, ButtonBase, Tooltip } from '@mui/material';
 import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucide-react';
 import ShareDrawer from './ShareDrawer';
@@ -21,13 +21,38 @@ type PopoverKey = 'more' | 'share' | 'wallet' | null;
 
 export default function RightRailActions({ streamTitle, streamUrl }: Props) {
   const [open, setOpen] = useState<PopoverKey>(null);
+  const [walletAutoAddCard, setWalletAutoAddCard] = useState(false);
   // One ref per button so each popover can anchor to the exact chip the
   // user tapped instead of all anchoring to the rail wrapper.
   const shareRef = useRef<HTMLButtonElement | null>(null);
   const walletRef = useRef<HTMLButtonElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
 
-  const close = () => setOpen(null);
+  // The auction bid widgets live elsewhere in the tree (CurrentItemBar,
+  // MobileAuctionCard). When a bid hits 'no_card_on_file' we want this
+  // wallet popover to pop open AND jump straight to the add-card form.
+  // A window CustomEvent keeps the bid widgets decoupled from this
+  // sidebar without a global store.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ autoOpenAddCard?: boolean }>).detail;
+      setWalletAutoAddCard(!!detail?.autoOpenAddCard);
+      setOpen('wallet');
+    };
+    window.addEventListener('inkstash:open-wallet', onOpen);
+    return () => window.removeEventListener('inkstash:open-wallet', onOpen);
+  }, []);
+
+  const close = () => {
+    setOpen(null);
+    setWalletAutoAddCard(false);
+  };
+
+  const onCardReady = () => {
+    // Broadcast so the bid widget that triggered the wallet open can
+    // retry place-bid without the user having to drag the slider again.
+    window.dispatchEvent(new CustomEvent('inkstash:wallet-card-ready'));
+  };
 
   return (
     <>
@@ -84,6 +109,8 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
         open={open === 'wallet'}
         onClose={close}
         anchorEl={walletRef.current}
+        autoOpenAddCard={walletAutoAddCard}
+        onCardReady={onCardReady}
       />
       <MoreDrawer
         open={open === 'more'}

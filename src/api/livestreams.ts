@@ -51,6 +51,33 @@ interface JoinResponse {
   is_banned: boolean;
 }
 
+// supabase.functions.invoke wraps non-2xx responses in a
+// FunctionsHttpError whose `error.message` is the generic "Edge
+// Function returned a non-2xx status code" — the actual `{ error:
+// 'no_card_on_file' }` body is stashed on `error.context` as a Response.
+// Without parsing that body we can't surface real error codes to the
+// UI; everything collapses into a useless generic toast.
+async function extractFnError(error: unknown): Promise<Error> {
+  const ctx = (error as { context?: Response | { body?: unknown } } | null)?.context;
+  if (ctx && typeof (ctx as Response).text === 'function') {
+    try {
+      const txt = await (ctx as Response).text();
+      if (txt) {
+        try {
+          const parsed = JSON.parse(txt) as { error?: string };
+          if (parsed?.error) {
+            const e = new Error(parsed.error);
+            e.name = parsed.error;
+            return e;
+          }
+        } catch { /* not JSON; fall through */ }
+      }
+    } catch { /* body already consumed; fall through */ }
+  }
+  const msg = (error as { message?: string })?.message ?? 'Edge function failed';
+  return new Error(msg);
+}
+
 async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not logged in.');
@@ -58,7 +85,7 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
     body,
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await extractFnError(error);
   if (data?.error) {
     const e = new Error(data.error);
     e.name = data.error;
@@ -74,7 +101,7 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
  *  request through; the function itself does its own validation. */
 async function callPublicFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
-  if (error) throw new Error(error.message);
+  if (error) throw await extractFnError(error);
   if (data?.error) {
     const e = new Error(data.error);
     e.name = data.error;
@@ -309,7 +336,7 @@ export const livestreamsAPI = {
    *  the laptop can join its own stream as a viewer (the phone is the
    *  camera; the laptop is the control surface). */
   async getMyActiveStream(host_user_id: string): Promise<
-    | { stream: Livestream; livekit: { token: string; wsUrl: string } }
+    | { stream: Livestream; livekit: { token: string; wsUrl: string; isHost: boolean } }
     | null
   > {
     const { data, error } = await supabase
@@ -323,15 +350,22 @@ export const livestreamsAPI = {
     if (error || !data) return null;
     const row = data as Livestream;
     try {
-      // join() is buyer-side viewer join — chat history isn't needed by
-      // the producer surface, but the token + wsUrl are. We drop the rest.
-      const join = await callFn<{ livekit_token: string; livekit_ws_url: string }>(
-        'join-livestream', { livestream_id: row.id },
-      );
+      // join-livestream now detects when the requester IS the host and
+      // mints a publish-capable token automatically. The Creator Hub
+      // uses that token on mobile single-device to keep the camera
+      // alive after the composer closes — otherwise the publisher
+      // dies with the composer modal and viewers see a dead stream.
+      const join = await callFn<{
+        livekit_token: string; livekit_ws_url: string; is_host?: boolean;
+      }>('join-livestream', { livestream_id: row.id });
       const hydrated = await hydrateHosts([row]);
       return {
         stream: hydrated[0],
-        livekit: { token: join.livekit_token, wsUrl: join.livekit_ws_url },
+        livekit: {
+          token: join.livekit_token,
+          wsUrl: join.livekit_ws_url,
+          isHost: !!join.is_host,
+        },
       };
     } catch (err) {
       console.warn('[livestreamsAPI.getMyActiveStream] join failed', err);
@@ -351,7 +385,13 @@ export const livestreamsAPI = {
       .order('scheduled_start_at', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false, nullsFirst: false });
     if (error) {
-      console.error('[livestreamsAPI.listMyShows] failed', error);
+      // "Load failed" / network errors happen when the tab is
+      // backgrounded mid-fetch (Safari aggressively cancels). The
+      // hook will retry on next render so we don't need a noisy
+      // console.error for transient failures — just bail with empty
+      // and let the next mount/poll resolve it.
+      const transient = /load failed|network|cancelled|abort/i.test(error.message ?? '');
+      if (!transient) console.error('[livestreamsAPI.listMyShows] failed', error);
       return { upcoming: [], past: [] };
     }
     const all = await hydrateHosts((data ?? []) as Livestream[]);

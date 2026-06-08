@@ -78,7 +78,7 @@ serve(async (req) => {
         // different mode (test vs live) or has been deleted on
         // Stripe's side. Either way, the buyer effectively has no
         // usable card — treat it the same as no-card-on-file so
-        // the client surfaces the "buy a Ruby bundle once" prompt
+        // the client surfaces the "add a card in settings" prompt
         // instead of an opaque 500.
         const code = (stripeErr as { code?: string })?.code
         console.warn('[place-bid] stripe pm.list failed', code, (stripeErr as Error).message)

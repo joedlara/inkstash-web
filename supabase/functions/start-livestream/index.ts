@@ -178,9 +178,10 @@ serve(async (req) => {
     // Generate a LiveKit token with publish permissions. Append a random
     // suffix to the identity so a tab refresh (or same user opening the host
     // page twice) doesn't trigger LiveKit's DUPLICATE_IDENTITY kick. The
-    // real user_id is still captured via the AccessToken `name` field and the
-    // livestreams.host_user_id column for any reporting.
-    const identity = `${user.id}#${crypto.randomUUID().slice(0, 8)}`
+    // `#host-` infix lets the viewer count filter exclude the broadcaster
+    // (matches isInfrastructure() in LiveStreamVideo). Without it the host
+    // gets counted as a viewer and the "Watching" badge inflates by 1.
+    const identity = `${user.id}#host-${crypto.randomUUID().slice(0, 8)}`
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
       identity,
       name: (userRow as { username?: string }).username ?? user.email ?? 'host',
