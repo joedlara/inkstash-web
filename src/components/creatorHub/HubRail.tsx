@@ -202,7 +202,11 @@ function RailButton({
         bgcolor: active ? inkstashColors.ink : 'transparent',
         color: active ? '#fff' : inkstashColors.muted,
         transition: 'background-color 120ms ease, color 120ms ease',
-        // Crimson accent bar on the right edge for hover + active.
+        // Crimson accent bar on the right edge on hover only. Active
+        // state uses the black fill alone — per the design's
+        // `.side-item.active { background: var(--ink) }` +
+        // `.side-item.active::after { height: 0 }`. Crimson + black
+        // would compete; ink-only reads as "this is where you are."
         '&::after': {
           content: '""',
           position: 'absolute',
@@ -210,7 +214,7 @@ function RailButton({
           top: 8, bottom: 8,
           width: 3,
           borderRadius: '3px 0 0 3px',
-          bgcolor: active ? inkstashColors.brand : 'transparent',
+          bgcolor: 'transparent',
           transition: 'background-color 140ms ease',
         },
         '&:hover': active ? {} : {
