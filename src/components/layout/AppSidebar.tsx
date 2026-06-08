@@ -83,7 +83,18 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         )}
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '14px 12px' }}>
+      <Box sx={{
+        flex: 1,
+        overflowY: 'auto',
+        // No horizontal scroll inside the sidebar — long labels
+        // ellipsis instead.
+        overflowX: 'hidden',
+        padding: collapsed ? '12px 8px' : '14px 12px',
+        // Belt-and-suspenders: hide the vertical scrollbar too so
+        // overflow handling doesn't paint a thumb on iOS Safari.
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': { display: 'none' },
+      }}>
         {appSidebarPrimary.map(item => {
           const Icon = item.icon;
           return (
