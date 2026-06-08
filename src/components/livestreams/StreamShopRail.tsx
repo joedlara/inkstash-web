@@ -11,13 +11,12 @@
 // price inventory from the same seller while watching the stream.
 
 import { useEffect, useState } from 'react';
-import { Box, TextField, Chip, Typography, ButtonBase, IconButton } from '@mui/material';
-import { Search, ShoppingCart } from 'lucide-react';
+import { Box, TextField, Chip, Typography, ButtonBase, Snackbar } from '@mui/material';
+import { Bookmark, Search } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { inkstashColors, inkstashRadii, inkstashFonts } from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 import CheckoutListingModal, { type CheckoutListingModalListing } from '../checkout/CheckoutListingModal';
-import { useCart } from '../../contexts/CartContext';
 
 interface Props {
   /** The viewer's current livestream id. Used only for the channel name
@@ -45,8 +44,19 @@ export default function StreamShopRail({ livestreamId, hostUserId, streamTitle }
   const [listings, setListings] = useState<ShopListing[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<ShopListing | null>(null);
-  const { addItem } = useCart();
-  const [addingId, setAddingId] = useState<string | null>(null);
+  // Bookmark stub — local-only toggle until a favorites table ships.
+  // Resets on page reload by design; the toast confirms the intent.
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<string | null>(null);
+
+  function toggleBookmark(id: string) {
+    setBookmarked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); setToast('Removed from saved'); }
+      else { next.add(id); setToast('Saved'); }
+      return next;
+    });
+  }
 
   // Pull the host's active marketplace listings. Active = is_buy_now and
   // status='active'. Excludes sold/delisted/draft rows.
@@ -82,12 +92,6 @@ export default function StreamShopRail({ livestreamId, hostUserId, streamTitle }
   const filtered = query.trim()
     ? listings.filter((l) => l.title.toLowerCase().includes(query.toLowerCase()))
     : listings;
-
-  async function handleAddToCart(listing: ShopListing) {
-    setAddingId(listing.id);
-    try { await addItem(listing.id); }
-    finally { setAddingId(null); }
-  }
 
   // Map our row shape to the modal's expected shape. Same fields, just
   // a TypeScript handshake — buy_now_price must be number-typed there.
@@ -220,12 +224,20 @@ export default function StreamShopRail({ livestreamId, hostUserId, streamTitle }
             cover={l.photos?.[0]?.url ?? PLACEHOLDER_IMAGE_URL}
             title={l.title}
             price={l.buy_now_price}
-            adding={addingId === l.id}
             onView={() => setSelected(l)}
-            onAdd={() => handleAddToCart(l)}
+            onBookmark={() => toggleBookmark(l.id)}
+            bookmarked={bookmarked.has(l.id)}
           />
         ))}
       </Box>
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={2200}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={toast ?? ''}
+      />
 
       {selectedAsModalListing && (
         <CheckoutListingModal
@@ -272,116 +284,113 @@ function EmptyHint({ label }: { label: string }) {
 }
 
 function ProductTile({
-  cover, title, price, adding, onView, onAdd,
+  cover, title, price, onView, onBookmark, bookmarked,
 }: {
   cover: string;
   title: string;
   price: number | null;
-  adding: boolean;
   onView: () => void;
-  onAdd: () => void;
+  onBookmark: () => void;
+  bookmarked: boolean;
 }) {
+  // Per design: row layout = thumb (with bookmark icon top-left) +
+  // info column. No side action button — the entire row click opens
+  // the buy modal. Bookmark icon stays as a local toggle (Save) until
+  // the favorites backend ships.
   return (
     <Box
+      onClick={onView}
       sx={{
         display: 'flex',
-        gap: 1.25,
+        gap: 1.5,
         width: '100%',
-        p: 1.25,
-        mb: 1,
-        borderRadius: inkstashRadii.md,
-        bgcolor: inkstashColors.bgSunken,
-        color: inkstashColors.ink,
-        textAlign: 'left',
-        alignItems: 'flex-start',
-        border: `1px solid ${inkstashColors.border}`,
-        transition: 'border-color 160ms ease',
-        '&:hover': { borderColor: inkstashColors.brand },
+        py: 1.25,
+        cursor: 'pointer',
+        alignItems: 'center',
+        transition: 'opacity 120ms ease',
+        '&:hover': { opacity: 0.85 },
       }}
     >
-      <ButtonBase
-        onClick={onView}
-        aria-label={`View ${title}`}
+      <Box
         sx={{
-          width: 56,
-          height: 56,
+          position: 'relative',
+          width: 56, height: 56,
           flexShrink: 0,
-          borderRadius: inkstashRadii.sm,
-          bgcolor: '#eee',
+          borderRadius: inkstashRadii.md,
           backgroundImage: `url(${cover})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          bgcolor: inkstashColors.bgSunken,
           overflow: 'hidden',
-          transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
-          '&:active': { transform: 'scale(0.96)' },
+          // Subtle halftone overlay per design (.product-thumb::after)
+          '&::after': {
+            content: '""',
+            position: 'absolute', inset: 0,
+            backgroundImage:
+              'radial-gradient(circle, rgba(255,255,255,0.16) 1px, transparent 1.3px)',
+            backgroundSize: '6px 6px',
+            pointerEvents: 'none',
+          },
         }}
-      />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      >
         <ButtonBase
-          onClick={onView}
+          onClick={(e) => { e.stopPropagation(); onBookmark(); }}
+          aria-label={bookmarked ? 'Remove bookmark' : 'Save item'}
           sx={{
-            display: 'block',
-            textAlign: 'left',
-            width: '100%',
-            borderRadius: 1,
+            position: 'absolute', top: 4, left: 4,
+            width: 22, height: 22,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            color: 'rgba(255,255,255,0.92)',
+            zIndex: 2,
+            transition: 'transform 120ms ease',
+            '&:hover': { transform: 'scale(1.1)' },
           }}
         >
-          {price != null && (
-            <Typography
+          <Bookmark
+            size={14}
+            strokeWidth={2}
+            fill={bookmarked ? 'currentColor' : 'none'}
+          />
+        </ButtonBase>
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontFamily: inkstashFonts.ui,
+            fontWeight: 700,
+            fontSize: 13.5,
+            color: inkstashColors.ink,
+            letterSpacing: '0.01em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: 1.25,
+          }}
+        >
+          {title}
+        </Typography>
+        {price != null && (
+          <Box
+            sx={{
+              display: 'inline-flex', alignItems: 'baseline',
+              gap: 0.5, mt: 0.5,
+              fontFamily: inkstashFonts.ui, fontSize: 12.5, color: inkstashColors.muted,
+            }}
+          >
+            <Box
+              component="span"
               sx={{
-                fontFamily: inkstashFonts.ui,
-                fontWeight: 900,
-                fontSize: 15,
-                color: inkstashColors.ink,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
+                color: inkstashColors.ink, fontWeight: 600,
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
               ${Number(price).toFixed(0)}
-            </Typography>
-          )}
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.ui,
-              fontWeight: 600,
-              fontSize: 12.5,
-              color: inkstashColors.ink2,
-              mt: 0.5,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              lineHeight: 1.25,
-              letterSpacing: '-0.005em',
-            }}
-          >
-            {title}
-          </Typography>
-        </ButtonBase>
+            </Box>
+          </Box>
+        )}
       </Box>
-      <IconButton
-        onClick={onAdd}
-        disabled={adding}
-        size="small"
-        aria-label="Add to cart"
-        sx={{
-          width: 32,
-          height: 32,
-          alignSelf: 'center',
-          flexShrink: 0,
-          bgcolor: inkstashColors.bg,
-          color: inkstashColors.ink,
-          border: `1px solid ${inkstashColors.border}`,
-          transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-          '&:hover': { bgcolor: inkstashColors.brand, color: '#fff', borderColor: inkstashColors.brand },
-          '&:active': { transform: 'scale(0.94)' },
-          '&.Mui-disabled': { opacity: 0.5 },
-        }}
-      >
-        <ShoppingCart size={15} strokeWidth={2.2} />
-      </IconButton>
     </Box>
   );
 }

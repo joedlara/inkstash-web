@@ -24,6 +24,7 @@ import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
+import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
 import { useFullBleedBlackBackground } from '../components/livestreams/useFullBleedBlackBackground';
@@ -173,13 +174,13 @@ export default function LiveStreamView() {
   }
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
-  // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. We tried adding ExploreMoreRail below the stage twice;
-  // both times the sticky-stage + scroll-rail pattern produced bad
-  // overlap because the stage's positioning context (AppShell main with
-  // max-width + padding) isn't the scroll context (window). The rail
-  // ended up sliding over the still-rendered stage on scroll. Discovery
-  // lives on /live; the /live/:id surface stays focused on the stream.
+  // sidebar stay visible. The desktop layout matches the design spec
+  // (docs/design-system/claude-design/live_stream): three rounded white
+  // cards in a 320px / 1fr / 384px grid, followed by an ExploreMoreRail
+  // below the stage. No sticky tricks this time — natural page scroll.
+  // Click-to-fullscreen removed per QA ("don't change anything when it
+  // goes into tablet size or mobile size. It's only for web browser
+  // screens that are bigger than tablet size").
   return (
     <AppShell>
       <LiveDesktopStage
@@ -187,52 +188,60 @@ export default function LiveStreamView() {
         joinData={joinData}
         viewerCount={viewerCount}
         onParticipantCountChange={handleParticipantCount}
-        onEnterFullscreen={() => setFullscreen(true)}
       />
+      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
+        <ExploreMoreRail excludeId={stream.id} />
+      </Box>
     </AppShell>
   );
 }
 
 // ─── Tablet/Desktop stage ───────────────────────────────────────────────────
 function LiveDesktopStage({
-  stream, joinData, viewerCount, onParticipantCountChange, onEnterFullscreen,
+  stream, joinData, viewerCount, onParticipantCountChange,
 }: {
   stream: Livestream;
   joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
   viewerCount: number;
   onParticipantCountChange: (n: number) => void;
-  onEnterFullscreen: () => void;
 }) {
-  // Negative margins escape the AppShell main padding so the live surface
-  // can run flush to the edges of the content area for the immersive feel
-  // while AppShell handles the top nav + collapsed sidebar above/beside.
+  // Per docs/design-system/claude-design/live_stream: three rounded
+  // white cards in a 320 / 1fr / 384 grid, gap 18px. Frame width
+  // collapses to a 2-column (video + chat) at ≤1240px, then drops to
+  // the mobile branch entirely below md (useMediaQuery handles that).
   return (
     <Box
       sx={{
-        // Cancel out AppShell's main padding so we stretch the live grid
-        // edge-to-edge inside the content area, then add our own
-        // breathing-room padding inside.
+        // Cancel out AppShell's main padding so we stretch edge-to-edge
+        // inside the content area. The natural page scroll reveals the
+        // ExploreMoreRail rendered below the stage.
         mx: { md: -3 },
         mt: { md: -3 },
-        mb: { md: -3 },
-        height: 'calc(100dvh - 64px)', // 64 = topnav height
+        height: 'calc(100dvh - 64px - 42px)', // topnav (64) + breathing room (42)
+        minHeight: 560,
         bgcolor: inkstashColors.bg,
         display: 'grid',
         gridTemplateColumns: {
-          xs: '1fr',
-          sm: '0 1fr 0',
-          md: '300px 1fr 340px',
-          lg: '340px 1fr 380px',
+          md: 'minmax(0, 1fr) 360px',          // shop hidden 900–1239
+          lg: '320px minmax(0, 1fr) 384px',    // full 3-column from 1240
         },
-        gap: { md: 2 },
-        p: { md: 2 },
-        overflow: 'hidden',
+        gap: { md: '18px' },
+        p: { md: '18px' },
       }}
     >
-      {/* Left: Shop — pulls the host's marketplace listings, not the
-          stream queue. Buyer tiles open a Buy modal or add to cart in-
-          stream so the viewer never navigates away. */}
-      <Box sx={{ display: { xs: 'none', md: 'block' }, overflow: 'hidden', borderRadius: inkstashRadii.lg }}>
+      {/* Left: Shop — rounded white card per design. Hidden at md
+          (900–1239) per the design's two-step responsive collapse. */}
+      <Box
+        sx={{
+          display: { md: 'none', lg: 'flex' },
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+          bgcolor: inkstashColors.bgElev,
+          border: `1px solid ${inkstashColors.border}`,
+          borderRadius: inkstashRadii.xl,
+        }}
+      >
         <StreamShopRail
           livestreamId={stream.id}
           hostUserId={stream.host_user_id}
@@ -240,26 +249,30 @@ function LiveDesktopStage({
         />
       </Box>
 
-      {/* Center: Video card, vertically centered with breathing room */}
+      {/* Center: Video card. Dark interior, 22px rounded, 1px border.
+          Contains the 9:16 portrait feed centered inside. */}
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           position: 'relative',
-          minWidth: 0,
+          minHeight: 0,
+          overflow: 'hidden',
+          bgcolor: '#08070A',
+          border: `1px solid ${inkstashColors.border}`,
+          borderRadius: inkstashRadii.xl,
+          display: 'flex',
+          alignItems: 'stretch',
+          justifyContent: 'center',
         }}
       >
         <Box
           sx={{
             position: 'relative',
-            height: 'min(calc(100dvh - 96px), 880px)',
+            height: '100%',
             aspectRatio: '9 / 16',
             maxWidth: '100%',
-            bgcolor: '#0A0A0A',
-            borderRadius: inkstashRadii.lg,
+            background:
+              'radial-gradient(120% 80% at 50% 0%, #2A1B14 0%, #120C0A 55%, #08070A 100%)',
             overflow: 'hidden',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
           }}
         >
           <LiveStreamVideo
@@ -269,21 +282,10 @@ function LiveDesktopStage({
             onParticipantCountChange={onParticipantCountChange}
           />
 
-          {/* Click-to-fullscreen hit layer. Sits ABOVE the video stage but
-              BELOW the interactive overlays (z-index 4 < HostPill/right rail's
-              own z-indexes). pointerEvents on overlay wrappers stay 'auto'
-              so they remain clickable. */}
-          <Box
-            onClick={onEnterFullscreen}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 1,
-              cursor: 'zoom-in',
-              background: 'transparent',
-            }}
-            aria-label="Enter fullscreen"
-          />
+          {/* Click-to-fullscreen removed on desktop per QA. The video
+              just plays — no zoom-in cursor, no hit layer. Mobile/
+              tablet still use the full-bleed treatment via the
+              MobileVideoStage path. */}
 
           {/* Top header row inside the video card */}
           <Box
@@ -361,19 +363,38 @@ function LiveDesktopStage({
         </Box>
       </Box>
 
-      {/* Right column: giveaway banner (own card) stacked above the chat rail */}
+      {/* Right column: two stacked rounded white cards per design —
+          Giveaway card (fixed height) above the Chat card (fills rest).
+          18px gap matches the grid gap. */}
       <Box
         sx={{
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
-          gap: 2,
+          gap: '18px',
           minHeight: 0,
         }}
       >
-        <Box sx={{ borderRadius: inkstashRadii.lg, flexShrink: 0 }}>
+        <Box
+          sx={{
+            flexShrink: 0,
+            bgcolor: inkstashColors.bgElev,
+            border: `1px solid ${inkstashColors.border}`,
+            borderRadius: inkstashRadii.xl,
+            overflow: 'hidden',
+          }}
+        >
           <GiveawayBanner entryCount={0} />
         </Box>
-        <Box sx={{ overflow: 'hidden', borderRadius: inkstashRadii.lg, flex: 1, minHeight: 0 }}>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            bgcolor: inkstashColors.bgElev,
+            border: `1px solid ${inkstashColors.border}`,
+            borderRadius: inkstashRadii.xl,
+          }}
+        >
           <StreamChatRail
             livestreamId={stream.id}
             initialMessages={joinData.chat}
