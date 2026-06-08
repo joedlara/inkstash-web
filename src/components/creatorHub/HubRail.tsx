@@ -270,12 +270,13 @@ function RailButton({
           bgcolor: inkstashColors.brand,
           transition: 'height 160ms ease',
         },
-        // Hover paints crimson on idle tabs (matches the right-edge
-        // accent bar). On active tabs hover is a no-op so the black
-        // fill never flickers to a different color mid-transition.
+        // Hover: beige sunken bg + ink text/icon (same as the home
+        // AppSidebar). The CRIMSON signal lives only in the right-
+        // edge accent bar, not the tile fill. Active tabs hover as a
+        // no-op so the black fill never flickers mid-transition.
         '&:hover': active ? {} : {
-          bgcolor: inkstashColors.brandSoft,
-          color: inkstashColors.brand,
+          bgcolor: inkstashColors.bgSunken,
+          color: inkstashColors.ink,
         },
         '&:hover::after': active ? {} : { height: collapsed ? '22px' : '20px' },
         '&:hover .hub-rail-tip': { opacity: collapsed ? 1 : 0 },
