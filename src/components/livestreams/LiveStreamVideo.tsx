@@ -97,14 +97,19 @@ const LiveStreamVideo = forwardRef<LiveStreamVideoHandle, Props>(function LiveSt
         }
 
         // Audience-only count. The LiveKit room may contain:
-        //   - the host's phone (identity contains '#phone-')
+        //   - the broadcaster (identity contains '#host-')
+        //   - the host's phone in dual-device (identity contains '#phone-')
         //   - the composer/producer laptop (identity contains '#composer-')
         //   - real viewers (everyone else)
         // Without filtering, a single buyer + a paired phone + a composer
         // laptop reports as 3 viewers when the audience is really 1.
         if (onParticipantCountChange) {
           const isInfrastructure = (identity: string | undefined) =>
-            !!identity && (identity.includes('#phone-') || identity.includes('#composer-'));
+            !!identity && (
+              identity.includes('#host-')
+              || identity.includes('#phone-')
+              || identity.includes('#composer-')
+            );
           const emit = () => {
             if (cancelled) return;
             let remoteViewers = 0;
@@ -119,6 +124,9 @@ const LiveStreamVideo = forwardRef<LiveStreamVideoHandle, Props>(function LiveSt
           room.on(RoomEvent.ParticipantConnected, emit);
           room.on(RoomEvent.ParticipantDisconnected, emit);
           room.on(RoomEvent.Connected, emit);
+          // Fire once after connect — Connected event may not include
+          // remoteParticipants already in the room when we joined.
+          setTimeout(() => emit(), 100);
         }
 
         await room.connect(wsUrl, token);

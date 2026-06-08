@@ -51,6 +51,33 @@ interface JoinResponse {
   is_banned: boolean;
 }
 
+// supabase.functions.invoke wraps non-2xx responses in a
+// FunctionsHttpError whose `error.message` is the generic "Edge
+// Function returned a non-2xx status code" — the actual `{ error:
+// 'no_card_on_file' }` body is stashed on `error.context` as a Response.
+// Without parsing that body we can't surface real error codes to the
+// UI; everything collapses into a useless generic toast.
+async function extractFnError(error: unknown): Promise<Error> {
+  const ctx = (error as { context?: Response | { body?: unknown } } | null)?.context;
+  if (ctx && typeof (ctx as Response).text === 'function') {
+    try {
+      const txt = await (ctx as Response).text();
+      if (txt) {
+        try {
+          const parsed = JSON.parse(txt) as { error?: string };
+          if (parsed?.error) {
+            const e = new Error(parsed.error);
+            e.name = parsed.error;
+            return e;
+          }
+        } catch { /* not JSON; fall through */ }
+      }
+    } catch { /* body already consumed; fall through */ }
+  }
+  const msg = (error as { message?: string })?.message ?? 'Edge function failed';
+  return new Error(msg);
+}
+
 async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not logged in.');
@@ -58,7 +85,7 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
     body,
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await extractFnError(error);
   if (data?.error) {
     const e = new Error(data.error);
     e.name = data.error;
@@ -74,7 +101,7 @@ async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> 
  *  request through; the function itself does its own validation. */
 async function callPublicFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
-  if (error) throw new Error(error.message);
+  if (error) throw await extractFnError(error);
   if (data?.error) {
     const e = new Error(data.error);
     e.name = data.error;

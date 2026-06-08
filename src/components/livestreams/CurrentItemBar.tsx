@@ -13,7 +13,7 @@
 // returns null so the bar doesn't render. Winner is stubbed to '—' until
 // an auction backend writes a winning bidder per item (L2).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Snackbar, Typography } from '@mui/material';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
@@ -52,6 +52,22 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  // Pending-bid auto-retry after wallet card add. Mirrors the same
+  // pattern used by MobileAuctionCard so desktop viewers don't have
+  // to manually re-drag the slider after saving a card.
+  const pendingBidItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const onCardReady = () => {
+      const pending = pendingBidItemIdRef.current;
+      pendingBidItemIdRef.current = null;
+      if (!pending || pending !== item?.itemId) return;
+      handleBid();
+    };
+    window.addEventListener('inkstash:wallet-card-ready', onCardReady);
+    return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.itemId]);
+
   async function handleBid() {
     if (!item || bidding) return;
     setBidding(true);
@@ -62,7 +78,10 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
-        setToast('Add a card in Settings → Payment methods to bid.');
+        pendingBidItemIdRef.current = item.itemId;
+        window.dispatchEvent(new CustomEvent('inkstash:open-wallet', {
+          detail: { autoOpenAddCard: true },
+        }));
       } else if (msg.includes('cannot_self_bid')) {
         setToast("You can't bid on your own stream.");
       } else if (msg.includes('bidding_closed')) {

@@ -62,4 +62,29 @@ export const paymentMethodsAPI = {
 
     if (error) throw new Error(error.message);
   },
+
+  /** Pivots the is_default flag to the chosen row. Uses the
+   *  set_default_payment_method RPC (migration 20260522020000) so the
+   *  partial unique index never sees two defaults simultaneously. */
+  async setDefault(paymentMethodId: string): Promise<void> {
+    const { error } = await supabase.rpc('set_default_payment_method', {
+      p_payment_method_id: paymentMethodId,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  /** Mints a SetupIntent so the client can collect a card without
+   *  charging. Used by the in-stream WalletDrawer's add-card flow.
+   *  Returns the client_secret for <PaymentElement>. */
+  async createSetupIntent(): Promise<{ client_secret: string; setup_intent_id: string }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in');
+    const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+      body: {},
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data as { client_secret: string; setup_intent_id: string };
+  },
 };
