@@ -92,6 +92,7 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
               to={item.route}
               end={item.route === '/'}
               onClick={onMobileClose}
+              className="app-side-item"
               style={({ isActive }) => ({
                 textDecoration: 'none',
                 display: 'flex',
@@ -101,7 +102,12 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 borderRadius: 8,
                 color: isActive ? '#fff' : inkstashColors.ink2,
-                background: isActive ? inkstashColors.brand : 'transparent',
+                // Active = ink (black) per the design source
+                // (design_references/styles.css :: .side-item.active).
+                // Crimson is reserved for the hover edge accent below
+                // — competing brand+ink on the same tile reads as
+                // "hovered" rather than "selected".
+                background: isActive ? inkstashColors.ink : 'transparent',
                 fontSize: 14,
                 fontWeight: isActive ? 600 : 500,
                 marginBottom: 2,
