@@ -68,8 +68,20 @@ serve(async (req) => {
         apiVersion: '2024-06-20',
         httpClient: Stripe.createFetchHttpClient(),
       })
-      const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 })
-      if (!methods.data.length) {
+      try {
+        const methods = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 })
+        if (!methods.data.length) {
+          return json({ error: 'no_card_on_file' }, 402)
+        }
+      } catch (stripeErr) {
+        // Stripe can throw if the saved customer id is from a
+        // different mode (test vs live) or has been deleted on
+        // Stripe's side. Either way, the buyer effectively has no
+        // usable card — treat it the same as no-card-on-file so
+        // the client surfaces the "buy a Ruby bundle once" prompt
+        // instead of an opaque 500.
+        const code = (stripeErr as { code?: string })?.code
+        console.warn('[place-bid] stripe pm.list failed', code, (stripeErr as Error).message)
         return json({ error: 'no_card_on_file' }, 402)
       }
     }
@@ -85,13 +97,16 @@ serve(async (req) => {
     if (rpcErr) {
       // Postgres raises generic P0001s for our business-rule errors.
       // Translate them to friendly codes the client UI can react to.
-      const msg = (rpcErr.message || '').toLowerCase()
-      if (msg.includes('item_not_found')) return json({ error: 'item_not_found' }, 404)
-      if (msg.includes('not_bidding')) return json({ error: 'not_bidding' }, 409)
-      if (msg.includes('bidding_closed')) return json({ error: 'bidding_closed' }, 410)
-      if (msg.includes('cannot_self_bid')) return json({ error: 'cannot_self_bid' }, 403)
+      // Combine message + details + hint so we still match if a
+      // Postgrest version puts the body in a different field.
+      const haystack = [rpcErr.message, (rpcErr as { details?: string }).details, (rpcErr as { hint?: string }).hint]
+        .filter(Boolean).join(' ').toLowerCase()
+      if (haystack.includes('item_not_found')) return json({ error: 'item_not_found' }, 404)
+      if (haystack.includes('not_bidding')) return json({ error: 'not_bidding' }, 409)
+      if (haystack.includes('bidding_closed')) return json({ error: 'bidding_closed' }, 410)
+      if (haystack.includes('cannot_self_bid')) return json({ error: 'cannot_self_bid' }, 403)
       console.error('[place-bid] rpc failed', rpcErr)
-      return json({ error: 'bid_failed' }, 500)
+      return json({ error: 'bid_failed', detail: haystack }, 500)
     }
 
     const row = Array.isArray(data) ? data[0] : data
