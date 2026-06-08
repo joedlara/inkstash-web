@@ -292,23 +292,31 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       </Box>
 
       {/* Slide-to-bid pill — only renders while bidding is active.
-          Sits beneath the item info row inside the same overlay so
-          the bid surface is paired visually with the price + status
-          it's bidding on. isWinning paints a green hint via the
-          label so the viewer knows they're ahead without parsing
-          the winner id. */}
-      {bidActive && (
+          When the viewer is the current high bidder we lock the
+          slider AND show a "You're the highest bidder…" notice so
+          they don't accidentally outbid themselves. As soon as
+          someone else takes the lead, the slider unlocks. */}
+      {bidActive && (isWinning ? (
+        <Box sx={{
+          mt: 1.5, py: 1.25, px: 2, borderRadius: 999,
+          bgcolor: 'rgba(46,111,79,0.85)',
+          color: '#fff',
+          fontFamily: inkstashFonts.ui,
+          fontSize: 13, fontWeight: 700,
+          textAlign: 'center',
+        }}>
+          You're the highest bidder. Wait for someone else to bid.
+        </Box>
+      ) : (
         <Box sx={{ mt: 1.5 }}>
           <SlideToBid
-            label={isWinning
-              ? `You're winning — Bid ${nextBidLabel} again`
-              : `Bid ${nextBidLabel}`}
+            label={`Bid ${nextBidLabel}`}
             onConfirm={handleBid}
             disabled={false}
             busy={bidding}
           />
         </Box>
-      )}
+      ))}
 
       <Snackbar
         open={!!toast}

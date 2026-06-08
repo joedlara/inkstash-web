@@ -70,10 +70,12 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     const trackRect = trackRef.current?.getBoundingClientRect();
     const max = trackRect ? trackRect.width - THUMB_SIZE - 4 : 0;
-    // Confirm threshold: thumb must reach ~92% of the way. Leaves a
-    // small margin so a not-quite-there release still snaps back
-    // instead of firing accidentally.
-    if (draggingX >= max * 0.92) {
+    // Confirm threshold: thumb must reach ~55% of the way. Every
+    // second counts in live auctions — bumping this lower means a
+    // quick flick lands the bid instead of forcing a full-width
+    // drag. Still high enough that an accidental tap doesn't cross
+    // it (a stationary press leaves the thumb near 0).
+    if (draggingX >= max * 0.55) {
       setConfirmed(true);
       setDraggingX(max);
       onConfirm();

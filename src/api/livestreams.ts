@@ -351,7 +351,13 @@ export const livestreamsAPI = {
       .order('scheduled_start_at', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false, nullsFirst: false });
     if (error) {
-      console.error('[livestreamsAPI.listMyShows] failed', error);
+      // "Load failed" / network errors happen when the tab is
+      // backgrounded mid-fetch (Safari aggressively cancels). The
+      // hook will retry on next render so we don't need a noisy
+      // console.error for transient failures — just bail with empty
+      // and let the next mount/poll resolve it.
+      const transient = /load failed|network|cancelled|abort/i.test(error.message ?? '');
+      if (!transient) console.error('[livestreamsAPI.listMyShows] failed', error);
       return { upcoming: [], past: [] };
     }
     const all = await hydrateHosts((data ?? []) as Livestream[]);

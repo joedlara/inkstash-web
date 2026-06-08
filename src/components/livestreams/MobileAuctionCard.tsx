@@ -365,15 +365,30 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
             </Box>
           </Box>
 
-          {/* Slide-to-bid pill — full width below the lot info. The
-              drag-to-confirm pattern prevents accidental taps from
-              landing $1 bids the way a plain Bid button would. */}
-          <SlideToBid
-            label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
-            onConfirm={handleBid}
-            disabled={!bidActive}
-            busy={bidding}
-          />
+          {/* Slide-to-bid pill — full width below the lot info.
+              When the viewer is the current high bidder, swap the
+              slider for a "You're the highest bidder" lock so they
+              can't outbid themselves. Re-enables the moment
+              someone else bids. */}
+          {bidActive && isWinning ? (
+            <Box sx={{
+              py: 1.25, px: 2, borderRadius: 999,
+              bgcolor: 'rgba(46,111,79,0.85)',
+              color: '#fff',
+              fontFamily: inkstashFonts.ui,
+              fontSize: 13, fontWeight: 700,
+              textAlign: 'center',
+            }}>
+              You're the highest bidder. Wait for someone else to bid.
+            </Box>
+          ) : (
+            <SlideToBid
+              label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
+              onConfirm={handleBid}
+              disabled={!bidActive}
+              busy={bidding}
+            />
+          )}
           </Box>
         )}
       </Box>
