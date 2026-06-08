@@ -35,11 +35,16 @@ interface ActiveStream {
 interface QueueRow {
   id: string;
   position: number;
-  status: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
+  status: 'queued' | 'live' | 'sold' | 'sold_pending_payment' | 'passed' | 'removed';
   // Auction state. Null on items that have never had bidding started.
   current_price_cents: number | null;
   bid_count: number;
   bidding_ends_at: string | null;
+  // Charge state. Null until charge-auction-win fires; charge_error
+  // carries the Stripe error code on failed off-session charges.
+  payment_intent_id: string | null;
+  winner_charged_at: string | null;
+  charge_error: string | null;
   listing: {
     id: string;
     title: string;
@@ -204,7 +209,7 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   const refreshQueue = useCallback(async () => {
     const { data: items } = await supabase
       .from('livestream_items')
-      .select('id, position, status, listing_id, current_price_cents, bid_count, bidding_ends_at')
+      .select('id, position, status, listing_id, current_price_cents, bid_count, bidding_ends_at, payment_intent_id, winner_charged_at, charge_error')
       .eq('livestream_id', stream.id)
       .neq('status', 'removed')
       .order('position', { ascending: true });
@@ -218,6 +223,7 @@ function LiveSurface({ active }: { active: ActiveStream }) {
     type IRow = {
       id: string; position: number; status: QueueRow['status']; listing_id: string;
       current_price_cents: number | null; bid_count: number | null; bidding_ends_at: string | null;
+      payment_intent_id: string | null; winner_charged_at: string | null; charge_error: string | null;
     };
     const byId = new Map((listings ?? []).map((l: LRow) => [l.id, l] as const));
     setQueue(
@@ -228,6 +234,9 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         current_price_cents: i.current_price_cents,
         bid_count: i.bid_count ?? 0,
         bidding_ends_at: i.bidding_ends_at,
+        payment_intent_id: i.payment_intent_id,
+        winner_charged_at: i.winner_charged_at,
+        charge_error: i.charge_error,
         listing: byId.get(i.listing_id) ?? null,
       })),
     );
@@ -282,20 +291,24 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   }
 
   // Soft-close resolver: when the on-block item's bidding_ends_at
-  // passes, flip it to 'sold' or 'passed' via the RPC. We watch from
-  // the host's surface so only one client fires the resolve call (the
-  // RPC is idempotent but it's still chatty to have every viewer
-  // hammering it). Realtime then broadcasts the status change to all
+  // passes, flip it to 'sold' or 'passed' via the RPC, then chain
+  // chargeWin if the result was 'sold'. We watch from the host's
+  // surface so only one client fires both calls — chargeWin is
+  // idempotent server-side but we don't want every viewer hitting it.
+  // Realtime then broadcasts the status flip + charge state to all
   // viewers' MobileAuctionCards.
   useEffect(() => {
     if (!onBlock?.bidding_ends_at) return;
     const endsMs = new Date(onBlock.bidding_ends_at).getTime();
-    const fire = () => {
+    const fire = async () => {
       // Re-read from latest queue snapshot; row may have been
       // resolved by realtime before this fires.
       const fresh = queueRef.current.find((q) => q.id === onBlock.id);
       if (!fresh || fresh.status !== 'live') return;
-      livestreamsAPI.resolveBidding(onBlock.id).catch((err) => {
+      let resolved: string;
+      try {
+        resolved = await livestreamsAPI.resolveBidding(onBlock.id);
+      } catch (err) {
         // Swallow expected races (bidding_still_open if a late bid
         // resets the timer between checks; item not found if
         // someone deleted the row).
@@ -303,7 +316,31 @@ function LiveSurface({ active }: { active: ActiveStream }) {
         if (!msg.includes('bidding_still_open')) {
           console.warn('[LiveControlPanel] resolveBidding failed', err);
         }
-      });
+        return;
+      }
+      if (resolved !== 'sold') return; // 'passed' — nothing to charge
+      // Show transient "Charging..." while the edge fn runs. The
+      // realtime row update will replace this once the item flips
+      // charge state.
+      setStubToast('Charging the winner…');
+      try {
+        const result = await livestreamsAPI.chargeWin(onBlock.id);
+        if (result.status === 'charged') {
+          const amt = ((result.amount_cents ?? 0) / 100).toFixed(2).replace(/\.00$/, '');
+          setStubToast(`Sold — $${amt} charged.`);
+        } else if (result.status === 'charge_failed') {
+          setStubToast(`Charge failed: ${result.error ?? 'unknown'} — see dashboard.`);
+        } else if (result.status === 'no_winner') {
+          // resolveBidding returned 'sold' but the edge fn says
+          // current_winner_id is null — should be impossible, but
+          // surface it so we notice.
+          setStubToast('Auction resolved but no winner was found.');
+        }
+        // 'already_charged' = silent (re-fire from StrictMode)
+      } catch (err) {
+        console.warn('[LiveControlPanel] chargeWin failed', err);
+        setStubToast("Couldn't reach the charge service — see dashboard.");
+      }
     };
     const delay = endsMs - Date.now();
     if (delay <= 0) { fire(); return; }
@@ -340,7 +377,9 @@ function LiveSurface({ active }: { active: ActiveStream }) {
     : null;
 
   const fmtLikes = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-  const soldCount = queue.filter((q) => q.status === 'sold').length;
+  const soldCount = queue.filter((q) =>
+    q.status === 'sold' || q.status === 'sold_pending_payment'
+  ).length;
 
   return (
     <>
@@ -935,6 +974,9 @@ function QueueRowItem({
   if (!row.listing) return null;
   const cover = row.listing.photos?.[0]?.url ?? PLACEHOLDER_IMAGE_URL;
   const isSold = row.status === 'sold';
+  const isSoldPending = row.status === 'sold_pending_payment';
+  // Sold-but-charge-failed rows stay visually present (not greyed out)
+  // because the host needs to see them to act on the failure.
   return (
     <Box sx={{
       display: 'grid',
@@ -942,7 +984,9 @@ function QueueRowItem({
       alignItems: 'center', gap: 1.25,
       px: 1.5, py: 1.25,
       borderBottom: `1px solid ${inkstashColors.border}`,
-      bgcolor: isLive ? inkstashColors.brandSoft : 'transparent',
+      bgcolor: isLive ? inkstashColors.brandSoft
+        : isSoldPending ? '#FFF8E1' // soft amber so the host can spot failed charges
+        : 'transparent',
       opacity: isSold ? 0.55 : 1,
       '&:last-of-type': { borderBottom: 0 },
     }}>
@@ -990,7 +1034,17 @@ function QueueRowItem({
               fontWeight: 700, color: inkstashColors.ink2,
               textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 9.5,
             }}>
-              Sold
+              Sold · paid
+            </Box>
+          )}
+          {isSoldPending && (
+            <Box component="span" sx={{
+              px: 0.6, py: '1px', borderRadius: 0.5,
+              bgcolor: '#F0AD4E', color: '#fff',
+              fontFamily: inkstashFonts.mono, fontSize: 9.5, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+            }} title={row.charge_error ?? undefined}>
+              Charge failed
             </Box>
           )}
         </Box>

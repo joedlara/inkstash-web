@@ -37,6 +37,9 @@ interface CurrentItem {
   listingId: string;
   title: string;
   coverUrl: string | null;
+  // sold_pending_payment is collapsed to 'sold' for viewer display —
+  // the charge failure is host-private info and the viewer just sees
+  // a closed auction.
   status: 'live' | 'sold' | 'passed';
   // Auction state. price falls back to listing's buy_now_price when
   // bidding hasn't started yet so the card always shows something.
@@ -90,21 +93,22 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         .from('livestream_items')
         .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at, current_winner_id')
         .eq('livestream_id', livestreamId)
-        .in('status', ['sold', 'live', 'passed'])
+        .in('status', ['sold', 'sold_pending_payment', 'live', 'passed'])
         .order('position', { ascending: false })
         .limit(10);
       if (cancelled || !items || items.length === 0) {
         if (!cancelled) setItem(null);
         return;
       }
+      type RawStatus = 'sold' | 'sold_pending_payment' | 'live' | 'passed';
       type LIRow = {
-        id: string; listing_id: string; status: 'sold' | 'live' | 'passed'; position: number;
+        id: string; listing_id: string; status: RawStatus; position: number;
         current_price_cents: number | null; bid_count: number | null;
         bidding_ends_at: string | null; current_winner_id: string | null;
       };
       const rows = items as LIRow[];
       const pick = rows.find((r) => r.status === 'live')
-        ?? rows.find((r) => r.status === 'sold')
+        ?? rows.find((r) => r.status === 'sold' || r.status === 'sold_pending_payment')
         ?? rows.find((r) => r.status === 'passed');
       if (!pick) { if (!cancelled) setItem(null); return; }
       const { data: listing } = await supabase
@@ -124,7 +128,8 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         listingId: l.id,
         title: l.title,
         coverUrl: l.photos?.[0]?.url ?? null,
-        status: pick.status,
+        // Collapse sold_pending_payment → sold for viewer display.
+        status: pick.status === 'sold_pending_payment' ? 'sold' : pick.status,
         priceCents: pick.current_price_cents ?? fallbackCents,
         bidCount: pick.bid_count ?? 0,
         biddingEndsAt: pick.bidding_ends_at,

@@ -281,6 +281,18 @@ export const livestreamsAPI = {
     return data as string;
   },
 
+  /** Host-only. Charges the winner's saved card after the auction
+   *  resolves to 'sold'. Idempotent — re-calling on an already
+   *  charged item returns status='already_charged' without
+   *  re-charging. */
+  chargeWin: (item_id: string) =>
+    callFn<{
+      status: 'charged' | 'charge_failed' | 'already_charged' | 'no_winner';
+      payment_intent_id?: string;
+      amount_cents?: number;
+      error?: string;
+    }>('charge-auction-win', { item_id }),
+
   postChat: (livestream_id: string, body: string) =>
     callFn<{ id: string; created_at: string }>('post-chat-message', { livestream_id, body }),
 
