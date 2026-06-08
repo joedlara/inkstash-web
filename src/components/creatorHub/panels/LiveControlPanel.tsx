@@ -9,7 +9,7 @@
 // composer (parent wires this via onGoLive).
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, CircularProgress, Snackbar, Typography, ButtonBase } from '@mui/material';
+import { Box, CircularProgress, Snackbar, Typography, ButtonBase, useMediaQuery, useTheme } from '@mui/material';
 import { ArrowUpCircle, Gift, GripVertical, Pencil, Plus, Radio, Smartphone, Square, Zap } from 'lucide-react';
 import HubPanelFrame from '../HubPanelFrame';
 import HBtn from '../HBtn';
@@ -143,6 +143,14 @@ function EmptyState({ onGoLive }: { onGoLive: () => void }) {
 
 function LiveSurface({ active }: { active: ActiveStream }) {
   const { stream, livekit } = active;
+  // On mobile the host IS the camera (single-device flow). Subscribing
+  // to the room as a viewer from the SAME device that's publishing
+  // either echoes itself or shows a black frame because the LiveKit
+  // SDK can't render its own publisher track via viewer subscription.
+  // Skip the subscribed preview on mobile and show a "broadcasting
+  // from this device" placeholder instead.
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   // Stub toast for Add/Edit affordances. The real editor surface lives
@@ -474,12 +482,52 @@ function LiveSurface({ active }: { active: ActiveStream }) {
               bgcolor: inkstashColors.stage,
               overflow: 'hidden',
             }}>
-              <LiveStreamVideo
-                wsUrl={livekit.wsUrl}
-                token={livekit.token}
-                mode="viewer"
-                onParticipantCountChange={setViewerCount}
-              />
+              {isMobile ? (
+                // Single-device host: the phone is the camera AND
+                // the producer surface. We can't subscribe to our own
+                // publisher track (black frame), so show a friendly
+                // placeholder that confirms the broadcast is live.
+                // The actual camera is publishing from a sibling tab
+                // OR — more commonly — the host page that was opened
+                // when the composer Published.
+                <Box sx={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 1.5,
+                  color: 'rgba(255,255,255,0.7)',
+                  textAlign: 'center', px: 3,
+                }}>
+                  <Box sx={{
+                    width: 56, height: 56, borderRadius: '50%',
+                    bgcolor: inkstashColors.brand,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 0 0 4px rgba(220,38,38,0.25), 0 0 0 12px rgba(220,38,38,0.1)',
+                    animation: 'lc-pulse 2s ease-in-out infinite',
+                  }}>
+                    <Radio size={26} strokeWidth={2.2} color="#fff" />
+                  </Box>
+                  <Box sx={{
+                    fontFamily: inkstashFonts.display, fontWeight: 900, fontSize: 18,
+                    color: '#fff', textTransform: 'uppercase', letterSpacing: '0.02em',
+                  }}>
+                    Broadcasting
+                  </Box>
+                  <Box sx={{
+                    fontFamily: inkstashFonts.ui, fontSize: 12.5,
+                    color: 'rgba(255,255,255,0.7)', maxWidth: 260, lineHeight: 1.5,
+                  }}>
+                    This device is the camera. Keep the broadcast tab
+                    open in the background to stay live.
+                  </Box>
+                </Box>
+              ) : (
+                <LiveStreamVideo
+                  wsUrl={livekit.wsUrl}
+                  token={livekit.token}
+                  mode="viewer"
+                  onParticipantCountChange={setViewerCount}
+                />
+              )}
               {/* ON AIR */}
               <Box sx={{
                 position: 'absolute', top: 12, left: 12, zIndex: 3,
