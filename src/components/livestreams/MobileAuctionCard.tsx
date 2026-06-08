@@ -22,6 +22,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
+import SlideToBid from './SlideToBid';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -297,13 +298,12 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         </ButtonBase>
 
         {expanded && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.5, pb: 1.25 }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1.25,
-              px: 1.5,
-              pb: 1.25,
             }}
           >
             <Box
@@ -363,32 +363,17 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                 )}
               </Typography>
             </Box>
-            <ButtonBase
-              onClick={(e) => { e.stopPropagation(); handleBid(); }}
-              disabled={!bidActive || bidding}
-              sx={{
-                px: 1.75,
-                py: 0.85,
-                borderRadius: 999,
-                bgcolor: bidActive ? inkstashColors.brand : 'rgba(255,255,255,0.16)',
-                color: '#fff',
-                fontFamily: inkstashFonts.ui,
-                fontSize: 12.5,
-                fontWeight: 800,
-                lineHeight: 1,
-                flexShrink: 0,
-                transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-                '&:hover': {
-                  bgcolor: bidActive ? inkstashColors.brandDeep : 'rgba(255,255,255,0.22)',
-                },
-                '&:active': { transform: 'scale(0.97)' },
-                '&.Mui-disabled': { opacity: 0.55, color: '#fff' },
-              }}
-            >
-              {bidActive
-                ? (bidding ? '…' : `Bid ${nextBidLabel}`)
-                : 'Bid'}
-            </ButtonBase>
+          </Box>
+
+          {/* Slide-to-bid pill — full width below the lot info. The
+              drag-to-confirm pattern prevents accidental taps from
+              landing $1 bids the way a plain Bid button would. */}
+          <SlideToBid
+            label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
+            onConfirm={handleBid}
+            disabled={!bidActive}
+            busy={bidding}
+          />
           </Box>
         )}
       </Box>
