@@ -189,7 +189,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
-        setToast('Buy any Ruby bundle once to save a card, then come back to bid.');
+        setToast('Add a card in Settings → Payment methods to bid.');
       } else if (msg.includes('cannot_self_bid')) {
         setToast("You can't bid on your own stream.");
       } else if (msg.includes('bidding_closed')) {
