@@ -92,30 +92,48 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
               to={item.route}
               end={item.route === '/'}
               onClick={onMobileClose}
-              className="app-side-item"
-              style={({ isActive }) => ({
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: collapsed ? '10px 0' : '10px 12px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                borderRadius: 8,
-                color: isActive ? '#fff' : inkstashColors.ink2,
-                // Active = ink (black) per the design source
-                // (design_references/styles.css :: .side-item.active).
-                // Crimson is reserved for the hover edge accent below
-                // — competing brand+ink on the same tile reads as
-                // "hovered" rather than "selected".
-                background: isActive ? inkstashColors.ink : 'transparent',
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 500,
-                marginBottom: 2,
-                transition: 'background 140ms ease, color 140ms ease',
-              })}
+              // sx via Box wrapper is needed for the ::after edge accent;
+              // NavLink's render-prop pattern doesn't play with MUI sx.
+              style={{ textDecoration: 'none' }}
             >
               {({ isActive }) => (
-                <>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: collapsed ? '10px 0' : '10px 12px',
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    borderRadius: '8px',
+                    color: isActive ? '#fff' : inkstashColors.ink2,
+                    // Active = ink (black) per design source
+                    // (design_references/styles.css :: .side-item.active).
+                    bgcolor: isActive ? inkstashColors.ink : 'transparent',
+                    fontSize: 14,
+                    fontWeight: isActive ? 600 : 500,
+                    marginBottom: '2px',
+                    transition: 'background-color 140ms ease, color 140ms ease',
+                    // Crimson edge accent on the RIGHT side. Paints
+                    // only on hover when not active (active uses the
+                    // black fill alone — same pattern as HubRail).
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      right: -13, // sit flush with the sidebar's right border
+                      top: 8, bottom: 8,
+                      width: 3,
+                      borderRadius: '3px 0 0 3px',
+                      bgcolor: 'transparent',
+                      transition: 'background-color 140ms ease',
+                    },
+                    '&:hover': isActive ? {} : {
+                      bgcolor: inkstashColors.bgSunken,
+                      color: inkstashColors.ink,
+                    },
+                    '&:hover::after': isActive ? {} : { bgcolor: inkstashColors.brand },
+                  }}
+                >
                   <Icon size={18} />
                   {!collapsed && (
                     <>
@@ -131,7 +149,7 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
                       )}
                     </>
                   )}
-                </>
+                </Box>
               )}
             </NavLink>
           );
