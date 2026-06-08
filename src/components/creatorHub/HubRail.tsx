@@ -126,7 +126,7 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
       }}
     >
       {/* Main items */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, px: '12px' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px', px: '12px' }}>
         {mainItems.map((item) => (
           <RailButton
             key={item.id}
@@ -144,8 +144,17 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
           was reading as part of the "grey bar" complaint. */}
       <Box sx={{ flex: 1 }} />
 
-      {/* Bottom block: Settings + collapse toggle */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, px: '12px' }}>
+      {/* Bottom block: Settings only. The collapse/expand chevron
+          floats on the right edge as a small circular toggle next to
+          the Settings cog (per design sidebar.css :: .collapse-btn-mini
+          — sits half-off the right edge of the rail). */}
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        px: '12px',
+        position: 'relative',
+      }}>
         {bottomItems.map((item) => (
           <RailButton
             key={item.id}
@@ -155,18 +164,42 @@ export default function HubRail({ active, onChange, streamLive = false }: Props)
             onClick={() => onChange(item.id)}
           />
         ))}
-        <RailButton
-          item={{
-            id: 'settings' as HubTabId, // never active, label is the only thing read
-            label: collapsed ? 'Expand' : 'Collapse',
-            icon: collapsed
-              ? <ChevronRight size={20} strokeWidth={2.2} />
-              : <ChevronLeft size={20} strokeWidth={2.2} />,
-          }}
-          active={false}
-          collapsed={collapsed}
-          onClick={() => setCollapsed((v) => !v)}
-        />
+      </Box>
+
+      {/* Floating circular collapse toggle. Anchored to the bottom of
+          the rail's right edge so it visually pairs with the Settings
+          cog without taking up a tab row. half-off the edge per design. */}
+      <Box
+        component="button"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        sx={{
+          position: 'absolute',
+          bottom: 20,
+          right: '-14px',         // half-off the rail's right border
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: inkstashColors.bgElev,
+          border: `1px solid ${inkstashColors.border}`,
+          color: inkstashColors.muted,
+          cursor: 'pointer',
+          boxShadow: '0 1px 2px rgba(22,17,14,0.06), 0 1px 0 rgba(22,17,14,0.03)',
+          zIndex: 5,
+          transition: 'color 120ms ease, background-color 120ms ease',
+          '&:hover': {
+            color: inkstashColors.ink,
+            bgcolor: inkstashColors.bg,
+          },
+          '&:active': { transform: 'scale(0.94)' },
+        }}
+      >
+        {collapsed
+          ? <ChevronRight size={15} strokeWidth={2.2} />
+          : <ChevronLeft size={15} strokeWidth={2.2} />}
       </Box>
     </Box>
   );
