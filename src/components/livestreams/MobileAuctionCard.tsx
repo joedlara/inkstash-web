@@ -138,6 +138,13 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     }
 
     fetchCurrent();
+    // 3s polling fallback so the bid state stays current even if a
+    // realtime event is dropped (tab background, ws reconnect, schema
+    // cache lag after a column was added). Realtime is still the
+    // primary path; this just catches gaps.
+    const pollId = window.setInterval(() => {
+      if (!cancelled) fetchCurrent();
+    }, 3000);
     const channel = supabase
       .channel(`mobile_auction_card:${livestreamId}`)
       .on(
@@ -146,7 +153,11 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         () => { if (!cancelled) fetchCurrent(); },
       )
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      supabase.removeChannel(channel);
+    };
   }, [livestreamId]);
 
   if (!item) return null;

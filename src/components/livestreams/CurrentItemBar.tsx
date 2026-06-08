@@ -94,6 +94,12 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     }
 
     fetchCurrent();
+    // 3s polling fallback so the on-block state stays current even
+    // when a realtime event is dropped (tab background, ws reconnect,
+    // schema cache lag). Realtime stays primary; this catches gaps.
+    const pollId = window.setInterval(() => {
+      if (!cancelled) fetchCurrent();
+    }, 3000);
     const channel = supabase
       .channel(`current_item_bar:${livestreamId}`)
       .on(
@@ -102,7 +108,11 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         () => { if (!cancelled) fetchCurrent(); },
       )
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      supabase.removeChannel(channel);
+    };
   }, [livestreamId]);
 
   if (!item) return null;
