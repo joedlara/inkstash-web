@@ -309,7 +309,7 @@ export const livestreamsAPI = {
    *  the laptop can join its own stream as a viewer (the phone is the
    *  camera; the laptop is the control surface). */
   async getMyActiveStream(host_user_id: string): Promise<
-    | { stream: Livestream; livekit: { token: string; wsUrl: string } }
+    | { stream: Livestream; livekit: { token: string; wsUrl: string; isHost: boolean } }
     | null
   > {
     const { data, error } = await supabase
@@ -323,15 +323,22 @@ export const livestreamsAPI = {
     if (error || !data) return null;
     const row = data as Livestream;
     try {
-      // join() is buyer-side viewer join — chat history isn't needed by
-      // the producer surface, but the token + wsUrl are. We drop the rest.
-      const join = await callFn<{ livekit_token: string; livekit_ws_url: string }>(
-        'join-livestream', { livestream_id: row.id },
-      );
+      // join-livestream now detects when the requester IS the host and
+      // mints a publish-capable token automatically. The Creator Hub
+      // uses that token on mobile single-device to keep the camera
+      // alive after the composer closes — otherwise the publisher
+      // dies with the composer modal and viewers see a dead stream.
+      const join = await callFn<{
+        livekit_token: string; livekit_ws_url: string; is_host?: boolean;
+      }>('join-livestream', { livestream_id: row.id });
       const hydrated = await hydrateHosts([row]);
       return {
         stream: hydrated[0],
-        livekit: { token: join.livekit_token, wsUrl: join.livekit_ws_url },
+        livekit: {
+          token: join.livekit_token,
+          wsUrl: join.livekit_ws_url,
+          isHost: !!join.is_host,
+        },
       };
     } catch (err) {
       console.warn('[livestreamsAPI.getMyActiveStream] join failed', err);

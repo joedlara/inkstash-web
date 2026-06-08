@@ -50,13 +50,22 @@ serve(async (req) => {
 
     const { data: stream } = await serviceClient
       .from('livestreams')
-      .select('id, livekit_room_name, status')
+      .select('id, livekit_room_name, status, host_user_id')
       .eq('id', body.livestream_id)
       .maybeSingle()
     if (!stream) return json({ error: 'stream_not_found' }, 404)
     if ((stream as { status: string }).status !== 'live') {
       return json({ error: 'stream_not_live' }, 400)
     }
+
+    // Host-rejoin: when the requester IS the broadcaster, grant publish
+    // rights so their session can keep the camera alive after the
+    // composer closes. Without this, mobile single-device hosts lose
+    // their publisher track the moment the composer modal unmounts and
+    // viewers see a dead stream. Subscribe stays on so the host can
+    // also see what's in the room (and on desktop the producer console
+    // doubles as a self-monitor).
+    const isHost = (stream as { host_user_id: string }).host_user_id === user.id
 
     // Block banned viewers from chatting (they can still watch video).
     const { data: ban } = await serviceClient
@@ -86,7 +95,8 @@ serve(async (req) => {
       room: (stream as { livekit_room_name: string }).livekit_room_name,
       roomJoin: true,
       canSubscribe: true,
-      canPublishData: !isBanned, // banned viewers can't send data-channel messages
+      canPublish: isHost,
+      canPublishData: isHost || !isBanned, // banned viewers can't send data-channel messages
     })
 
     return json({
@@ -95,6 +105,7 @@ serve(async (req) => {
       livekit_room_name: (stream as { livekit_room_name: string }).livekit_room_name,
       recent_chat: (recentChat ?? []).reverse(), // oldest-first for UI
       is_banned: isBanned,
+      is_host: isHost,
     }, 200)
   } catch (err) {
     console.error('[join-livestream] error', err)
