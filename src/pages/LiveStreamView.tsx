@@ -23,7 +23,6 @@ import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
-import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
 import { useSuppressMobileNav } from '../components/layout/MobileNavContext';
@@ -175,10 +174,12 @@ export default function LiveStreamView() {
 
   // ─── Tablet/Desktop: AppShell wraps the layout so top nav + collapsed
   // sidebar stay visible. The shop/video/chat occupy the main content area
-  // edge-to-edge. The stage uses position:sticky + top:64px (topnav
-  // height) so it stays pinned during early scroll and the ExploreMore
-  // rail beneath reveals cleanly — avoiding the 900-1500px white band
-  // we hit on 2026-06-05 with a non-sticky stage.
+  // edge-to-edge. We tried adding ExploreMoreRail below the stage twice;
+  // both times the sticky-stage + scroll-rail pattern produced bad
+  // overlap because the stage's positioning context (AppShell main with
+  // max-width + padding) isn't the scroll context (window). The rail
+  // ended up sliding over the still-rendered stage on scroll. Discovery
+  // lives on /live; the /live/:id surface stays focused on the stream.
   return (
     <AppShell>
       <LiveDesktopStage
@@ -188,9 +189,6 @@ export default function LiveStreamView() {
         onParticipantCountChange={handleParticipantCount}
         onEnterFullscreen={() => setFullscreen(true)}
       />
-      <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
-        <ExploreMoreRail excludeId={stream.id} />
-      </Box>
     </AppShell>
   );
 }
@@ -216,12 +214,7 @@ function LiveDesktopStage({
         // breathing-room padding inside.
         mx: { md: -3 },
         mt: { md: -3 },
-        // Sticky so the stage stays pinned while the user scrolls down
-        // to reveal the ExploreMore rail below. top:64px clears the
-        // topnav. Without sticky, scrolling would slide the stage off
-        // the top before the rail entered viewport → white gap.
-        position: 'sticky',
-        top: 64,
+        mb: { md: -3 },
         height: 'calc(100dvh - 64px)', // 64 = topnav height
         bgcolor: inkstashColors.bg,
         display: 'grid',
@@ -534,16 +527,25 @@ function MobileLiveSurface({
   // Mobile keeps its own full-bleed black treatment.
   useFullBleedBlackBackground();
   useSuppressMobileNav();
+  useLockBodyScroll();
+  // Mobile browsers (Chrome especially) overlay a bottom URL/nav bar
+  // that eats viewport space. Track the visual viewport so the chat
+  // composer + auction card can sit above that bar instead of behind
+  // it. Falls back to 0 on browsers without visualViewport (no-op).
+  const visualBottomOffset = useVisualViewportBottomOffset();
   return (
     <Box
       sx={{
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        height: ['100vh', '100lvh'],
+        // 100dvh = dynamic viewport (shrinks when bottom nav appears).
+        // Falls back to 100vh on the rare browser without dvh.
+        height: '100dvh',
         bgcolor: '#000',
         overflow: 'hidden',
         touchAction: 'manipulation',
+        overscrollBehavior: 'contain',
       }}
     >
       <MobileVideoStage
@@ -552,20 +554,71 @@ function MobileLiveSurface({
         viewerCount={viewerCount}
         onParticipantCountChange={onParticipantCountChange}
         onClose={onClose}
+        bottomBarOffset={visualBottomOffset}
       />
     </Box>
   );
 }
 
+// Locks document.body scroll while the viewer surface is mounted so
+// Safari's rubber-band scroll can't expose a white band underneath
+// the fixed full-bleed stage.
+function useLockBodyScroll() {
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevPosition = document.body.style.position;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.position = prevPosition;
+      document.body.style.width = '';
+    };
+  }, []);
+}
+
+// Returns the px offset from the bottom of the layout viewport to the
+// bottom of the *visible* area. Non-zero when the browser overlays a
+// bottom nav bar (Chrome mobile) or when the on-screen keyboard is up.
+// Falls back to 0 on browsers without visualViewport.
+function useVisualViewportBottomOffset(): number {
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    const vv = (typeof window !== 'undefined' ? window.visualViewport : null);
+    if (!vv) return;
+    const update = () => {
+      // Layout viewport height vs visual viewport bottom edge.
+      // window.innerHeight is the layout viewport; vv.height +
+      // vv.offsetTop gives us the bottom of the visible area.
+      const layoutH = window.innerHeight;
+      const visibleBottom = vv.height + vv.offsetTop;
+      setOffset(Math.max(0, layoutH - visibleBottom));
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+  return offset;
+}
+
 // ─── Mobile video stage (full-bleed overlay) ────────────────────────────────
 function MobileVideoStage({
-  stream, joinData, viewerCount, onParticipantCountChange, onClose,
+  stream, joinData, viewerCount, onParticipantCountChange, onClose, bottomBarOffset,
 }: {
   stream: Livestream;
   joinData: { token: string; wsUrl: string; chat: ChatMessage[]; isBanned: boolean };
   viewerCount: number;
   onParticipantCountChange: (n: number) => void;
   onClose: () => void;
+  /** px the browser's bottom UI (Chrome nav bar, keyboard, etc) is
+   *  overlaying the layout viewport. Used to push the chat composer
+   *  + auction card above those overlays so they remain tappable. */
+  bottomBarOffset: number;
 }) {
   // Track the auction card height so the chat composer can sit above
   // it instead of being covered (the input was untappable pre-fix).
@@ -629,7 +682,11 @@ function MobileVideoStage({
         livestreamId={stream.id}
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
-        bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
+        // Reserve = auction-card height (when shown) + the browser's
+        // bottom UI overlay (Chrome mobile nav bar / iOS keyboard).
+        // Without bottomBarOffset the composer sits behind Chrome's
+        // bottom URL bar and becomes untappable.
+        bottomReserve={(auctionHeight > 0 ? auctionHeight + 10 : 0) + bottomBarOffset}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -640,8 +697,9 @@ function MobileVideoStage({
           position: 'absolute',
           left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
           right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          bottom: `calc(env(safe-area-inset-bottom, 0px) + 10px + ${bottomBarOffset}px)`,
           zIndex: 6,
+          transition: 'bottom 180ms ease-out',
         }}
       >
         <MobileAuctionCard
