@@ -83,7 +83,18 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
         )}
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '14px 12px' }}>
+      <Box sx={{
+        flex: 1,
+        overflowY: 'auto',
+        // No horizontal scroll inside the sidebar — long labels
+        // ellipsis instead.
+        overflowX: 'hidden',
+        padding: collapsed ? '12px 8px' : '14px 12px',
+        // Belt-and-suspenders: hide the vertical scrollbar too so
+        // overflow handling doesn't paint a thumb on iOS Safari.
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': { display: 'none' },
+      }}>
         {appSidebarPrimary.map(item => {
           const Icon = item.icon;
           return (
@@ -92,24 +103,48 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
               to={item.route}
               end={item.route === '/'}
               onClick={onMobileClose}
-              style={({ isActive }) => ({
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: collapsed ? '10px 0' : '10px 12px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                borderRadius: 8,
-                color: isActive ? '#fff' : inkstashColors.ink2,
-                background: isActive ? inkstashColors.brand : 'transparent',
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 500,
-                marginBottom: 2,
-                transition: 'background 140ms ease, color 140ms ease',
-              })}
+              // sx via Box wrapper is needed for the ::after edge accent;
+              // NavLink's render-prop pattern doesn't play with MUI sx.
+              style={{ textDecoration: 'none' }}
             >
               {({ isActive }) => (
-                <>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: collapsed ? '10px 0' : '10px 12px',
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    borderRadius: '8px',
+                    color: isActive ? '#fff' : inkstashColors.ink2,
+                    // Active = ink (black) per design source
+                    // (design_references/styles.css :: .side-item.active).
+                    bgcolor: isActive ? inkstashColors.ink : 'transparent',
+                    fontSize: 14,
+                    fontWeight: isActive ? 600 : 500,
+                    marginBottom: '2px',
+                    transition: 'background-color 140ms ease, color 140ms ease',
+                    // Crimson edge accent on the RIGHT side. Paints
+                    // only on hover when not active (active uses the
+                    // black fill alone — same pattern as HubRail).
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      right: -13, // sit flush with the sidebar's right border
+                      top: 8, bottom: 8,
+                      width: 3,
+                      borderRadius: '3px 0 0 3px',
+                      bgcolor: 'transparent',
+                      transition: 'background-color 140ms ease',
+                    },
+                    '&:hover': isActive ? {} : {
+                      bgcolor: inkstashColors.bgSunken,
+                      color: inkstashColors.ink,
+                    },
+                    '&:hover::after': isActive ? {} : { bgcolor: inkstashColors.brand },
+                  }}
+                >
                   <Icon size={18} />
                   {!collapsed && (
                     <>
@@ -125,7 +160,7 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
                       )}
                     </>
                   )}
-                </>
+                </Box>
               )}
             </NavLink>
           );
@@ -181,7 +216,10 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
 
         {!collapsed && (
           <Box sx={{
-            mt: 3, padding: 2,
+            // Bigger breathing room from the Events list above so the
+            // promo card reads as its own block instead of crowding
+            // the last event row.
+            mt: 5, padding: 2,
             background: `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
             border: `1px solid ${inkstashColors.border}`,
             borderRadius: 2,

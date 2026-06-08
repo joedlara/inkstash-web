@@ -25,6 +25,8 @@ import StepItems from './StepItems';
 import StepSettings from './StepSettings';
 import StepPreview from './StepPreview';
 import DualDevicePairing from './DualDevicePairing';
+import SingleDeviceCamera from './SingleDeviceCamera';
+import { useMediaQuery, useTheme } from '@mui/material';
 import type { ComposerDetails, ComposerItem, ComposerMode, ComposerSettings } from './types';
 import { DEFAULT_DETAILS, DEFAULT_SETTINGS } from './types';
 
@@ -80,6 +82,24 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
   // joins the LiveKit room as a publisher.
   const [preparedId, setPreparedId] = useState<string | null>(null);
   const [phonePaired, setPhonePaired] = useState(false);
+  // Camera mode: 'dual' (laptop = producer, phone = camera via QR) or
+  // 'single' (this device IS the camera). Default by viewport: phones
+  // get 'single' because you can't scan a QR with the same device,
+  // desktops get 'dual' because the laptop webcam isn't the typical
+  // host camera. Either can manually switch via a toggle in Step 4.
+  const theme = useTheme();
+  const isMobileViewport = useMediaQuery(theme.breakpoints.down('md'));
+  const [cameraMode, setCameraMode] = useState<'dual' | 'single'>(
+    isMobileViewport ? 'single' : 'dual',
+  );
+  // Re-default if the viewport flips after open (e.g. dev rotation).
+  // Don't override if the user has manually switched — track that with
+  // a "touched" flag.
+  const [cameraModeTouched, setCameraModeTouched] = useState(false);
+  useEffect(() => {
+    if (cameraModeTouched) return;
+    setCameraMode(isMobileViewport ? 'single' : 'dual');
+  }, [isMobileViewport, cameraModeTouched]);
   // Flips true the moment goLive() flips the row status to 'live'.
   // Passed to DualDevicePairing so its unmount cleanup knows NOT to
   // delete the row (it's a real stream now). Without this, the soft-
@@ -145,9 +165,9 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
     setPublishError(null);
     try {
       if (mode === 'live') {
-        // Live mode: stream row already exists from DualDevicePairing's
-        // prepare call on Step 4 mount. Persist items, then flip status
-        // 'preparing' -> 'live' via goLive(). No second start() call.
+        // Live mode: stream row already exists from Step 4's prepare
+        // call. Persist items, then either flip preparing → live (dual-
+        // device) or no-op (single-device, already live).
         if (!preparedId) throw new Error('Stream not prepared. Close and try again.');
         if (user?.id && items.length > 0) {
           const result = await persistComposerItems({
@@ -157,9 +177,12 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
             console.warn(`[GoLiveComposer] ${result.failed}/${items.length} lots failed to persist`);
           }
         }
+        // Both modes use prepare-only semantics now (row stays
+        // 'preparing' until the host hits Publish). Flip to 'live'
+        // here so the row doesn't appear on /live before Publish.
         await livestreamsAPI.goLive(preparedId);
-        // Tell DualDevicePairing the row is now a real, live stream so
-        // its unmount cleanup doesn't delete it.
+        // Tell Step 4 the row is now a real, live stream so its
+        // unmount cleanup doesn't delete/end it.
         setPublished(true);
         onPublished?.(preparedId, mode);
         handleHardClose();
@@ -293,21 +316,64 @@ export default function GoLiveComposer({ open, mode, onClose, onPublished }: Pro
                   borderLeft: { md: `1px solid ${inkstashColors.border}` },
                   pl: { md: 3 },
                 }}>
-                  <Typography sx={{
-                    fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
-                    textTransform: 'uppercase', letterSpacing: '0.08em',
-                    color: inkstashColors.muted, mb: 2,
+                  <Box sx={{
+                    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                    gap: 1, mb: 2,
                   }}>
-                    Connect your camera
-                  </Typography>
-                  <DualDevicePairing
-                    title={details.title.trim() || 'Untitled show'}
-                    description={details.description.trim() || undefined}
-                    coverImageUrl={details.thumb.src || undefined}
-                    onPrepared={setPreparedId}
-                    onPaired={setPhonePaired}
-                    published={published}
-                  />
+                    <Typography sx={{
+                      fontFamily: inkstashFonts.mono, fontSize: 11, fontWeight: 600,
+                      textTransform: 'uppercase', letterSpacing: '0.08em',
+                      color: inkstashColors.muted,
+                    }}>
+                      {cameraMode === 'dual' ? 'Connect your camera' : 'This device is the camera'}
+                    </Typography>
+                    {/* Manual override link. Resetting preparedId +
+                        readiness flags so the new component gets a
+                        fresh prepare call instead of inheriting
+                        stale state from the previous mode. */}
+                    <Box
+                      component="button"
+                      onClick={() => {
+                        setCameraModeTouched(true);
+                        setCameraMode((m) => m === 'dual' ? 'single' : 'dual');
+                        setPreparedId(null);
+                        setPhonePaired(false);
+                        setPublished(false);
+                      }}
+                      sx={{
+                        bgcolor: 'transparent', border: 0, p: 0, m: 0,
+                        cursor: 'pointer',
+                        fontFamily: inkstashFonts.ui, fontSize: 11.5, fontWeight: 600,
+                        color: inkstashColors.brand,
+                        textDecoration: 'underline',
+                        textUnderlineOffset: 2,
+                        '&:hover': { color: inkstashColors.brandDeep },
+                      }}
+                    >
+                      {cameraMode === 'dual'
+                        ? 'Use this device instead'
+                        : 'Pair a phone instead'}
+                    </Box>
+                  </Box>
+                  {cameraMode === 'dual' ? (
+                    <DualDevicePairing
+                      title={details.title.trim() || 'Untitled show'}
+                      description={details.description.trim() || undefined}
+                      coverImageUrl={details.thumb.src || undefined}
+                      onPrepared={setPreparedId}
+                      onPaired={setPhonePaired}
+                      published={published}
+                    />
+                  ) : (
+                    <SingleDeviceCamera
+                      title={details.title.trim() || 'Untitled show'}
+                      description={details.description.trim() || undefined}
+                      coverImageUrl={details.thumb.src || undefined}
+                      onPrepared={setPreparedId}
+                      onCameraReady={setPhonePaired}
+                      published={published}
+                    />
+                  )}
                 </Box>
               )}
             </Box>

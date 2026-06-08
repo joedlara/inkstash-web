@@ -27,10 +27,22 @@ interface CurrentItem {
   title: string;
   price: number | null;
   status: 'live' | 'sold' | 'passed';
+  // Auction state. Null when bidding hasn't been started on this item.
+  currentPriceCents: number | null;
+  bidCount: number;
+  biddingEndsAt: string | null;
 }
 
 export default function CurrentItemBar({ livestreamId }: Props) {
   const [item, setItem] = useState<CurrentItem | null>(null);
+  // Tick to refresh the countdown display without re-fetching. The
+  // realtime row-update broadcast handles the "new bid" case; this
+  // just animates the seconds-remaining label between updates.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 500);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,9 +53,9 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       // by position so the latest entry of the kind wins.
       const { data: items } = await supabase
         .from('livestream_items')
-        .select('id, listing_id, status, position')
+        .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at')
         .eq('livestream_id', livestreamId)
-        .in('status', ['sold', 'live', 'passed'])
+        .in('status', ['sold', 'sold_pending_payment', 'live', 'passed'])
         .order('position', { ascending: false })
         .limit(10);
       if (cancelled || !items || items.length === 0) {
@@ -51,10 +63,14 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         return;
       }
       // Pick by priority: sold > live > passed
-      type LIRow = { id: string; listing_id: string; status: 'sold' | 'live' | 'passed'; position: number };
+      type RawStatus = 'sold' | 'sold_pending_payment' | 'live' | 'passed';
+      type LIRow = {
+        id: string; listing_id: string; status: RawStatus; position: number;
+        current_price_cents: number | null; bid_count: number | null; bidding_ends_at: string | null;
+      };
       const rows = items as LIRow[];
-      const pick = rows.find((r) => r.status === 'sold')
-        ?? rows.find((r) => r.status === 'live')
+      const pick = rows.find((r) => r.status === 'live')
+        ?? rows.find((r) => r.status === 'sold' || r.status === 'sold_pending_payment')
         ?? rows.find((r) => r.status === 'passed');
       if (!pick) { if (!cancelled) setItem(null); return; }
       const { data: listing } = await supabase
@@ -69,11 +85,21 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         itemId: l.id,
         title: l.title,
         price: l.buy_now_price,
-        status: pick.status,
+        // Collapse sold_pending_payment → sold for viewer display.
+        status: pick.status === 'sold_pending_payment' ? 'sold' : pick.status,
+        currentPriceCents: pick.current_price_cents,
+        bidCount: pick.bid_count ?? 0,
+        biddingEndsAt: pick.bidding_ends_at,
       });
     }
 
     fetchCurrent();
+    // 3s polling fallback so the on-block state stays current even
+    // when a realtime event is dropped (tab background, ws reconnect,
+    // schema cache lag). Realtime stays primary; this catches gaps.
+    const pollId = window.setInterval(() => {
+      if (!cancelled) fetchCurrent();
+    }, 3000);
     const channel = supabase
       .channel(`current_item_bar:${livestreamId}`)
       .on(
@@ -82,13 +108,29 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         () => { if (!cancelled) fetchCurrent(); },
       )
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      supabase.removeChannel(channel);
+    };
   }, [livestreamId]);
 
   if (!item) return null;
 
-  const statusLabel = item.status === 'sold' ? 'Sold' : item.status === 'live' ? 'On the block' : 'Passed';
-  const statusColor = item.status === 'sold' ? '#FF6B6B' : item.status === 'live' ? '#FFC53D' : 'rgba(255,255,255,0.55)';
+  const bidActive = !!item.biddingEndsAt && new Date(item.biddingEndsAt).getTime() > Date.now();
+  const secondsRemaining = item.biddingEndsAt
+    ? Math.max(0, Math.ceil((new Date(item.biddingEndsAt).getTime() - Date.now()) / 1000))
+    : null;
+  const displayCents = item.currentPriceCents
+    ?? Math.round(Number(item.price ?? 1) * 100);
+  const displayPriceLabel = `$${(displayCents / 100).toFixed(2).replace(/\.00$/, '')}`;
+
+  const statusLabel = item.status === 'sold' ? 'Sold'
+    : bidActive ? `Bidding · ${secondsRemaining}s`
+    : item.status === 'live' ? 'On the block' : 'Passed';
+  const statusColor = item.status === 'sold' ? '#FF6B6B'
+    : bidActive && (secondsRemaining ?? 0) <= 3 ? '#FF6B6B'
+    : item.status === 'live' ? '#FFC53D' : 'rgba(255,255,255,0.55)';
 
   return (
     <Box
@@ -178,11 +220,11 @@ export default function CurrentItemBar({ livestreamId }: Props) {
               mt: 0.6,
             }}
           >
-            — Bids · Shipping at checkout
+            {item.bidCount} {item.bidCount === 1 ? 'Bid' : 'Bids'} · Shipping at checkout
           </Typography>
         </Box>
         <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-          {item.price != null && (
+          {displayCents > 0 && (
             <Typography
               sx={{
                 fontFamily: inkstashFonts.display,
@@ -192,7 +234,7 @@ export default function CurrentItemBar({ livestreamId }: Props) {
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
-              ${Number(item.price).toFixed(0)}
+              {displayPriceLabel}
             </Typography>
           )}
           <Typography

@@ -177,9 +177,11 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 0.6,
-            px: scheduled ? '8px' : '8px',
-            pr: scheduled ? '10px' : '10px',
-            py: '4px',
+            // Match the Watching pill's px/py so both sit at the
+            // same visual height. Pre-fix Live was 18px tall and
+            // Watching was 22px tall, making the row look unbalanced.
+            px: '10px',
+            py: '5px',
             borderRadius: 999,
             bgcolor: scheduled ? 'rgba(0,0,0,0.55)' : inkstashColors.live,
             backdropFilter: scheduled ? 'blur(6px)' : undefined,
@@ -187,7 +189,7 @@ export default function LiveStreamCard({ stream, scheduled = false }: Props) {
             border: scheduled ? '1px solid rgba(255,255,255,0.18)' : 'none',
             color: '#fff',
             fontFamily: inkstashFonts.mono,
-            fontSize: 10.5,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: scheduled ? '0.04em' : '0.08em',
             lineHeight: 1,

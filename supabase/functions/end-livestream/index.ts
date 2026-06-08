@@ -69,6 +69,23 @@ serve(async (req) => {
       return json({ error: 'scheduled_in_future_use_delete' }, 409)
     }
 
+    // 2026-06-05: reject end-stream when any livestream_item is in
+    // active bidding (status='live' AND bidding_ends_at in the future).
+    // The host UI already blocks this client-side, but a stale tab or
+    // direct API caller could bypass it. Returning 409 here keeps the
+    // bidding window honest server-side.
+    const { data: activeBids } = await serviceClient
+      .from('livestream_items')
+      .select('id, bidding_ends_at')
+      .eq('livestream_id', s.id)
+      .eq('status', 'live')
+      .not('bidding_ends_at', 'is', null)
+      .gt('bidding_ends_at', new Date().toISOString())
+      .limit(1)
+    if (activeBids && activeBids.length > 0) {
+      return json({ error: 'active_bidding' }, 409)
+    }
+
     // Close the LiveKit room. Best effort; failure shouldn't block the DB
     // status flip — viewers will get disconnected next time they reconnect.
     try {

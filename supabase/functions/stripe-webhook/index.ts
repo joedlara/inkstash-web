@@ -215,32 +215,81 @@ async function creditRubyBundle(
       const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
       const card = pm.card
       if (card) {
-        const { count } = await serviceClient
-          .from('user_payment_methods')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
+        // Dedupe by Stripe card fingerprint. Stripe re-tokenizes the
+        // same physical card with a NEW pm_xxx every time it's entered
+        // on the PaymentElement, so dedupe-by-pm_id alone never catches
+        // a re-entry of the same card. card.fingerprint is stable
+        // across re-tokenizations of the same PAN, so it's our true
+        // identity key here.
+        const fingerprint = card.fingerprint ?? null
 
-        const isFirstCard = (count ?? 0) === 0
+        // If we already have a row for (user_id, fingerprint), just
+        // update its stripe_payment_method_id + exp + brand so future
+        // off-session charges hit the freshest pm_xxx. Skip insert.
+        let existing: { id: string; is_default: boolean } | null = null
+        if (fingerprint) {
+          const { data } = await serviceClient
+            .from('user_payment_methods')
+            .select('id, is_default')
+            .eq('user_id', userId)
+            .eq('card_fingerprint', fingerprint)
+            .maybeSingle()
+          existing = data as { id: string; is_default: boolean } | null
+        }
 
-        const { error: pmError } = await serviceClient
-          .from('user_payment_methods')
-          .upsert(
-            {
+        if (existing) {
+          // Refresh the stored pm_id + expiry so off-session charges
+          // (e.g. auction wins) use the current Stripe handle. Don't
+          // touch is_default — that's a user-controlled preference.
+          const { error: updateErr } = await serviceClient
+            .from('user_payment_methods')
+            .update({
+              stripe_payment_method_id: paymentMethodId,
+              card_brand: card.brand,
+              card_last4: card.last4,
+              exp_month: card.exp_month,
+              exp_year: card.exp_year,
+            })
+            .eq('id', existing.id)
+          if (updateErr) {
+            console.error('[stripe-webhook] failed to refresh payment method:', updateErr)
+          } else {
+            console.log('[stripe-webhook] refreshed existing pm by fingerprint for user', userId)
+          }
+        } else {
+          // First time we've seen this card for this user. If they
+          // have no other cards on file, make this one the default.
+          const { count } = await serviceClient
+            .from('user_payment_methods')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+          const isFirstCard = (count ?? 0) === 0
+
+          const { error: pmError } = await serviceClient
+            .from('user_payment_methods')
+            .insert({
               user_id: userId,
               stripe_payment_method_id: paymentMethodId,
               card_brand: card.brand,
               card_last4: card.last4,
               exp_month: card.exp_month,
               exp_year: card.exp_year,
+              card_fingerprint: fingerprint,
               is_default: isFirstCard,
-            },
-            { onConflict: 'stripe_payment_method_id', ignoreDuplicates: true },
-          )
+            })
 
-        if (pmError) {
-          console.error('[stripe-webhook] failed to save payment method:', pmError)
-        } else {
-          console.log('[stripe-webhook] payment method saved for user', userId)
+          if (pmError) {
+            // The partial unique index on (user_id, card_fingerprint)
+            // is a backstop — if a parallel webhook racing us got
+            // there first, we'll hit a 23505 here. Treat as benign.
+            if (pmError.code === '23505') {
+              console.log('[stripe-webhook] pm already saved (concurrent insert)')
+            } else {
+              console.error('[stripe-webhook] failed to save payment method:', pmError)
+            }
+          } else {
+            console.log('[stripe-webhook] payment method saved for user', userId)
+          }
         }
       }
     } catch (err) {
