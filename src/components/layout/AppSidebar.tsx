@@ -205,7 +205,10 @@ export default function AppSidebar({ collapsed, mobileOpen, onCollapseToggle, on
 
         {!collapsed && (
           <Box sx={{
-            mt: 3, padding: 2,
+            // Bigger breathing room from the Events list above so the
+            // promo card reads as its own block instead of crowding
+            // the last event row.
+            mt: 5, padding: 2,
             background: `linear-gradient(135deg, ${inkstashColors.brandSoft}, ${inkstashColors.bgSunken})`,
             border: `1px solid ${inkstashColors.border}`,
             borderRadius: 2,
