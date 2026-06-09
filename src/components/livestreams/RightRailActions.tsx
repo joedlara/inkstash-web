@@ -10,18 +10,24 @@ import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucid
 import ShareDrawer from './ShareDrawer';
 import MoreDrawer from './MoreDrawer';
 import WalletDrawer from './WalletDrawer';
+import LikeButton from './LikeButton';
+import { useCleanMode } from './StreamTapLayer';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
   streamTitle: string;
   streamUrl: string;
+  livestreamId: string;
 }
 
 type PopoverKey = 'more' | 'share' | 'wallet' | null;
 
-export default function RightRailActions({ streamTitle, streamUrl }: Props) {
+export default function RightRailActions({ streamTitle, streamUrl, livestreamId }: Props) {
   const [open, setOpen] = useState<PopoverKey>(null);
   const [walletAutoAddCard, setWalletAutoAddCard] = useState(false);
+  // Distraction-free mode fades the entire rail. Subscribes to
+  // inkstash:clean-mode broadcast from useStreamTaps in the page.
+  const clean = useCleanMode();
   // One ref per button so each popover can anchor to the exact chip the
   // user tapped instead of all anchoring to the rail wrapper.
   const shareRef = useRef<HTMLButtonElement | null>(null);
@@ -66,20 +72,25 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
           flexDirection: 'column',
           gap: 0.85,
           zIndex: 2,
-          pointerEvents: 'auto',
+          // Fade out when distraction-free mode is on (single-tap
+          // toggle on small viewports). Pointer events drop with
+          // opacity so taps fall through to the camera.
+          opacity: clean ? 0 : 1,
+          pointerEvents: clean ? 'none' : 'auto',
+          transition: 'opacity 350ms cubic-bezier(0.23, 1, 0.32, 1)',
         }}
       >
+        <RailChip
+          ref={moreRef}
+          icon={<MoreHorizontal size={17} strokeWidth={2.4} />}
+          label="More"
+          onClick={() => setOpen('more')}
+        />
         <RailChip
           ref={shareRef}
           icon={<Share2 size={15} strokeWidth={2.4} />}
           label="Share"
           onClick={() => setOpen('share')}
-        />
-        <RailChip
-          ref={walletRef}
-          icon={<WalletIcon size={15} strokeWidth={2.4} />}
-          label="Wallet"
-          onClick={() => setOpen('wallet')}
         />
         <Tooltip title="Coming with auctions" arrow placement="left">
           <span>
@@ -91,11 +102,16 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
           </span>
         </Tooltip>
         <RailChip
-          ref={moreRef}
-          icon={<MoreHorizontal size={17} strokeWidth={2.4} />}
-          label="More"
-          onClick={() => setOpen('more')}
+          ref={walletRef}
+          icon={<WalletIcon size={15} strokeWidth={2.4} />}
+          label="Wallet"
+          onClick={() => setOpen('wallet')}
         />
+        {/* Bottom of the rail per the redesign — Like button with
+            running count. Dispatches `inkstash:like-from-button`;
+            useStreamTaps in LiveStreamView turns that into a heart
+            animation + an incremented count broadcast back here. */}
+        <LikeButton livestreamId={livestreamId} />
       </Box>
 
       <ShareDrawer

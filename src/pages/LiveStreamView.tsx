@@ -25,6 +25,7 @@ import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
 import ProfileCard from '../components/livestreams/ProfileCard';
+import { useStreamTaps, TapCatcher, HeartLayer } from '../components/livestreams/StreamTapLayer';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -224,6 +225,12 @@ function LiveDesktopStage({
   // white cards in a 320 / 1fr / 384 grid, gap 18px. Frame width
   // collapses to a 2-column (video + chat) at ≤1240px, then drops to
   // the mobile branch entirely below md (useMediaQuery handles that).
+  //
+  // Tap detection lives at the stage level so its state + the like
+  // count broadcast (via LikeButton) come from one source. Double-
+  // tap likes + single-tap distraction-free toggle (the latter only
+  // engages on ≤1024px or fullscreen — the inner guard handles it).
+  const taps = useStreamTaps(stream.id);
   return (
     <Box
       sx={{
@@ -297,6 +304,14 @@ function LiveDesktopStage({
             onParticipantCountChange={onParticipantCountChange}
           />
 
+          {/* Double-tap-to-like + single-tap distraction-free toggle.
+              TapCatcher sits at z-index 1 (above the video, below
+              all the overlays that need to stay interactive). The
+              HeartLayer is z-index 9 with pointer-events:none so the
+              hearts float over everything without blocking taps. */}
+          <TapCatcher onPointerUp={taps.onPointerUp} />
+          <HeartLayer hearts={taps.hearts} />
+
           {/* Click-to-fullscreen removed on desktop per QA. The video
               just plays — no zoom-in cursor, no hit layer. Mobile/
               tablet still use the full-bleed treatment via the
@@ -337,6 +352,7 @@ function LiveDesktopStage({
           <RightRailActions
             streamTitle={stream.title}
             streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+            livestreamId={stream.id}
           />
 
           {/* Auction winner banner. Self-positions absolutely against
@@ -508,6 +524,7 @@ function FullscreenVideoSurface({
       <RightRailActions
         streamTitle={stream.title}
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        livestreamId={stream.id}
       />
 
       {/* Bottom chat overlay — read-only, fade-mask at top. bottomReserve
@@ -650,6 +667,10 @@ function MobileVideoStage({
   // Track the auction card height so the chat composer can sit above
   // it instead of being covered (the input was untappable pre-fix).
   const [auctionHeight, setAuctionHeight] = useState(0);
+  // Tap detection: double-tap → like, single-tap → toggle clean
+  // mode (matches the design spec; the inner guard restricts clean
+  // toggle to ≤1024px / fullscreen, which the mobile stage is).
+  const taps = useStreamTaps(stream.id);
   return (
     <Box sx={{ position: 'absolute', inset: 0 }}>
       <LiveStreamVideo
@@ -658,6 +679,11 @@ function MobileVideoStage({
         mode="viewer"
         onParticipantCountChange={onParticipantCountChange}
       />
+
+      {/* Double-tap-to-like + single-tap distraction-free toggle.
+          Same pattern as the desktop stage. */}
+      <TapCatcher onPointerUp={taps.onPointerUp} />
+      <HeartLayer hearts={taps.hearts} />
 
       <Box
         sx={{
@@ -703,6 +729,7 @@ function MobileVideoStage({
       <RightRailActions
         streamTitle={stream.title}
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        livestreamId={stream.id}
       />
 
       {/* Same auction winner banner used by the desktop stage —
