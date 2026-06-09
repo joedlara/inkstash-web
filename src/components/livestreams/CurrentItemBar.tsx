@@ -328,27 +328,44 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           so they don't drag the slider only to hit the wallet
           afterwards. As soon as someone else takes the lead, OR a
           card lands, the slider unlocks. */}
-      {bidActive && (isWinning ? (
+      {/* DEV-ONLY diagnostic strip so we can see why the bid row
+          isn't rendering. Remove once the no-slider issue is
+          confirmed fixed. */}
+      {import.meta.env.DEV && (
         <Box sx={{
-          py: 1.25, px: 2, borderRadius: 999,
-          bgcolor: 'rgba(46,111,79,0.85)',
-          color: '#fff',
-          fontFamily: inkstashFonts.ui,
-          fontSize: 13, fontWeight: 700,
-          textAlign: 'center',
+          fontFamily: inkstashFonts.mono, fontSize: 10,
+          color: 'rgba(255,255,255,0.55)',
+          bgcolor: 'rgba(0,0,0,0.4)',
+          px: 1, py: 0.4, borderRadius: 1,
+          letterSpacing: '0.04em',
         }}>
-          You're the highest bidder. Wait for someone else to bid.
+          bidActive={String(bidActive)} hasCard={String(hasCard)} isWinning={String(isWinning)} status={item.status} endsAt={item.biddingEndsAt ? 'set' : 'null'}
         </Box>
-      ) : hasCard === false ? (
-        <AddCardToBidCTA nextBidLabel={nextBidLabel} />
-      ) : (
-        <SlideToBid
-          label={`Bid ${nextBidLabel}`}
-          onConfirm={handleBid}
-          disabled={false}
-          busy={bidding}
-        />
-      ))}
+      )}
+
+      {bidActive ? (
+        isWinning ? (
+          <Box sx={{
+            py: 1.25, px: 2, borderRadius: 999,
+            bgcolor: 'rgba(46,111,79,0.85)',
+            color: '#fff',
+            fontFamily: inkstashFonts.ui,
+            fontSize: 13, fontWeight: 700,
+            textAlign: 'center',
+          }}>
+            You're the highest bidder. Wait for someone else to bid.
+          </Box>
+        ) : hasCard === false ? (
+          <AddCardToBidCTA nextBidLabel={nextBidLabel} />
+        ) : (
+          <SlideToBid
+            label={`Bid ${nextBidLabel}`}
+            onConfirm={handleBid}
+            disabled={false}
+            busy={bidding}
+          />
+        )
+      ) : null}
 
       <Snackbar
         open={!!toast}
