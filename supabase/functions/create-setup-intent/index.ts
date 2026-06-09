@@ -53,9 +53,16 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    // Find-or-create the Stripe Customer. Same pattern as
-    // create-payment-intent so the same customer record is reused
-    // across charges and saved cards.
+    // Find-or-create the Stripe Customer. Pass an idempotency key
+    // derived from the user_id so two concurrent calls (StrictMode
+    // double-fire, two tabs, etc.) can't create two customers for
+    // the same person. Stripe returns the same Customer for the
+    // same key within 24h, and the unique-per-user nature of the
+    // key means future runs with the same user reuse it forever.
+    // This was the root cause of an existing data quirk where one
+    // viewer had two cus_xxx records, one orphaned with their card
+    // and the other recorded on users.stripe_customer_id, so place-
+    // bid returned 'no_card_on_file' despite the card existing.
     const { data: userRow } = await serviceClient
       .from('users')
       .select('stripe_customer_id, email')
@@ -63,10 +70,13 @@ serve(async (req) => {
       .maybeSingle()
     let stripeCustomerId = (userRow as { stripe_customer_id: string | null } | null)?.stripe_customer_id ?? null
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: (userRow as { email?: string } | null)?.email ?? user.email ?? undefined,
-        metadata: { supabase_user_id: user.id },
-      })
+      const customer = await stripe.customers.create(
+        {
+          email: (userRow as { email?: string } | null)?.email ?? user.email ?? undefined,
+          metadata: { supabase_user_id: user.id },
+        },
+        { idempotencyKey: `customer-for-user-${user.id}` },
+      )
       stripeCustomerId = customer.id
       await serviceClient
         .from('users')
