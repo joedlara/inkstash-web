@@ -80,10 +80,17 @@ serve(async (req) => {
 
     stripeCustomerId = userRow?.stripe_customer_id ?? null
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: userRow?.email ?? user.email,
-        metadata: { user_id: user.id },
-      })
+      // Idempotency key keyed by supabase user id so two concurrent
+      // first-payment attempts (StrictMode double-fire, two tabs)
+      // can't create two Stripe Customers for the same person. Same
+      // key in create-setup-intent.
+      const customer = await stripe.customers.create(
+        {
+          email: userRow?.email ?? user.email,
+          metadata: { user_id: user.id },
+        },
+        { idempotencyKey: `customer-for-user-${user.id}` },
+      )
       stripeCustomerId = customer.id
       await serviceClient
         .from('users')

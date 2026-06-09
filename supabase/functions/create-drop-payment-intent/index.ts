@@ -82,10 +82,16 @@ serve(async (req) => {
       .maybeSingle()
     stripeCustomerId = (userRow as { stripe_customer_id?: string } | null)?.stripe_customer_id ?? null
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: (userRow as { email?: string } | null)?.email ?? user.email,
-        metadata: { user_id: user.id },
-      })
+      // Idempotency key keyed by supabase user id so concurrent
+      // first-payment attempts share one Customer. Same key in
+      // create-payment-intent and create-setup-intent.
+      const customer = await stripe.customers.create(
+        {
+          email: (userRow as { email?: string } | null)?.email ?? user.email,
+          metadata: { user_id: user.id },
+        },
+        { idempotencyKey: `customer-for-user-${user.id}` },
+      )
       stripeCustomerId = customer.id
       await serviceClient
         .from('users')
