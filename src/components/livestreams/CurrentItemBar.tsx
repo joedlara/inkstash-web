@@ -19,6 +19,8 @@ import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
 import SlideToBid from './SlideToBid';
+import AddCardToBidCTA from './AddCardToBidCTA';
+import { useHasSavedCard } from './useHasSavedCard';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -40,6 +42,10 @@ interface CurrentItem {
 export default function CurrentItemBar({ livestreamId }: Props) {
   const { user } = useAuth();
   const viewerId = user?.id ?? null;
+  // Pre-flight gate for bidding. If the viewer has no saved card we
+  // swap SlideToBid for an "Add a card to bid" CTA so they don't
+  // commit a drag only to hit the wallet prompt afterwards.
+  const { hasCard } = useHasSavedCard();
   const [item, setItem] = useState<CurrentItem | null>(null);
   const [bidding, setBidding] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -313,8 +319,11 @@ export default function CurrentItemBar({ livestreamId }: Props) {
       {/* Slide-to-bid pill — only renders while bidding is active.
           When the viewer is the current high bidder we lock the
           slider AND show a "You're the highest bidder…" notice so
-          they don't accidentally outbid themselves. As soon as
-          someone else takes the lead, the slider unlocks. */}
+          they don't accidentally outbid themselves. When they have
+          no saved card on file we swap for "Add a card to bid"
+          so they don't drag the slider only to hit the wallet
+          afterwards. As soon as someone else takes the lead, OR a
+          card lands, the slider unlocks. */}
       {bidActive && (isWinning ? (
         <Box sx={{
           mt: 1.5, py: 1.25, px: 2, borderRadius: 999,
@@ -325,6 +334,10 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           textAlign: 'center',
         }}>
           You're the highest bidder. Wait for someone else to bid.
+        </Box>
+      ) : hasCard === false ? (
+        <Box sx={{ mt: 1.5 }}>
+          <AddCardToBidCTA nextBidLabel={nextBidLabel} />
         </Box>
       ) : (
         <Box sx={{ mt: 1.5 }}>
