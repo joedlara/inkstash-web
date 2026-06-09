@@ -161,6 +161,29 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     };
   }, [livestreamId]);
 
+  // After the wallet drawer reports a card was added, retry the bid
+  // we just rejected. The pendingBidItemIdRef holds the itemId from
+  // the failing attempt — if it doesn't match the current on-block
+  // item by the time the user finishes adding their card, the user
+  // most likely moved on, so we skip the auto-retry.
+  //
+  // IMPORTANT: declared above the `if (!item) return null` early-out
+  // so the hook count stays stable across renders (Rules of Hooks).
+  // Prior arrangement crashed the tree the moment `item` first became
+  // non-null on a new user — pushed white-screen on push-to-block.
+  const pendingBidItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const onCardReady = () => {
+      const pending = pendingBidItemIdRef.current;
+      pendingBidItemIdRef.current = null;
+      if (!pending || pending !== item?.itemId) return;
+      handleBid();
+    };
+    window.addEventListener('inkstash:wallet-card-ready', onCardReady);
+    return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.itemId]);
+
   if (!item) return null;
 
   const bidActive = !!item.biddingEndsAt && new Date(item.biddingEndsAt).getTime() > Date.now();
@@ -178,24 +201,6 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
 
   const priceLabel = `$${(item.priceCents / 100).toFixed(2).replace(/\.00$/, '')}`;
   const nextBidLabel = `$${((item.priceCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
-
-  // After the wallet drawer reports a card was added, retry the bid
-  // we just rejected. The pendingBidItemIdRef holds the itemId from
-  // the failing attempt — if it doesn't match the current on-block
-  // item by the time the user finishes adding their card, the user
-  // most likely moved on, so we skip the auto-retry.
-  const pendingBidItemIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    const onCardReady = () => {
-      const pending = pendingBidItemIdRef.current;
-      pendingBidItemIdRef.current = null;
-      if (!pending || pending !== item?.itemId) return;
-      handleBid();
-    };
-    window.addEventListener('inkstash:wallet-card-ready', onCardReady);
-    return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.itemId]);
 
   async function handleBid() {
     if (bidding || !bidActive) return;
