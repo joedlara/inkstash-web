@@ -185,6 +185,12 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     };
   }, [livestreamId]);
 
+  // Hooks MUST stay above the early return so the hook count stays
+  // stable across the null → loaded transition (Rules of Hooks).
+  // useWinnerUsername accepts null and no-ops; useEffect inside the
+  // hook still runs unconditionally.
+  const winnerProfile = useWinnerUsername(item?.currentWinnerId ?? null);
+
   if (!item) return null;
 
   const bidActive = !!item.biddingEndsAt && new Date(item.biddingEndsAt).getTime() > Date.now();
@@ -197,7 +203,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
   const nextBidLabel = `$${((displayCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
   const isWinning = !!viewerId && item.currentWinnerId === viewerId;
 
-  const winnerProfile = useWinnerUsername(item.currentWinnerId);
   const statusLineState: 'sold' | 'winning' | 'no_bids' = item.status === 'sold'
     ? 'sold'
     : item.currentWinnerId
