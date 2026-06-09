@@ -333,21 +333,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           so they don't drag the slider only to hit the wallet
           afterwards. As soon as someone else takes the lead, OR a
           card lands, the slider unlocks. */}
-      {/* DEV-ONLY diagnostic strip so we can see why the bid row
-          isn't rendering. Remove once the no-slider issue is
-          confirmed fixed. */}
-      {import.meta.env.DEV && (
-        <Box sx={{
-          fontFamily: inkstashFonts.mono, fontSize: 10,
-          color: 'rgba(255,255,255,0.55)',
-          bgcolor: 'rgba(0,0,0,0.4)',
-          px: 1, py: 0.4, borderRadius: 1,
-          letterSpacing: '0.04em',
-        }}>
-          bidActive={String(bidActive)} hasCard={String(hasCard)} isWinning={String(isWinning)} status={item.status} endsAt={item.biddingEndsAt ? 'set' : 'null'}
-        </Box>
-      )}
-
       {bidActive ? (
         isWinning ? (
           <Box sx={{

@@ -447,20 +447,6 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                   viewer has no saved card, swap for "Add a card to bid"
                   instead so they don't drag the slider only to hit a
                   wallet prompt afterwards. */}
-              {/* DEV-ONLY diagnostic strip — remove once no-slider
-                  issue is confirmed fixed. */}
-              {import.meta.env.DEV && (
-                <Box sx={{
-                  fontFamily: inkstashFonts.mono, fontSize: 10,
-                  color: 'rgba(255,255,255,0.55)',
-                  bgcolor: 'rgba(0,0,0,0.4)',
-                  px: 1, py: 0.4, borderRadius: 1,
-                  letterSpacing: '0.04em',
-                }}>
-                  bidActive={String(bidActive)} hasCard={String(hasCard)} isWinning={String(isWinning)} status={item.status} endsAt={item.biddingEndsAt ? 'set' : 'null'}
-                </Box>
-              )}
-
               {bidActive && isWinning ? (
                 <Box sx={{
                   py: 1.25, px: 2, borderRadius: 999,

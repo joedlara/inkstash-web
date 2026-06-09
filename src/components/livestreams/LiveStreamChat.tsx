@@ -16,6 +16,8 @@ import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI, type ChatMessage } from '../../api/livestreams';
 import { inkstashColors } from '../../theme/inkstashTokens';
 import { colorForUsername } from './usernameColor';
+import { openProfileCard } from './ProfileCard';
+import { renderMessageBody, useMentionAutocomplete, MentionSuggestions } from './chatMentions';
 
 interface Props {
   livestreamId: string;
@@ -123,6 +125,13 @@ export default function LiveStreamChat({
     };
   }, []);
 
+  // Participants for @-mention autocomplete: every chatter we've
+  // seen in this session, deduped, sorted by recency. profiles[]
+  // is the canonical source — the hook hydrates it as new messages
+  // arrive.
+  const participants = Object.values(profiles).map((p) => p.username);
+  const mention = useMentionAutocomplete(draft, setDraft, participants);
+
   return (
     <Box
       sx={{
@@ -179,18 +188,32 @@ export default function LiveStreamChat({
                   {username.charAt(0).toUpperCase()}
                 </Avatar>
                 <Typography
-                  component="span"
+                  component="button"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (m.is_mod_action) return;
+                    openProfileCard({
+                      username,
+                      userId: m.user_id,
+                      avatarUrl: profile?.avatar_url ?? null,
+                    });
+                  }}
                   sx={{
                     fontSize: 13,
                     fontWeight: 800,
-                    // Mod overrides chat-color so the gold MOD pill
-                    // reads as moderation. Otherwise hash the
-                    // username into the Twitch-style palette
-                    // (USERNAME_COLORS) so the eye can track the
-                    // same chatter between chat + auction status.
                     color: m.is_mod_action ? inkstashColors.gold : colorForUsername(username),
                     textShadow: '0 1px 3px rgba(0,0,0,0.6)',
                     whiteSpace: 'nowrap',
+                    background: 'transparent',
+                    border: 0,
+                    padding: 0,
+                    cursor: m.is_mod_action ? 'default' : 'pointer',
+                    fontFamily: 'inherit',
+                    '&:hover': m.is_mod_action ? {} : {
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    },
                   }}
                 >
                   {m.is_mod_action ? 'MOD' : username}
@@ -206,7 +229,7 @@ export default function LiveStreamChat({
                     minWidth: 0,
                   }}
                 >
-                  {m.body}
+                  {renderMessageBody(m.body)}
                 </Typography>
               </Box>
             </Box>
@@ -219,11 +242,8 @@ export default function LiveStreamChat({
           Suppressed in readOnly mode (host overlay). */}
       {!readOnly && (
       <Box
-        component="form"
-        onSubmit={send}
         sx={{
-          display: 'flex',
-          gap: 1,
+          position: 'relative',
           px: 1.5,
           // Lift the composer above any reserved bottom space (e.g. the
           // MobileAuctionCard underneath). When the keyboard is open we
@@ -237,11 +257,33 @@ export default function LiveStreamChat({
           transition: 'transform 180ms ease-out, padding-bottom 180ms ease-out',
         }}
       >
+        {/* @-mention autocomplete popover. Anchors above the input;
+            picked name gets inserted with a trailing space and the
+            popover closes automatically. */}
+        {mention.state.open && (
+          <Box sx={{ position: 'absolute', bottom: '100%', left: 12, right: 12, mb: 1, zIndex: 10 }}>
+            <MentionSuggestions
+              items={mention.state.items}
+              active={mention.state.active}
+              onPick={(name) => {
+                const next = mention.pick(name);
+                setDraft(next);
+              }}
+            />
+          </Box>
+        )}
+        <Box component="form" onSubmit={send} sx={{ display: 'flex', gap: 1 }}>
         <TextField
           fullWidth
           size="small"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={mention.onChange}
+          onKeyDown={(e) => {
+            // Let the mention popover claim arrow keys + Enter/Esc
+            // when it's open; otherwise fall through to the form
+            // default (which submits on Enter).
+            if (mention.onKeyDown(e)) return;
+          }}
           disabled={isBanned}
           placeholder={isBanned ? 'You were banned from this stream.' : 'Say something…'}
           inputProps={{ maxLength: 280 }}
@@ -279,6 +321,7 @@ export default function LiveStreamChat({
         >
           <Send fontSize="small" />
         </IconButton>
+        </Box>
       </Box>
       )}
     </Box>

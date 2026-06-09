@@ -15,6 +15,7 @@ import type { ChatMessage } from '../../api/livestreams';
 import { useLivestreamChat } from './useLivestreamChat';
 import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
 import { colorForUsername } from './usernameColor';
+import { openProfileCard } from './ProfileCard';
 
 interface Props {
   livestreamId: string;
@@ -125,18 +126,32 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
               </Avatar>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography
-                  component="span"
+                  component="button"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (m.is_mod_action) return;
+                    openProfileCard({
+                      username,
+                      userId: m.user_id,
+                      avatarUrl: profile?.avatar_url ?? null,
+                    });
+                  }}
                   sx={{
                     fontFamily: inkstashFonts.ui,
                     fontSize: 12.5,
                     fontWeight: 800,
-                    // Twitch-style username color, hashed deterministically
-                    // from the username so the same chatter looks the
-                    // same on the dark stage AND on this light rail.
-                    // MOD overrides the color to brand red.
                     color: m.is_mod_action ? inkstashColors.brand : colorForUsername(username),
                     letterSpacing: '-0.005em',
                     mr: 0.6,
+                    background: 'transparent',
+                    border: 0,
+                    padding: 0,
+                    cursor: m.is_mod_action ? 'default' : 'pointer',
+                    '&:hover': m.is_mod_action ? {} : {
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 2,
+                    },
                   }}
                 >
                   {m.is_mod_action ? 'MOD' : username}

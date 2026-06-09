@@ -24,6 +24,7 @@ import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
+import ProfileCard from '../components/livestreams/ProfileCard';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -150,13 +151,18 @@ export default function LiveStreamView() {
   // ─── Mobile: full-bleed overlay layout (unchanged) ────────────────────────
   if (isMobile) {
     return (
-      <MobileLiveSurface
-        stream={stream}
-        joinData={joinData}
-        viewerCount={viewerCount}
-        onParticipantCountChange={handleParticipantCount}
-        onClose={() => navigate('/live')}
-      />
+      <>
+        <MobileLiveSurface
+          stream={stream}
+          joinData={joinData}
+          viewerCount={viewerCount}
+          onParticipantCountChange={handleParticipantCount}
+          onClose={() => navigate('/live')}
+        />
+        {/* Profile modal triggered by any chat-username click on the
+            mobile chat overlay. */}
+        <ProfileCard />
+      </>
     );
   }
 
@@ -164,13 +170,16 @@ export default function LiveStreamView() {
   // No AppShell wrapper (sidebar + topnav are off-screen). Esc to exit.
   if (fullscreen) {
     return (
-      <FullscreenVideoSurface
-        stream={stream}
-        joinData={joinData}
-        viewerCount={viewerCount}
-        onParticipantCountChange={handleParticipantCount}
-        onExit={() => setFullscreen(false)}
-      />
+      <>
+        <FullscreenVideoSurface
+          stream={stream}
+          joinData={joinData}
+          viewerCount={viewerCount}
+          onParticipantCountChange={handleParticipantCount}
+          onExit={() => setFullscreen(false)}
+        />
+        <ProfileCard />
+      </>
     );
   }
 
@@ -193,6 +202,11 @@ export default function LiveStreamView() {
       <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
         <ExploreMoreRail excludeId={stream.id} />
       </Box>
+      {/* Centered profile modal triggered by any chat-username
+          click via the inkstash:open-profile event. Mounting once
+          at the page root means both the desktop chat rail and the
+          mobile chat overlay share the same modal. */}
+      <ProfileCard />
     </AppShell>
   );
 }
