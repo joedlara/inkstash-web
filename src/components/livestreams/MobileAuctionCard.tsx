@@ -440,6 +440,20 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                 </Box>
               </Box>
 
+              {/* DEV-ONLY diagnostic — remove once slider mount is
+                  confirmed. */}
+              {import.meta.env.DEV && (
+                <Box sx={{
+                  fontFamily: inkstashFonts.mono, fontSize: 9,
+                  color: 'rgba(255,255,255,0.55)',
+                  bgcolor: 'rgba(0,0,0,0.4)',
+                  px: 1, py: 0.4, borderRadius: 1,
+                  letterSpacing: '0.04em',
+                }}>
+                  m: bidActive={String(bidActive)} hasCard={String(hasCard)} isWinning={String(isWinning)} status={item.status} winnerId={item.currentWinnerId ? item.currentWinnerId.slice(0, 6) : 'null'} viewerId={viewerId ? viewerId.slice(0, 6) : 'null'}
+                </Box>
+              )}
+
               {/* Slide-to-bid pill — full width below the lot info.
                   When the viewer is the current high bidder, swap the
                   slider for a "You're the highest bidder" lock so they

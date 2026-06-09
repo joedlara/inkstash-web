@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, GlobalStyles } from '@mui/material';
 import { Heart } from 'lucide-react';
+import { supabase } from '../../api/supabase/supabaseClient';
 import { inkstashColors } from '../../theme/inkstashTokens';
 
 const TAP_GAP_MS = 300;
@@ -53,30 +54,51 @@ interface UseStreamTapsResult {
  * catcher + heart layer; we just track state.
  */
 export function useStreamTaps(livestreamId: string): UseStreamTapsResult {
-  const storageKey = `inkstash.stream.likes.${livestreamId}`;
-
   const [hearts, setHearts] = useState<Heart[]>([]);
-  const [likes, setLikes] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0;
-    const saved = Number(localStorage.getItem(storageKey));
-    return Number.isFinite(saved) && saved > 0 ? saved : 0;
-  });
+  const [likes, setLikes] = useState<number>(0);
   const [clean, setClean] = useState(false);
 
   const heartId = useRef(0);
   const lastTap = useRef(0);
   const tapTimer = useRef<number | null>(null);
 
+  // Hydrate the shared like count on mount via count_livestream_likes.
+  // Anonymous viewers can read it (RPC is SECURITY DEFINER), so this
+  // works even before sign-in.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(storageKey, String(likes));
-      // Notify LikeButton (or any sibling surface) that the count
-      // changed without forcing them to subscribe to localStorage.
-      window.dispatchEvent(new CustomEvent('inkstash:likes-changed', {
-        detail: { livestreamId, likes },
-      }));
-    }
-  }, [likes, storageKey, livestreamId]);
+    let cancelled = false;
+    supabase.rpc('count_livestream_likes', { p_livestream_id: livestreamId })
+      .then(({ data, error }) => {
+        if (cancelled || error || data == null) return;
+        setLikes(Number(data));
+      });
+    return () => { cancelled = true; };
+  }, [livestreamId]);
+
+  // Realtime: any viewer hitting the like button (or double-tapping)
+  // inserts a row in livestream_likes. We listen for that INSERT and
+  // bump the local count so every connected viewer sees the total
+  // tick up live.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`livestream_likes:${livestreamId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'livestream_likes', filter: `livestream_id=eq.${livestreamId}` },
+        () => setLikes((l) => l + 1),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [livestreamId]);
+
+  // Broadcast the latest count locally so LikeButton (sibling tree)
+  // can render without subscribing to realtime itself. Cheap, keeps
+  // LikeButton dumb.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('inkstash:likes-changed', {
+      detail: { livestreamId, likes },
+    }));
+  }, [likes, livestreamId]);
 
   // Broadcast clean-mode changes so other overlays (right rail,
   // bottom auction, etc.) can react. Avoids prop-drilling through
@@ -88,7 +110,9 @@ export function useStreamTaps(livestreamId: string): UseStreamTapsResult {
   }, [clean]);
 
   const addLike = useCallback((x: number, y: number) => {
-    setLikes((l) => l + 1);
+    // Pop a heart locally for instant feedback regardless of network
+    // latency. The shared count updates when the RPC returns (or
+    // when the realtime INSERT broadcast hits — whichever first).
     const id = ++heartId.current;
     const newHeart: Heart = {
       id,
@@ -101,7 +125,18 @@ export function useStreamTaps(livestreamId: string): UseStreamTapsResult {
     window.setTimeout(() => {
       setHearts((hs) => hs.filter((h) => h.id !== id));
     }, HEART_LIFETIME_MS);
-  }, []);
+
+    // Persist to the shared livestream_likes table. The RPC is
+    // idempotent per (livestream_id, user_id) so spamming the heart
+    // never inflates the count past 1-per-user. Anonymous viewers
+    // (no auth.uid) get rejected with 'not_authenticated' — swallow
+    // the error since the heart already popped locally.
+    supabase.rpc('like_livestream', { p_livestream_id: livestreamId })
+      .then(({ data, error }) => {
+        if (error || data == null) return;
+        setLikes(Number(data));
+      });
+  }, [livestreamId]);
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.currentTarget;

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ButtonBase, Typography } from '@mui/material';
 import { Heart } from 'lucide-react';
+import { supabase } from '../../api/supabase/supabaseClient';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -26,32 +27,33 @@ function formatLikes(n: number): string {
 }
 
 export default function LikeButton({ livestreamId }: Props) {
-  const storageKey = `inkstash.stream.likes.${livestreamId}`;
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  // Mirror the count that useStreamTaps writes so the button stays
-  // in sync without a parent-passed prop. localStorage + a custom
-  // event = cheap shared state.
-  const [likes, setLikes] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0;
-    return Number(localStorage.getItem(storageKey)) || 0;
-  });
+  // Mirror the shared count tracked by useStreamTaps. The hook
+  // hydrates from count_livestream_likes RPC + subscribes to
+  // realtime INSERTs and broadcasts via inkstash:likes-changed —
+  // we just listen.
+  const [likes, setLikes] = useState<number>(0);
+
+  // Hydrate independently so the button isn't blank for the brief
+  // window before the hook's broadcast fires.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.rpc('count_livestream_likes', { p_livestream_id: livestreamId })
+      .then(({ data, error }) => {
+        if (cancelled || error || data == null) return;
+        setLikes(Number(data));
+      });
+    return () => { cancelled = true; };
+  }, [livestreamId]);
 
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== storageKey) return;
-      setLikes(Number(e.newValue) || 0);
-    };
     const onLikeChange = (e: Event) => {
       const detail = (e as CustomEvent<{ livestreamId: string; likes: number }>).detail;
       if (detail?.livestreamId === livestreamId) setLikes(detail.likes);
     };
-    window.addEventListener('storage', onStorage);
     window.addEventListener('inkstash:likes-changed', onLikeChange);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('inkstash:likes-changed', onLikeChange);
-    };
-  }, [livestreamId, storageKey]);
+    return () => window.removeEventListener('inkstash:likes-changed', onLikeChange);
+  }, [livestreamId]);
 
   function handleClick() {
     const rect = btnRef.current?.getBoundingClientRect();

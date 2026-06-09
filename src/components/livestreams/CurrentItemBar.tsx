@@ -333,6 +333,20 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           so they don't drag the slider only to hit the wallet
           afterwards. As soon as someone else takes the lead, OR a
           card lands, the slider unlocks. */}
+      {/* DEV-ONLY diagnostic — remove once slider is confirmed
+          rendering in all branches. */}
+      {import.meta.env.DEV && (
+        <Box sx={{
+          fontFamily: inkstashFonts.mono, fontSize: 9,
+          color: 'rgba(255,255,255,0.55)',
+          bgcolor: 'rgba(0,0,0,0.4)',
+          px: 1, py: 0.4, borderRadius: 1,
+          letterSpacing: '0.04em',
+        }}>
+          bidActive={String(bidActive)} hasCard={String(hasCard)} isWinning={String(isWinning)} status={item.status} winnerId={item.currentWinnerId ? item.currentWinnerId.slice(0, 6) : 'null'} viewerId={viewerId ? viewerId.slice(0, 6) : 'null'}
+        </Box>
+      )}
+
       {bidActive ? (
         isWinning ? (
           <Box sx={{

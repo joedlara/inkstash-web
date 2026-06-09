@@ -131,10 +131,15 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         sx={{
+          // Slider lives in a column-flow today (no Custom pill yet),
+          // so we explicitly fix width + height instead of leaning on
+          // flex sizing. Once the Custom +$5/+$10 pill ships and the
+          // bid row becomes a flex-row, change to `flex: 1`.
           position: 'relative',
-          flex: 1,
           width: '100%',
           height: TRACK_HEIGHT,
+          minHeight: TRACK_HEIGHT,
+          flexShrink: 0,
           borderRadius: 999,
           bgcolor: 'transparent',
           border: `2px solid ${disabled ? 'rgba(255,255,255,0.25)' : inkstashColors.brand}`,
@@ -145,6 +150,9 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
           cursor: disabled ? 'not-allowed' : (live ? 'grabbing' : 'grab'),
           opacity: disabled ? 0.55 : 1,
           userSelect: 'none',
+          // High-contrast outline against the camera so it never
+          // disappears against a bright frame.
+          boxShadow: disabled ? 'none' : '0 0 0 1px rgba(0,0,0,0.25)',
         }}
       >
         {/* Fill — thin trail of solid brand red behind the thumb, only
