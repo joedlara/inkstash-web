@@ -1,0 +1,177 @@
+/* ============================================================
+   INKSTASH — THEME / DESIGN TOKENS
+   Single source of truth for color, type, spacing, elevation.
+   ------------------------------------------------------------
+   HOW TO USE (local project / Claude Code):
+   1. Put this file at your project root as `theme.css`.
+   2. Load it FIRST, before styles.css and any page CSS:
+        <link rel="stylesheet" href="theme.css" />
+        <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="live_stream/stream.css" />
+   3. The @import below pulls the brand fonts. If your build
+      blocks @import, paste the <link> version (see THEME.md)
+      into your <head> instead.
+   Every value here matches what styles.css already uses, so
+   nothing visual changes — this just documents + centralizes it
+   and guarantees the fonts load on every page.
+   ============================================================ */
+
+/* ---- Brand fonts (Big Shoulders Display / Geist / Geist Mono) ---- */
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ============================================================
+     1. CORE PALETTE  (raw brand values — don't theme against these
+        directly in components; use the semantic roles in §2)
+     ============================================================ */
+
+  /* — Primary: Crimson (the Inkstash brand red) — */
+  --brand:        #A1232C;   /* primary actions, active nav, links, live accents */
+  --brand-deep:   #7A1A21;   /* pressed / gradient end / hover-dark */
+  --brand-soft:   #FCEAEB;   /* tinted backgrounds, badges, subtle fills */
+  --brand-ink:    #FFFFFF;   /* text/icon ON a primary surface */
+
+  /* — Secondary: Gold (premium / grails / highlights) — */
+  --gold:         #B8893A;   /* secondary accent, premium markers, “won” */
+  --gold-soft:    #F7EFDC;   /* gold tinted background */
+
+  /* — Neutrals: warm paper + ink — */
+  --bg:           #FAF7F2;   /* page background (warm off-white) */
+  --bg-elev:      #FFFFFF;   /* raised surfaces: cards, panels, sheets */
+  --bg-sunken:    #F2EDE5;   /* recessed surfaces: inputs, wells, chips */
+  --ink:          #16110E;   /* primary text / strongest foreground */
+  --ink-2:        #3A302A;   /* secondary text / body copy */
+  --muted:        #8A7F73;   /* tertiary text / captions / placeholders */
+  --muted-2:      #C5BBAE;   /* disabled text / faint marks */
+  --border:       #E8DFD2;   /* default hairline borders / dividers */
+  --border-strong:#D6CABA;   /* emphasized borders / hover outlines */
+
+  /* — Status — */
+  --success:      #2E6F4F;   /* confirmed / in-stock / positive */
+  --info:         #2A4D8A;   /* informational */
+  /* (danger / live use --brand; warning uses --gold) */
+
+  /* — Live / dark surfaces (video stage, immersive overlays) — */
+  --stage:        #08070A;   /* near-black video backdrop */
+  --stage-2:      #120C0A;   /* video vignette mid-tone */
+  --live:         #E0322E;   /* the pulsing “LIVE” red dot/badge */
+
+  /* — Rarity scale (domain-specific, comic grades/pulls) — */
+  --r-common:     #8A7F73;
+  --r-uncommon:   #2E6F4F;
+  --r-rare:       #2A4D8A;
+  --r-epic:       #6B3A8A;
+  --r-mythic:     #A1232C;
+  --r-grail:      #B8893A;
+
+  /* ============================================================
+     2. SEMANTIC ALIASES  (prefer THESE in new components — they
+        read clearly and re-theme cleanly)
+     ============================================================ */
+  --color-primary:           var(--brand);
+  --color-primary-hover:      var(--brand-deep);
+  --color-primary-tint:       var(--brand-soft);
+  --color-on-primary:         var(--brand-ink);
+
+  --color-secondary:          var(--gold);
+  --color-secondary-tint:     var(--gold-soft);
+
+  --color-bg:                 var(--bg);
+  --color-surface:            var(--bg-elev);
+  --color-surface-sunken:     var(--bg-sunken);
+
+  --color-text:               var(--ink);
+  --color-text-secondary:     var(--ink-2);
+  --color-text-muted:         var(--muted);
+
+  --color-border:             var(--border);
+  --color-border-strong:      var(--border-strong);
+
+  --color-success:            var(--success);
+  --color-info:               var(--info);
+  --color-danger:             var(--brand);
+  --color-warning:            var(--gold);
+
+  /* ============================================================
+     3. TYPOGRAPHY
+     ============================================================ */
+  /* Display — Big Shoulders Display: condensed, heavy, ALL-CAPS headings,
+     titles, prices, seals. Weights 600–900. */
+  --font-display: "Big Shoulders Display", "Anton", "Helvetica Neue", sans-serif;
+  /* UI / body — Geist: clean grotesque for all interface + body text.
+     Weights 400–700. */
+  --font-ui:      "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  /* alias */
+  --font-base:    var(--font-ui);
+  /* Mono — Geist Mono: counts, timers, labels, eyebrows, metadata. */
+  --font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Type scale (px @ base 14) — guidance, not enforced */
+  --text-xs:   11px;   /* mono labels, eyebrows */
+  --text-sm:   12.5px; /* captions, secondary */
+  --text-base: 14px;   /* body / UI default */
+  --text-md:   16px;   /* emphasized body */
+  --text-lg:   22px;   /* section titles */
+  --text-xl:   32px;   /* display sub */
+  --text-2xl:  46px;   /* display */
+  --text-3xl:  60px;   /* hero display */
+
+  /* ============================================================
+     4. RADIUS
+     ============================================================ */
+  --radius-sm: 6px;    /* chips, small inputs */
+  --radius:    10px;   /* default controls, thumbnails */
+  --radius-lg: 16px;   /* cards */
+  --radius-xl: 22px;   /* large panels, hero, stream cards */
+  --radius-pill: 999px;/* pills, avatars, buttons */
+
+  /* ============================================================
+     5. ELEVATION (warm-tinted shadows)
+     ============================================================ */
+  --shadow-xs: 0 1px 0 rgba(22,17,14,0.04);
+  --shadow-sm: 0 1px 2px rgba(22,17,14,0.06), 0 1px 0 rgba(22,17,14,0.03);
+  --shadow-md: 0 8px 24px -8px rgba(22,17,14,0.10), 0 2px 4px rgba(22,17,14,0.04);
+  --shadow-lg: 0 24px 48px -16px rgba(22,17,14,0.18), 0 8px 16px -8px rgba(22,17,14,0.08);
+
+  /* ============================================================
+     6. LAYOUT
+     ============================================================ */
+  --sidebar-w: 240px;
+  --topnav-h:  64px;
+  --content-max: 1200px;
+
+  /* ============================================================
+     7. MOTION
+     ============================================================ */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 0.12s;
+  --dur:      0.2s;
+}
+
+/* ---- Optional base normalize so fonts/colors apply even on a
+        bare page (safe to delete if styles.css already loads) ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- Tiny helper classes (optional) ---- */
+.font-display { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; }
+.font-mono    { font-family: var(--font-mono); }
+.u-live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--live); box-shadow: 0 0 0 0 rgba(224,50,46,0.6);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(224,50,46,0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(224,50,46,0); }
+  100% { box-shadow: 0 0 0 0 rgba(224,50,46,0); }
+}

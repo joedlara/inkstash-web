@@ -24,7 +24,10 @@ import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
 import SlideToBid from './SlideToBid';
 import AddCardToBidCTA from './AddCardToBidCTA';
+import AuctionStatusLine from './AuctionStatusLine';
+import AuctionTimer from './AuctionTimer';
 import { useHasSavedCard } from './useHasSavedCard';
+import { useWinnerUsername } from './useWinnerUsername';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -60,6 +63,9 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   // re-drag after adding a card. hasCard === null = unknown, treat
   // as "let them try" so a transient RLS hiccup doesn't block bidding.
   const { hasCard } = useHasSavedCard();
+  // current_winner_id is a uuid — useWinnerUsername hydrates the
+  // username + avatar so the status line + chat color use real names.
+  // Hook stays above the early return for stable Rules-of-Hooks order.
   const [item, setItem] = useState<CurrentItem | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [bidding, setBidding] = useState(false);
@@ -178,6 +184,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   // so the hook count stays stable across renders (Rules of Hooks).
   // Prior arrangement crashed the tree the moment `item` first became
   // non-null on a new user — pushed white-screen on push-to-block.
+  const winnerProfile = useWinnerUsername(item?.currentWinnerId ?? null);
   const pendingBidItemIdRef = useRef<string | null>(null);
   useEffect(() => {
     const onCardReady = () => {
@@ -332,104 +339,138 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
           </Box>
         </ButtonBase>
 
-        {expanded && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, px: 1.5, pb: 1.25 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-            }}
-          >
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: inkstashRadii.sm,
-                backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : 'none',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                flexShrink: 0,
-              }}
-            />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontWeight: 900,
-                  fontSize: 15,
-                  textTransform: 'uppercase',
-                  lineHeight: 1.1,
-                  letterSpacing: '0.005em',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}
-              >
-                {item.title}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: inkstashFonts.ui,
-                  fontSize: 12.5,
-                  color: 'rgba(255,255,255,0.7)',
-                  mt: 0.35,
-                }}
-              >
-                {bidActive ? 'Current bid' : 'Starting bid'}
-                {' '}
+        {expanded && (() => {
+          const statusLineState: 'sold' | 'winning' | 'no_bids' = item.status === 'sold'
+            ? 'sold'
+            : item.currentWinnerId ? 'winning' : 'no_bids';
+          return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.4, px: 1.5, pb: 1.25 }}>
+              {/* Status line — "@username is winning!" / "@username
+                  won!" / "On the block · no bids yet". */}
+              <AuctionStatusLine
+                username={winnerProfile?.username ?? null}
+                avatarUrl={winnerProfile?.avatarUrl ?? null}
+                state={statusLineState}
+              />
+
+              {/* Lot row: 60px halftone thumb · title + shipping ·
+                  price + amber countdown timer. Per the redesign,
+                  no card background — sits on the parent scrim. */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.6 }}>
                 <Box
-                  component="span"
                   sx={{
-                    color: '#fff',
-                    fontWeight: 800,
-                    fontVariantNumeric: 'tabular-nums',
+                    width: 60,
+                    height: 60,
+                    flexShrink: 0,
+                    borderRadius: '11px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+                    backgroundImage: item.coverUrl
+                      ? `url(${item.coverUrl})`
+                      : 'linear-gradient(160deg, #C2362F 0%, #5C1116 100%)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundImage:
+                        'radial-gradient(circle, rgba(255,255,255,0.16) 1px, transparent 1.3px)',
+                      backgroundSize: '6px 6px',
+                    },
+                  }}
+                />
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: inkstashFonts.display,
+                      fontWeight: 900,
+                      fontSize: 19,
+                      textTransform: 'uppercase',
+                      lineHeight: 1.04,
+                      letterSpacing: '0.005em',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: '#fff',
+                    }}
+                  >
+                    {item.title}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: inkstashFonts.mono,
+                      fontSize: 11.5,
+                      color: 'rgba(255,255,255,0.52)',
+                      mt: 0.25,
+                    }}
+                  >
+                    Shipping + taxes at checkout
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 0.4,
+                    flexShrink: 0,
                   }}
                 >
-                  {priceLabel}
+                  <Typography
+                    sx={{
+                      fontFamily: inkstashFonts.display,
+                      fontWeight: 900,
+                      fontSize: 27,
+                      lineHeight: 1,
+                      fontVariantNumeric: 'tabular-nums',
+                      color: '#fff',
+                    }}
+                  >
+                    {priceLabel}
+                  </Typography>
+                  <AuctionTimer
+                    secondsRemaining={secondsRemaining}
+                    status={item.status}
+                    bidActive={bidActive}
+                  />
                 </Box>
-                {item.bidCount > 0 && (
-                  <Box component="span" sx={{ ml: 1, opacity: 0.55, fontSize: 11.5 }}>
-                    · {item.bidCount} {item.bidCount === 1 ? 'bid' : 'bids'}
-                  </Box>
-                )}
-              </Typography>
-            </Box>
-          </Box>
+              </Box>
 
-          {/* Slide-to-bid pill — full width below the lot info.
-              When the viewer is the current high bidder, swap the
-              slider for a "You're the highest bidder" lock so they
-              can't outbid themselves. When bidding is open but the
-              viewer has no saved card, swap for "Add a card to bid"
-              instead so they don't drag the slider only to hit a
-              wallet prompt afterwards. */}
-          {bidActive && isWinning ? (
-            <Box sx={{
-              py: 1.25, px: 2, borderRadius: 999,
-              bgcolor: 'rgba(46,111,79,0.85)',
-              color: '#fff',
-              fontFamily: inkstashFonts.ui,
-              fontSize: 13, fontWeight: 700,
-              textAlign: 'center',
-            }}>
-              You're the highest bidder. Wait for someone else to bid.
+              {/* Slide-to-bid pill — full width below the lot info.
+                  When the viewer is the current high bidder, swap the
+                  slider for a "You're the highest bidder" lock so they
+                  can't outbid themselves. When bidding is open but the
+                  viewer has no saved card, swap for "Add a card to bid"
+                  instead so they don't drag the slider only to hit a
+                  wallet prompt afterwards. */}
+              {bidActive && isWinning ? (
+                <Box sx={{
+                  py: 1.25, px: 2, borderRadius: 999,
+                  bgcolor: 'rgba(46,111,79,0.85)',
+                  color: '#fff',
+                  fontFamily: inkstashFonts.ui,
+                  fontSize: 13, fontWeight: 700,
+                  textAlign: 'center',
+                }}>
+                  You're the highest bidder. Wait for someone else to bid.
+                </Box>
+              ) : bidActive && hasCard === false ? (
+                <AddCardToBidCTA nextBidLabel={nextBidLabel} />
+              ) : (
+                <SlideToBid
+                  label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
+                  onConfirm={handleBid}
+                  disabled={!bidActive}
+                  busy={bidding}
+                />
+              )}
             </Box>
-          ) : bidActive && hasCard === false ? (
-            <AddCardToBidCTA nextBidLabel={nextBidLabel} />
-          ) : (
-            <SlideToBid
-              label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
-              onConfirm={handleBid}
-              disabled={!bidActive}
-              busy={bidding}
-            />
-          )}
-          </Box>
-        )}
+          );
+        })()}
       </Box>
 
       <Snackbar

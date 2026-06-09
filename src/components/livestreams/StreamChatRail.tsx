@@ -14,6 +14,7 @@ import { Send } from 'lucide-react';
 import type { ChatMessage } from '../../api/livestreams';
 import { useLivestreamChat } from './useLivestreamChat';
 import { inkstashColors , inkstashFonts} from '../../theme/inkstashTokens';
+import { colorForUsername } from './usernameColor';
 
 interface Props {
   livestreamId: string;
@@ -129,7 +130,11 @@ export default function StreamChatRail({ livestreamId, initialMessages, isBanned
                     fontFamily: inkstashFonts.ui,
                     fontSize: 12.5,
                     fontWeight: 800,
-                    color: m.is_mod_action ? inkstashColors.brand : inkstashColors.ink,
+                    // Twitch-style username color, hashed deterministically
+                    // from the username so the same chatter looks the
+                    // same on the dark stage AND on this light rail.
+                    // MOD overrides the color to brand red.
+                    color: m.is_mod_action ? inkstashColors.brand : colorForUsername(username),
                     letterSpacing: '-0.005em',
                     mr: 0.6,
                   }}

@@ -15,6 +15,7 @@ import { Send } from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI, type ChatMessage } from '../../api/livestreams';
 import { inkstashColors } from '../../theme/inkstashTokens';
+import { colorForUsername } from './usernameColor';
 
 interface Props {
   livestreamId: string;
@@ -182,7 +183,13 @@ export default function LiveStreamChat({
                   sx={{
                     fontSize: 13,
                     fontWeight: 800,
-                    color: m.is_mod_action ? inkstashColors.gold : '#fff',
+                    // Mod overrides chat-color so the gold MOD pill
+                    // reads as moderation. Otherwise hash the
+                    // username into the Twitch-style palette
+                    // (USERNAME_COLORS) so the eye can track the
+                    // same chatter between chat + auction status.
+                    color: m.is_mod_action ? inkstashColors.gold : colorForUsername(username),
+                    textShadow: '0 1px 3px rgba(0,0,0,0.6)',
                     whiteSpace: 'nowrap',
                   }}
                 >

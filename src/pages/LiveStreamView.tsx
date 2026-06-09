@@ -23,6 +23,7 @@ import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
+import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -324,20 +325,11 @@ function LiveDesktopStage({
             streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
           />
 
-          {/* Winner banner slot (L4) */}
-          <Box
-            id="livestream-winner-slot"
-            sx={{
-              position: 'absolute',
-              bottom: 200,
-              left: 0,
-              right: 0,
-              display: 'flex',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-              zIndex: 2,
-            }}
-          />
+          {/* Auction winner banner. Self-positions absolutely against
+              the video card; subscribes to livestream_items UPDATE
+              for status → 'sold' transitions and drops in for ~4.6s
+              with the Speed Lines effect behind it. */}
+          <AuctionWinnerBanner livestreamId={stream.id} />
 
           {/* Bottom item info bar — design's .vf-item. Sits on a vertical
               gradient scrim so the white text reads regardless of what's
@@ -698,6 +690,12 @@ function MobileVideoStage({
         streamTitle={stream.title}
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
       />
+
+      {/* Same auction winner banner used by the desktop stage —
+          self-positions absolutely against the full-bleed video,
+          so dropping it at the same level as the right rail anchors
+          it correctly. */}
+      <AuctionWinnerBanner livestreamId={stream.id} />
 
       <LiveStreamChat
         livestreamId={stream.id}
