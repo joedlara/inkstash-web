@@ -29,6 +29,7 @@ import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
 import SlideToBid from './SlideToBid';
 import AddCardToBidCTA from './AddCardToBidCTA';
+import CustomBidButton from './CustomBidButton';
 import { useHasSavedCard } from './useHasSavedCard';
 import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
@@ -218,13 +219,16 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   // so the hook count stays stable across renders (Rules of Hooks).
   // Prior arrangement crashed the tree the moment `item` first became
   // non-null on a new user — pushed white-screen on push-to-block.
-  const pendingBidItemIdRef = useRef<string | null>(null);
+  // Tagged pending-bid so a custom amount survives the wallet round-trip
+  // — a plain item-id ref would silently downgrade the retry to flat $1.
+  type PendingBid = { itemId: string; amountCents?: number };
+  const pendingBidRef = useRef<PendingBid | null>(null);
   useEffect(() => {
     const onCardReady = () => {
-      const pending = pendingBidItemIdRef.current;
-      pendingBidItemIdRef.current = null;
-      if (!pending || pending !== item?.itemId) return;
-      handleBid();
+      const pending = pendingBidRef.current;
+      pendingBidRef.current = null;
+      if (!pending || pending.itemId !== item?.itemId) return;
+      handleBid(pending.amountCents);
     };
     window.addEventListener('inkstash:wallet-card-ready', onCardReady);
     return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
@@ -282,19 +286,19 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   const winnerName = profile?.username ?? 'someone';
   const winnerInitial = (profile?.username ?? '?').charAt(0).toUpperCase();
 
-  async function handleBid() {
+  async function handleBid(amountCents?: number) {
     if (bidding || !bidActive) return;
     setBidding(true);
     try {
-      await livestreamsAPI.placeBid(item!.itemId);
+      await livestreamsAPI.placeBid(item!.itemId, amountCents);
       // Realtime broadcast updates priceCents + biddingEndsAt; no
       // local optimistic write needed.
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
-        // Stash the item we wanted to bid on so we can auto-retry
-        // once the wallet drawer reports a card was saved.
-        pendingBidItemIdRef.current = item!.itemId;
+        // Stash the item + chosen amount so the auto-retry after card
+        // add replays the same intent (flat $1 OR the custom total).
+        pendingBidRef.current = { itemId: item!.itemId, amountCents };
         window.dispatchEvent(new CustomEvent('inkstash:open-wallet', {
           detail: { autoOpenAddCard: true },
         }));
@@ -304,6 +308,8 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
         setToast('Too late — bidding just closed.');
       } else if (msg.includes('not_bidding')) {
         setToast('Bidding isn\'t open on this item yet.');
+      } else if (msg.includes('bid_too_low')) {
+        setToast('Enter more than the current bid.');
       } else {
         setToast("Couldn't place your bid — try again.");
       }
@@ -626,7 +632,9 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
               </Box>
             </Box>
 
-            {/* Slide-to-bid pill — lock when winning, add-card CTA, or slider. */}
+            {/* Slide-to-bid pill — lock when winning, add-card CTA, or
+                slider. Custom pill sits left of the slider/CTA while
+                bidding is active and the viewer isn't the high bidder. */}
             {bidActive && isWinning ? (
               <Box sx={{
                 flex: 1,
@@ -648,13 +656,31 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                 <Check size={18} strokeWidth={2.6} color="#5BD08A" />
                 You're the highest bidder
               </Box>
-            ) : bidActive && hasCard === false ? (
-              <AddCardToBidCTA nextBidLabel={nextBidLabel} />
+            ) : bidActive ? (
+              <Box sx={{ display: 'flex', alignItems: 'stretch', gap: '11px' }}>
+                <CustomBidButton
+                  currentPriceCents={item.priceCents}
+                  disabled={bidding}
+                  onPick={(amountCents) => handleBid(amountCents)}
+                />
+                {hasCard === false ? (
+                  <Box sx={{ flex: 1 }}>
+                    <AddCardToBidCTA nextBidLabel={nextBidLabel} />
+                  </Box>
+                ) : (
+                  <SlideToBid
+                    label={`Bid ${nextBidLabel}`}
+                    onConfirm={() => handleBid()}
+                    disabled={false}
+                    busy={bidding}
+                  />
+                )}
+              </Box>
             ) : (
               <SlideToBid
-                label={bidActive ? `Bid ${nextBidLabel}` : 'Bidding closed'}
-                onConfirm={handleBid}
-                disabled={!bidActive}
+                label="Bidding closed"
+                onConfirm={() => handleBid()}
+                disabled
                 busy={bidding}
               />
             )}

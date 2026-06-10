@@ -291,16 +291,19 @@ export const livestreamsAPI = {
       'start-bidding', { item_id, start_price_cents },
     ),
 
-  /** Viewer-side single $1 increment bid. Returns 402 'no_card_on_file'
-   *  when the bidder hasn't saved a payment method; UI should surface
-   *  the add-card prompt then. */
-  placeBid: (item_id: string) =>
+  /** Viewer-side bid. Default ($1 increment) when amountCents is omitted;
+   *  passing an explicit amount raises the price to that exact total
+   *  (Custom popover). Returns 402 'no_card_on_file' when the bidder
+   *  hasn't saved a payment method; the UI surfaces the add-card prompt
+   *  and stashes the pending bid for auto-retry. Returns 400
+   *  'bid_too_low' if amountCents is at or below the current price. */
+  placeBid: (item_id: string, amountCents?: number) =>
     callFn<{
       current_price_cents: number;
       current_winner_id: string;
       bid_count: number;
       bidding_ends_at: string;
-    }>('place-bid', { item_id }),
+    }>('place-bid', amountCents !== undefined ? { item_id, amount_cents: amountCents } : { item_id }),
 
   /** Calls the resolve_livestream_bid RPC directly (no edge fn). The
    *  host's local timer expiry fires this to flip the item sold/passed.

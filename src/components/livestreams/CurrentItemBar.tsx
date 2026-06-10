@@ -17,6 +17,7 @@ import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
 import SlideToBid from './SlideToBid';
 import AddCardToBidCTA from './AddCardToBidCTA';
+import CustomBidButton from './CustomBidButton';
 import { useHasSavedCard } from './useHasSavedCard';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
@@ -85,28 +86,33 @@ export default function CurrentItemBar({ livestreamId }: Props) {
   // factoring can lift this into a shared hook.
   const [winnerProfile, setWinnerProfile] = useState<Record<string, WinnerProfile>>({});
 
-  const pendingBidItemIdRef = useRef<string | null>(null);
+  // Tracks the bid we tried to place when the wallet 402'd, so the
+  // post-card-add auto-retry can replay it. Tagged shape so a custom
+  // amount survives the round-trip — a plain item-id ref would lose
+  // the chosen jump and silently downgrade the retry to flat $1.
+  type PendingBid = { itemId: string; amountCents?: number };
+  const pendingBidRef = useRef<PendingBid | null>(null);
   useEffect(() => {
     const onCardReady = () => {
-      const pending = pendingBidItemIdRef.current;
-      pendingBidItemIdRef.current = null;
-      if (!pending || pending !== item?.itemId) return;
-      handleBid();
+      const pending = pendingBidRef.current;
+      pendingBidRef.current = null;
+      if (!pending || pending.itemId !== item?.itemId) return;
+      handleBid(pending.amountCents);
     };
     window.addEventListener('inkstash:wallet-card-ready', onCardReady);
     return () => window.removeEventListener('inkstash:wallet-card-ready', onCardReady);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.itemId]);
 
-  async function handleBid() {
+  async function handleBid(amountCents?: number) {
     if (!item || bidding) return;
     setBidding(true);
     try {
-      await livestreamsAPI.placeBid(item.itemId);
+      await livestreamsAPI.placeBid(item.itemId, amountCents);
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
-        pendingBidItemIdRef.current = item.itemId;
+        pendingBidRef.current = { itemId: item.itemId, amountCents };
         window.dispatchEvent(new CustomEvent('inkstash:open-wallet', {
           detail: { autoOpenAddCard: true },
         }));
@@ -116,6 +122,8 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         setToast('Too late — bidding just closed.');
       } else if (msg.includes('not_bidding')) {
         setToast("Bidding isn't open on this item yet.");
+      } else if (msg.includes('bid_too_low')) {
+        setToast('Enter more than the current bid.');
       } else {
         setToast("Couldn't place your bid — try again.");
       }
@@ -488,15 +496,28 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           <Check size={18} strokeWidth={2.6} color="#5BD08A" />
           You're the highest bidder
         </Box>
-      ) : hasCard === false ? (
-        <AddCardToBidCTA nextBidLabel={nextBidLabel} />
       ) : (
-        <SlideToBid
-          label={`Bid ${nextBidLabel}`}
-          onConfirm={handleBid}
-          disabled={false}
-          busy={bidding}
-        />
+        // Custom pill sits left of the slider (or the no-card CTA).
+        // 11px gap matches stream.css .bid-row.
+        <Box sx={{ display: 'flex', alignItems: 'stretch', gap: '11px' }}>
+          <CustomBidButton
+            currentPriceCents={displayCents}
+            disabled={bidding}
+            onPick={(amountCents) => handleBid(amountCents)}
+          />
+          {hasCard === false ? (
+            <Box sx={{ flex: 1 }}>
+              <AddCardToBidCTA nextBidLabel={nextBidLabel} />
+            </Box>
+          ) : (
+            <SlideToBid
+              label={`Bid ${nextBidLabel}`}
+              onConfirm={() => handleBid()}
+              disabled={false}
+              busy={bidding}
+            />
+          )}
+        </Box>
       ))}
 
       <Snackbar
