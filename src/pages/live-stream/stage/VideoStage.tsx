@@ -10,12 +10,14 @@
 // from the celebration burst — these are the per-tap hearts that fly upward
 // from the double-tap coordinate, mirroring the prototype).
 import { useRef, useState, type ReactNode } from 'react';
-import { mockHost } from '../_mock/streamData.mock';
+import LiveStreamVideo from '../../../components/livestreams/LiveStreamVideo';
 import { HostPill } from './HostPill';
 import { ViewerCountBadge } from './ViewerCountBadge';
 import { GiveawayPill } from './GiveawayPill';
 import { RightRail } from './RightRail';
 import { TapLayer } from './TapLayer';
+import { avatarGrad } from '../chat/usernameColor';
+import type { LivekitCreds, LivestreamHost } from '../useLivestream';
 
 const Heart = ({ filled }: { filled: boolean }) => (
   <svg
@@ -56,6 +58,21 @@ type Props = {
   /** Wallet pill in the side rail. Phase 3b: opens the in-stream
    *  WalletSheet so viewers can add a card without leaving the stream. */
   onWallet?: () => void;
+  /** Real host from useLivestream (replaces Phase 2's mockHost). */
+  host: LivestreamHost;
+  /** Current viewer id, threaded through to HostPill for self-follow guard. */
+  viewerId: string | null;
+  /** LiveKit room credentials, fetched from join-livestream. When null the
+   *  stage renders a placeholder ("Connecting…") instead of the player. */
+  livekit: LivekitCreds | null;
+  /** Live audience count from LiveKit; falls back to 0 when LiveKit hasn't
+   *  reported yet (the page shell may also pass a static value for mocks). */
+  viewerCount: number;
+  /** Notified each time LiveKit's participant count changes. Page shell uses
+   *  this to update ViewerCountBadge state. */
+  onParticipantCountChange?: (count: number) => void;
+  /** Click on the HostPill avatar/username region — opens the ProfileCard. */
+  onHostClick?: () => void;
 };
 
 export function VideoStage({
@@ -67,6 +84,12 @@ export function VideoStage({
   celebrateKey,
   onLike,
   onWallet,
+  host,
+  viewerId,
+  livekit,
+  viewerCount,
+  onParticipantCountChange,
+  onHostClick,
 }: Props) {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const heartId = useRef(0);
@@ -104,10 +127,25 @@ export function VideoStage({
     <div className="ls-video-col ls-stream-card">
       <div className="ls-video-stage">
         <div className={'ls-video-feed' + (clean ? ' ls-vf-clean' : '')} ref={feedRef}>
-          {/* Placeholder player — Phase 3d mounts the real <Player /> here. */}
-          <div className="ls-video-motif">
-            <div className="ls-seal">TV</div>
-            <div className="ls-cap">Live feed</div>
+          {/* Real LiveKit player when join-livestream gave us credentials;
+              otherwise the dark fallback (mock id, stream not live yet,
+              join failed, etc.). Wrapped so the existing overlay tree
+              (TapLayer, RightRail, etc.) keeps positioning relative to
+              .ls-video-feed and stays above the video element. */}
+          <div className="ls-video-player">
+            {livekit ? (
+              <LiveStreamVideo
+                mode="viewer"
+                wsUrl={livekit.wsUrl}
+                token={livekit.token}
+                onParticipantCountChange={onParticipantCountChange}
+              />
+            ) : (
+              <div className="ls-video-motif">
+                <div className="ls-seal">TV</div>
+                <div className="ls-cap">Live feed</div>
+              </div>
+            )}
           </div>
 
           <TapLayer onTogglePeel={togglePeel} onDoubleTapLike={onDoubleTapLike} />
@@ -133,12 +171,15 @@ export function VideoStage({
 
           <div className="ls-vf-top">
             <HostPill
-              username={mockHost.name}
-              gradient={mockHost.gradient}
-              verified={mockHost.verified}
+              username={host.username}
+              gradient={avatarGrad(host.username)}
+              verified
+              hostId={host.id}
+              viewerId={viewerId}
+              onClick={onHostClick}
             />
             <div className="ls-vf-top-right">
-              <ViewerCountBadge count={mockHost.viewers} />
+              <ViewerCountBadge count={viewerCount} />
               <GiveawayPill />
             </div>
           </div>

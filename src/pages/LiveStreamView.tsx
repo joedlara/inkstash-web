@@ -21,6 +21,7 @@ import { ProfileCard } from './live-stream/chat/ProfileCard';
 
 import { ShopRail } from './live-stream/shop/ShopRail';
 import { VideoStage } from './live-stream/stage/VideoStage';
+import { useLivestreamLikes } from './live-stream/stage/useLivestreamLikes';
 
 import { useLivestream, type Livestream } from './live-stream/useLivestream';
 import PreShowState from './live-stream/PreShowState';
@@ -48,14 +49,15 @@ function useResponsiveMode(): ResponsiveMode {
 // Phase 2 demo knobs (the prototype exposes these as a Tweaks panel; here they
 // match the prototype's defaults so visual parity is exact). Phase 3b drops
 // HAS_CARD (server gates via 'no_card_on_file') + VIEWER_ID + BOT_SPEED
-// (real viewer id comes from useAuth; no more bot loop).
+// (real viewer id comes from useAuth; no more bot loop). Phase 3d drops
+// LIKES_KEY — server is the source of truth via useLivestreamLikes.
 const GLASS = false;
-const LIKES_KEY = 'inkstash.stream.likes.thundervault';
 
 // TikTok-style like meter knobs. The ring around the heart fills as taps
 // arrive within RING_WINDOW_MS of each other; reaching RING_TAPS_TO_COMPLETE
-// (or going idle) triggers a celebration burst. Phase 3d will sync the count
-// to Supabase; the meter + celebration animation stay pure-local.
+// (or going idle) triggers a celebration burst. Phase 3d wired the count to
+// Supabase via useLivestreamLikes; the meter + celebration animation stay
+// pure-local because they're per-viewer feedback, not shared state.
 const RING_TAPS_TO_COMPLETE = 10;
 const RING_WINDOW_MS = 600;
 
@@ -142,24 +144,17 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
 
   const { messages, participants, sendMessage } = useLivestreamChat(id);
 
-  // ─── Like state (Phase 2: local only; Phase 3d adds backend) ──────────
-  // Lifted here so TapLayer's double-tap and RightRail's heart button share
-  // a single source of truth (count + ring meter + celebration).
-  const [likes, setLikes] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1240;
-    const saved = Number(window.localStorage.getItem(LIKES_KEY));
-    return Number.isFinite(saved) && saved > 0 ? saved : 1240;
-  });
+  // ─── Like state (Phase 3d: server-backed via useLivestreamLikes) ───────
+  // The count + tap action come from the hook (which batches taps and
+  // syncs via realtime); the per-viewer ring meter + celebration burst
+  // stay local because they're personal feedback, not shared state.
+  // TapLayer (double-tap) and RightRail (heart button) both call `onLike`,
+  // so they share the same hook write path.
+  const { count: likes, tap } = useLivestreamLikes(id);
   const [liked, setLiked] = useState(false);
   const [ringTaps, setRingTaps] = useState(0);
   const [celebrateKey, setCelebrateKey] = useState(0);
   const ringResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(LIKES_KEY, String(likes));
-    }
-  }, [likes]);
 
   useEffect(() => () => {
     if (ringResetTimer.current) clearTimeout(ringResetTimer.current);
@@ -169,11 +164,12 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
     setCelebrateKey((k) => k + 1);
   }, []);
 
-  // Every tap increments the count, the ring, and re-arms the idle timer.
-  // Hitting RING_TAPS_TO_COMPLETE early-triggers the celebration and resets
-  // the ring. Idle for RING_WINDOW_MS also resets (no celebration).
+  // Every tap increments the count (via the hook), bumps the ring, and
+  // re-arms the idle timer. Hitting RING_TAPS_TO_COMPLETE early-triggers
+  // the celebration and resets the ring. Idle for RING_WINDOW_MS also
+  // resets (no celebration).
   const onLike = useCallback(() => {
-    setLikes((n) => n + 1);
+    tap();
     setLiked(true);
     setRingTaps((t) => {
       const next = t + 1;
@@ -188,7 +184,13 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
       setRingTaps(0);
       ringResetTimer.current = null;
     }, RING_WINDOW_MS);
-  }, [triggerCelebration]);
+  }, [tap, triggerCelebration]);
+
+  // Viewer count from LiveKit's participant events. For the mock id (no
+  // LiveKit join), seed a small static value so the badge doesn't read 0.
+  const [viewerCount, setViewerCount] = useState<number>(
+    id === 'mock-stream' ? 1 : 0,
+  );
 
   // Container class chooses the layout. The CSS handles the breakpoint-specific
   // hiding/stacking — `mode` is mostly for choosing which JSX to render.
@@ -241,6 +243,12 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
             ringTapsTarget={RING_TAPS_TO_COMPLETE}
             celebrateKey={celebrateKey}
             onLike={onLike}
+            host={livestream.host}
+            viewerId={viewerId}
+            livekit={livestream.livekit}
+            viewerCount={viewerCount}
+            onParticipantCountChange={setViewerCount}
+            onHostClick={() => setProfileUser(livestream.host.id)}
             onWallet={() => {
               // Rail-opened wallet → show the saved-cards summary
               // first; only auto-jump to the add-card form when opened
@@ -266,7 +274,7 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
         </div>
       </main>
 
-      <ProfileCard username={profileUser} onClose={() => setProfileUser(null)} />
+      <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />
 
       <WalletSheet
         open={walletOpen}

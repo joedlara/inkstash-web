@@ -21,7 +21,9 @@ import { HostPill } from './stage/HostPill';
 import { ViewerCountBadge } from './stage/ViewerCountBadge';
 import { RightRail } from './stage/RightRail';
 import { ShopRail } from './shop/ShopRail';
+import { ProfileCard } from './chat/ProfileCard';
 import { avatarGrad } from './chat/usernameColor';
+import { useAuth } from '../../hooks/useAuth';
 import type { Livestream } from './useLivestream';
 
 const EMPTY_SECTIONS: LivestreamSections = { live: [], upcoming: [], featured: [] };
@@ -107,6 +109,13 @@ const CalendarIcon = () => (
 );
 
 export default function PreShowState({ livestream }: Props) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
+
+  // ProfileCard open state — shared by HostPill click (pre-show has no
+  // chat surface yet but the pill is interactive).
+  const [profileUser, setProfileUser] = useState<string | null>(null);
+
   const { dayLabel, timeLabel } = livestream.scheduledFor
     ? formatShowStart(livestream.scheduledFor)
     : { dayLabel: 'Soon', timeLabel: '' };
@@ -204,6 +213,9 @@ export default function PreShowState({ livestream }: Props) {
                     username={livestream.host.username}
                     gradient={avatarGrad(livestream.host.username)}
                     verified
+                    hostId={livestream.host.id}
+                    viewerId={viewerId}
+                    onClick={() => setProfileUser(livestream.host.id)}
                   />
                   <div className="ls-vf-top-right">
                     <ViewerCountBadge count={0} />
@@ -276,6 +288,8 @@ export default function PreShowState({ livestream }: Props) {
             </div>
           </main>
         </div>
+
+        <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />
 
         {/* Other shows on InkStash — mirrors the three rows on /live so the
             pre-show landing doubles as a discovery surface while waiting. */}

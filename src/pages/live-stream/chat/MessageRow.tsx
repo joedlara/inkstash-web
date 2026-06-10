@@ -19,7 +19,10 @@ type Props = {
   message: ChatMessage;
   variant: MessageVariant;
   participants: Map<string, Participant>;
-  onUsernameClick: (username: string) => void;
+  /** Called with the author's user_id when the username button is clicked.
+   *  ProfileCard takes user_id (not username) because the follow API needs
+   *  the UUID. */
+  onUsernameClick: (userId: string) => void;
 };
 
 function renderBody(message: ChatMessage, participants: Map<string, Participant>) {
@@ -74,7 +77,7 @@ export function MessageRow({ message, variant, participants, onUsernameClick }: 
           style={{ color: usernameColor(message.username) }}
           onClick={(e) => {
             e.stopPropagation();
-            onUsernameClick(message.username);
+            onUsernameClick(message.user_id);
           }}
         >
           {message.username}

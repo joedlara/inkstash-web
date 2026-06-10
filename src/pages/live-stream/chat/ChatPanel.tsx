@@ -11,7 +11,7 @@ type Props = {
   participants: Map<string, Participant>;
   variant: 'immersive' | 'panel';
   onSend: (body: string, mentionedUserIds: string[]) => void;
-  onUsernameClick: (username: string) => void;
+  onUsernameClick: (userId: string) => void;
 };
 
 export function ChatPanel({ messages, participants, variant, onSend, onUsernameClick }: Props) {

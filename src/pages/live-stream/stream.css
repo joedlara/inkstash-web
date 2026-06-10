@@ -169,6 +169,13 @@
     radial-gradient(120% 80% at 50% 0%, #2A1B14 0%, #120C0A 55%, #08070A 100%);
   overflow: hidden;
 }
+/* Real LiveKit player wrapper. Z-index 0 so every overlay above (TapLayer
+ * at 6, RightRail at 7, etc.) keeps its stacking. Pointer-events stay
+ * default — TapLayer is what receives gestures; if the user clicks
+ * outside TapLayer's hit area the video is fine to receive events. */
+.ls-video-player {
+  position: absolute; inset: 0; z-index: 0;
+}
 .ls-video-feed::before {
   content: ""; position: absolute; inset: 0;
   background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1.4px);

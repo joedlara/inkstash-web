@@ -9,7 +9,7 @@ type Props = {
   messages: ChatMessage[];
   participants: Map<string, Participant>;
   variant: MessageVariant;
-  onUsernameClick: (username: string) => void;
+  onUsernameClick: (userId: string) => void;
 };
 
 export function MessageList({ messages, participants, variant, onUsernameClick }: Props) {

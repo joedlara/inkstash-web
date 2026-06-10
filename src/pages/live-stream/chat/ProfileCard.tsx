@@ -1,11 +1,16 @@
-// ProfileCard — mini profile sheet opened by any chat-username click. Ported
-// 1:1 from docs/design-system/live_stream/stream-view.jsx. Phase 2 uses a
-// dummy follow toggle; Phase 3d wires it to the real follows table.
+// ProfileCard — mini profile sheet opened by HostPill click or any
+// chat-username click. Phase 3d wires it to real `public.users` rows and
+// the `follows` table.
 //
-// Note: the prototype's classes are .profile-scrim / .uprofile-card (not
-// .profile-card). The prefixed CSS exposes .ls-uprofile-card to match.
+// Visual structure remains 1:1 with docs/design-system/live_stream/
+// stream-view.jsx (the prototype's `.uprofile-card`). Note: the
+// prototype's classes are `.profile-scrim` / `.uprofile-card`; the
+// prefixed CSS exposes `.ls-uprofile-card` to match.
+import { useCallback, useEffect, useState } from 'react';
 import { gradStyle, avatarGrad, usernameColor } from './usernameColor';
-import { useState, useEffect } from 'react';
+import { supabase } from '../../../api/supabase/supabaseClient';
+import { followUser, isFollowing, unfollowUser } from '../../../api/users/profile';
+import { useAuth } from '../../../hooks/useAuth';
 
 const Close = () => (
   <svg
@@ -23,20 +28,101 @@ const Close = () => (
 );
 
 type Props = {
-  username: string | null;
+  /** Target user id. When null the card is hidden. */
+  userId: string | null;
   onClose: () => void;
 };
 
-export function ProfileCard({ username, onClose }: Props) {
+type UserRow = {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+};
+
+export function ProfileCard({ userId, onClose }: Props) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
+
+  const [profile, setProfile] = useState<UserRow | null>(null);
+  const [loading, setLoading] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  // Reset follow state whenever a different profile is opened.
+  // Fetch the target user + follow state whenever a new card opens.
   useEffect(() => {
-    setFollowing(false);
-  }, [username]);
+    let cancelled = false;
+    if (!userId) {
+      setProfile(null);
+      setFollowing(false);
+      return;
+    }
+    setLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, username, avatar_url')
+          .eq('id', userId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) console.warn('[ProfileCard] user fetch failed', error);
+        setProfile((data as UserRow | null) ?? null);
 
-  if (!username) return null;
-  const initial = username[0].toUpperCase();
+        if (viewerId && viewerId !== userId) {
+          try {
+            const yes = await isFollowing(viewerId, userId);
+            if (!cancelled) setFollowing(yes);
+          } catch {
+            if (!cancelled) setFollowing(false);
+          }
+        } else {
+          if (!cancelled) setFollowing(false);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, viewerId]);
+
+  // Esc dismiss.
+  useEffect(() => {
+    if (!userId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [userId, onClose]);
+
+  const toggleFollow = useCallback(async () => {
+    if (!viewerId || !userId || viewerId === userId || busy) return;
+    const wasFollowing = following;
+    setFollowing(!wasFollowing);  // optimistic
+    setBusy(true);
+    try {
+      if (wasFollowing) {
+        await unfollowUser(viewerId, userId);
+      } else {
+        await followUser(viewerId, userId);
+      }
+    } catch (err) {
+      console.warn('[ProfileCard] follow toggle failed', err);
+      setFollowing(wasFollowing);  // revert
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, following, userId, viewerId]);
+
+  if (!userId) return null;
+
+  // Use the fetched username when we have it, else fall back to a short
+  // user-id stub so the card doesn't render blank during the fetch.
+  const displayName = profile?.username ?? (loading ? '...' : 'Unknown');
+  const initial = (profile?.username ?? '?')[0]?.toUpperCase() ?? '?';
+  // Self-view: hide Follow button (matches HostPill's rule).
+  const showFollow = !!viewerId && viewerId !== userId;
+
   return (
     <div className="ls-profile-scrim" onClick={onClose}>
       <div className="ls-uprofile-card" onClick={(e) => e.stopPropagation()}>
@@ -50,21 +136,24 @@ export function ProfileCard({ username, onClose }: Props) {
         </button>
         <span
           className="ls-profile-av"
-          style={{ background: gradStyle(avatarGrad(username)) }}
+          style={{ background: gradStyle(avatarGrad(displayName)) }}
         >
           {initial}
         </span>
-        <div className="ls-profile-name" style={{ color: usernameColor(username) }}>
-          {username}
+        <div className="ls-profile-name" style={{ color: usernameColor(displayName) }}>
+          {displayName}
         </div>
         <div className="ls-profile-actions">
-          <button
-            type="button"
-            className={'ls-profile-follow' + (following ? ' ls-following' : '')}
-            onClick={() => setFollowing((f) => !f)}
-          >
-            {following ? 'Following' : 'Follow'}
-          </button>
+          {showFollow && (
+            <button
+              type="button"
+              className={'ls-profile-follow' + (following ? ' ls-following' : '')}
+              onClick={toggleFollow}
+              disabled={busy}
+            >
+              {following ? 'Following' : 'Follow'}
+            </button>
+          )}
           <button type="button" className="ls-profile-view">
             View profile
           </button>

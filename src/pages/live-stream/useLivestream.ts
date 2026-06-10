@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../api/supabase/supabaseClient';
+import { livestreamsAPI } from '../../api/livestreams';
 
 export type LivestreamStatus = 'scheduled' | 'preparing' | 'live' | 'ended';
 
@@ -23,6 +24,8 @@ export type LivestreamHost = {
   avatarUrl: string | null;
 };
 
+export type LivekitCreds = { token: string; wsUrl: string };
+
 export type Livestream = {
   id: string;
   title: string;
@@ -30,6 +33,12 @@ export type Livestream = {
   scheduledFor: string | null;
   posterUrl: string | null;
   host: LivestreamHost;
+  /** LiveKit room credentials, fetched from join-livestream. Null until
+   *  the join call resolves, or if the stream is not live, or if join
+   *  failed (banned, network error, etc.). The video stage uses the null
+   *  case to render a "Connecting…" / "Unavailable" placeholder rather
+   *  than crashing the page. */
+  livekit: LivekitCreds | null;
   /** True until the initial DB fetch resolves. Mock id resolves synchronously. */
   loading: boolean;
 };
@@ -50,6 +59,9 @@ function mockLivestream(id: string, overrideStatus: LivestreamStatus | null): Li
       displayName: 'Dynamix JL',
       avatarUrl: null,
     },
+    // Mock id never has real LiveKit credentials — VideoStage falls back
+    // to its placeholder for the local Phase 2 demo.
+    livekit: null,
     loading: false,
   };
 }
@@ -114,6 +126,7 @@ export function useLivestream(livestreamId: string): Livestream {
           scheduledFor: null,
           posterUrl: null,
           host: { id: '', username: 'unknown', displayName: 'Unknown', avatarUrl: null },
+          livekit: null,
           loading: false,
         });
         setLoading(false);
@@ -143,10 +156,31 @@ export function useLivestream(livestreamId: string): Livestream {
         avatar_url: string | null;
       } | null;
 
+      const effectiveStatus = validOverride ?? normalizeStatus(r.status);
+
+      // Only attempt LiveKit join when the stream is actually live. The edge
+      // fn 400s for scheduled / ended rows, and pre-show / ended branches
+      // never mount the video stage anyway. The mock id is filtered above
+      // (this branch only runs when mock === null).
+      let livekit: LivekitCreds | null = null;
+      if (effectiveStatus === 'live') {
+        try {
+          const join = await livestreamsAPI.join(r.id);
+          if (!cancelled) {
+            livekit = { token: join.livekit_token, wsUrl: join.livekit_ws_url };
+          }
+        } catch (joinErr) {
+          // Ban / not-live race / network — VideoStage shows a fallback.
+          console.warn('[useLivestream] join-livestream failed', joinErr);
+        }
+      }
+
+      if (cancelled) return;
+
       setRow({
         id: r.id,
         title: r.title,
-        status: validOverride ?? normalizeStatus(r.status),
+        status: effectiveStatus,
         scheduledFor: r.scheduled_start_at,
         posterUrl: r.cover_image_url,
         host: {
@@ -155,6 +189,7 @@ export function useLivestream(livestreamId: string): Livestream {
           displayName: host?.username ?? 'Unknown',
           avatarUrl: host?.avatar_url ?? null,
         },
+        livekit,
         loading: false,
       });
       setLoading(false);
@@ -176,6 +211,7 @@ export function useLivestream(livestreamId: string): Livestream {
       scheduledFor: null,
       posterUrl: null,
       host: { id: '', username: '', displayName: '', avatarUrl: null },
+      livekit: null,
       loading: true,
     };
   }
