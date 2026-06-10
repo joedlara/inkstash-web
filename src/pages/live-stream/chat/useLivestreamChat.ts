@@ -1,15 +1,19 @@
-// useLivestreamChat — Phase 2 mock chat. Seeds from the prototype's static
-// chat array and lets the composer push new "you" messages onto the list.
-// Replaced in Phase 3c by the real chat subscription + insert RPC.
+// useLivestreamChat — Phase 3c real-backend chat hook. Reads recent rows from
+// `livestream_chat` (with the author's username), subscribes to INSERTs via
+// Realtime filtered by livestream_id, and posts new messages through the
+// `post-chat-message` edge function (which validates mentions and bans).
 //
-// The returned shape matches the Phase-3 contract: every message has a real
-// `user_id` (synthesized as a stable UUID per username here, replaced by the
-// real auth user_id in Phase 3c). Mentions are stored as `mentioned_user_ids`
-// — a UUID[] — so the wire shape matches the real `livestream_chat_messages`
-// row already. Participants are a `Map<user_id, {username, color}>` for the
-// same reason: mention pills render by resolving an id, not a name.
-import { useCallback, useMemo, useState } from 'react';
-import { mockChat, mockHost } from '../_mock/streamData.mock';
+// Wire shape: every chat row carries `mentioned_user_ids` (UUID[]) populated
+// by the composer's client-side parse of `@name` tokens against the
+// participants map. The receiver (MessageRow) walks the body for `@name`
+// tokens and renders a pill only when the resolved user_id is in this array.
+//
+// Participants Map is keyed by user_id and derived from message authors so
+// the mention autocomplete and pill renderer share a single source of truth.
+// The host id is not pre-seeded here — the host won't appear until they
+// speak. (Future change: optional `seedHostId` arg.)
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '../../../api/supabase/supabaseClient';
 import { usernameColor } from './usernameColor';
 
 export type ChatMessage = {
@@ -32,55 +36,131 @@ export type UseLivestreamChat = {
   sendMessage: (body: string, mentionedUserIds: string[]) => Promise<void>;
 };
 
-/** Stable username → synthetic-UUID cache, module-scoped so the same username
- *  resolves to the same id across re-renders / re-mounts of the hook. Phase 3c
- *  swaps this for the real auth.users.id from the chat row. */
-const usernameToId = new Map<string, string>();
-function idFor(username: string): string {
-  const existing = usernameToId.get(username);
-  if (existing) return existing;
-  const id = crypto.randomUUID();
-  usernameToId.set(username, id);
-  return id;
+/** PostgREST embeds can type as object OR array depending on the FK shape
+ *  (this is the same quirk Phase 2b-fix worked around). Normalize to the
+ *  single embedded row or null. */
+function pickOne<T>(value: unknown): T | null {
+  if (Array.isArray(value)) return (value[0] as T) ?? null;
+  return (value as T) ?? null;
 }
 
-/** Build the initial ChatMessage[] from the prototype's static seed, resolving
- *  every mention `@name` token to its synthetic user_id. */
-function seedMessages(): ChatMessage[] {
-  // Pre-warm host id so participants always lists the host even if they haven't
-  // spoken in chat yet.
-  idFor(mockHost.name);
-  const base = Date.now() - mockChat.length * 1000;
-  return mockChat.map((m, i) => {
-    const mentionedIds: string[] = [];
-    if (m.mention) {
-      const name = m.mention.replace(/^@/, '');
-      mentionedIds.push(idFor(name));
-    }
-    return {
-      id: 'seed-' + i,
-      user_id: idFor(m.user),
-      username: m.user,
-      body: m.text,
-      ts: base + i * 1000,
-      mentioned_user_ids: mentionedIds,
-      q: m.q,
+type ChatRowFromDb = {
+  id: string;
+  user_id: string;
+  body: string;
+  mentioned_user_ids: string[] | null;
+  created_at: string;
+  user: { username: string | null } | { username: string | null }[] | null;
+};
+
+export function useLivestreamChat(livestreamId: string): UseLivestreamChat {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // user_id → username cache, populated from the initial fetch and reused
+  // by the realtime INSERT handler so chatty users don't trigger a `users`
+  // lookup per message.
+  const usernameCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Initial fetch + realtime subscription. Re-runs when livestreamId changes
+  // (which doesn't normally happen — but switching streams in a SPA should
+  // not leak the previous channel).
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('livestream_chat')
+        .select('id, user_id, body, mentioned_user_ids, created_at, user:users!user_id(username)')
+        .eq('livestream_id', livestreamId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (cancelled) return;
+      if (error) {
+        console.warn('[useLivestreamChat] initial fetch failed', error);
+        return;
+      }
+
+      const rows = (data ?? []) as ChatRowFromDb[];
+      const seeded: ChatMessage[] = rows.map((r) => {
+        const userRow = pickOne<{ username: string | null }>(r.user);
+        const username = userRow?.username ?? 'anon';
+        usernameCacheRef.current.set(r.user_id, username);
+        return {
+          id: r.id,
+          user_id: r.user_id,
+          username,
+          body: r.body,
+          ts: Date.parse(r.created_at),
+          mentioned_user_ids: r.mentioned_user_ids ?? [],
+        };
+      });
+      setMessages(seeded);
+    })();
+
+    const channel = supabase
+      .channel(`livestream_chat:${livestreamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'livestream_chat',
+          filter: `livestream_id=eq.${livestreamId}`,
+        },
+        async (payload) => {
+          const row = payload.new as {
+            id: string;
+            user_id: string;
+            body: string;
+            mentioned_user_ids: string[] | null;
+            created_at: string;
+          };
+
+          // Hydrate username from cache first; only hit `users` for unseen ids.
+          let username = usernameCacheRef.current.get(row.user_id);
+          if (!username) {
+            const { data: u } = await supabase
+              .from('users')
+              .select('username')
+              .eq('id', row.user_id)
+              .maybeSingle();
+            if (cancelled) return;
+            username = ((u as { username: string | null } | null)?.username) ?? 'anon';
+            usernameCacheRef.current.set(row.user_id, username);
+          }
+
+          const msg: ChatMessage = {
+            id: row.id,
+            user_id: row.user_id,
+            username,
+            body: row.body,
+            ts: Date.parse(row.created_at),
+            mentioned_user_ids: row.mentioned_user_ids ?? [],
+          };
+
+          setMessages((prev) => {
+            // Dedupe: Realtime can echo a message that the sender already
+            // sees via optimistic insert in a future iteration. For now we
+            // rely on the edge fn being the only writer, so duplicates only
+            // happen if the same id arrives twice (defensive guard).
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
     };
-  });
-}
+  }, [livestreamId]);
 
-export function useLivestreamChat(_livestreamId: string): UseLivestreamChat {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => seedMessages());
-
-  // Pre-seed "you" so the local viewer has a stable id (mirrors LiveStreamView's
-  // VIEWER_ID constant, but uses a UUID for shape parity with Phase 3c).
-  const youId = useMemo(() => idFor('you'), []);
-
-  // Participants = every distinct author seen (host pre-warmed via seedMessages).
+  // Participants = every distinct author seen in `messages`. Keyed by user_id.
+  // The host won't appear until they speak — deferred per Step 3 #3.
   const participants = useMemo<Map<string, Participant>>(() => {
     const m = new Map<string, Participant>();
-    // Host always present.
-    m.set(idFor(mockHost.name), { username: mockHost.name, color: usernameColor(mockHost.name) });
     for (const msg of messages) {
       if (!m.has(msg.user_id)) {
         m.set(msg.user_id, { username: msg.username, color: usernameColor(msg.username) });
@@ -90,20 +170,16 @@ export function useLivestreamChat(_livestreamId: string): UseLivestreamChat {
   }, [messages]);
 
   const sendMessage = useCallback(
-    async (body: string, mentionedUserIds: string[]) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'local-' + prev.length,
-          user_id: youId,
-          username: 'you',
-          body,
-          ts: Date.now(),
-          mentioned_user_ids: mentionedUserIds,
-        },
-      ]);
+    async (body: string, mentioned_user_ids: string[]) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not logged in.');
+      const { error } = await supabase.functions.invoke('post-chat-message', {
+        body: { livestream_id: livestreamId, body, mentioned_user_ids },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw error;
     },
-    [youId],
+    [livestreamId],
   );
 
   return { messages, participants, sendMessage };

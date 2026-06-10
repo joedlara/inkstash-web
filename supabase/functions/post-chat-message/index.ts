@@ -4,7 +4,7 @@
 // passes profanity filtering, then inserts the chat row. Supabase Realtime
 // fans it out to all stream viewers via the livestream_chat table channel.
 //
-// Request body: { livestream_id: string; body: string }
+// Request body: { livestream_id: string; body: string; mentioned_user_ids?: string[] }
 // Response: { id, created_at } | { error }
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -67,12 +67,42 @@ serve(async (req) => {
       .rpc('contains_profanity', { p_body: body })
     if (hasProfanity === true) return json({ error: 'profanity_blocked' }, 400)
 
+    // ── @mentions validation ─────────────────────────────────────────────
+    const rawMentions: unknown = reqBody.mentioned_user_ids
+    const mentions: string[] = Array.isArray(rawMentions) ? rawMentions.map(String) : []
+
+    if (mentions.length > 10) {
+      return json({ error: 'too_many_mentions' }, 400)
+    }
+
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    for (const id of mentions) {
+      if (!UUID_RE.test(id)) {
+        return json({ error: 'invalid_mention' }, 400)
+      }
+    }
+
+    // Dedupe + skip silently when the referenced user doesn't exist
+    // (handles users deleted between client-side resolution and the
+    // insert. The wire shape stays the array sent; the persisted shape is
+    // the validated subset).
+    let validMentions: string[] = []
+    if (mentions.length > 0) {
+      const unique = Array.from(new Set(mentions))
+      const { data: rows } = await serviceClient
+        .from('users')
+        .select('id')
+        .in('id', unique)
+      validMentions = (rows ?? []).map((r: { id: string }) => r.id)
+    }
+
     const { data: chat, error: insertErr } = await serviceClient
       .from('livestream_chat')
       .insert({
         livestream_id: s.id,
         user_id: user.id,
         body,
+        mentioned_user_ids: validMentions,
       })
       .select('id, created_at')
       .single()
