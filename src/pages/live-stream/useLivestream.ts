@@ -91,17 +91,22 @@ export function useLivestream(livestreamId: string): Livestream {
     setLoading(true);
 
     (async () => {
-      const { data, error } = await supabase
+      // Two queries: the livestream row + the host user. The codebase uses
+      // public.users (not profiles), and avoids relational embeds in this
+      // table (see hydrateHosts in src/api/livestreams.ts). Two round-trips
+      // are fine — this hook runs once per page load.
+      const { data: row, error } = await supabase
         .from('livestreams')
-        .select('id, title, status, scheduled_start_at, cover_image_url, host:profiles!host_user_id(id, username, display_name, avatar_url)')
+        .select('id, title, status, scheduled_start_at, cover_image_url, host_user_id')
         .eq('id', livestreamId)
         .maybeSingle();
 
       if (cancelled) return;
 
-      if (error || !data) {
-        // Row not found — surface as ended so the page doesn't render a
-        // broken live state. PreShow won't fire because status !== scheduled.
+      if (error || !row) {
+        // Row not found OR RLS blocked the SELECT — surface as ended so the
+        // page doesn't crash. PreShow won't fire because status !== scheduled.
+        if (error) console.warn('[useLivestream] livestream fetch failed', error);
         setRow({
           id: livestreamId,
           title: 'Stream not found',
@@ -115,21 +120,28 @@ export function useLivestream(livestreamId: string): Livestream {
         return;
       }
 
-      // Supabase types the FK-join as an array even when the relation is 1-1;
-      // normalize to a single host or null.
-      const raw = data as unknown as {
+      const r = row as {
         id: string;
         title: string;
         status: string;
         scheduled_start_at: string | null;
         cover_image_url: string | null;
-        host:
-          | { id: string; username: string | null; display_name: string | null; avatar_url: string | null }
-          | Array<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }>
-          | null;
+        host_user_id: string;
       };
-      const hostObj = Array.isArray(raw.host) ? raw.host[0] ?? null : raw.host;
-      const r = { ...raw, host: hostObj };
+
+      const { data: hostUser } = await supabase
+        .from('users')
+        .select('id, username, avatar_url')
+        .eq('id', r.host_user_id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const host = hostUser as {
+        id: string;
+        username: string | null;
+        avatar_url: string | null;
+      } | null;
 
       setRow({
         id: r.id,
@@ -138,10 +150,10 @@ export function useLivestream(livestreamId: string): Livestream {
         scheduledFor: r.scheduled_start_at,
         posterUrl: r.cover_image_url,
         host: {
-          id: r.host?.id ?? '',
-          username: r.host?.username ?? 'unknown',
-          displayName: r.host?.display_name ?? r.host?.username ?? 'Unknown',
-          avatarUrl: r.host?.avatar_url ?? null,
+          id: host?.id ?? r.host_user_id,
+          username: host?.username ?? 'unknown',
+          displayName: host?.username ?? 'Unknown',
+          avatarUrl: host?.avatar_url ?? null,
         },
         loading: false,
       });
