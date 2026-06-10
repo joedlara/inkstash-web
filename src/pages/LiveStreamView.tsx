@@ -67,8 +67,45 @@ export default function LiveStreamView() {
   // BEFORE any live-state-only hooks (useLiveAuction / useLivestreamChat)
   // are called — pre-show streams never instantiate them.
   const livestream = useLivestream(id);
-  if (livestream.status === 'scheduled') {
+
+  // Initial DB fetch in flight — render a quick dark frame so the live hooks
+  // don't mount against the wrong id, and the pre-show banner doesn't flash
+  // for streams that are actually live.
+  if (livestream.loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#08070A',
+      }} aria-busy="true" />
+    );
+  }
+
+  if (livestream.status === 'scheduled' || livestream.status === 'preparing') {
     return <PreShowState livestream={livestream} />;
+  }
+
+  if (livestream.status === 'ended') {
+    // Phase 2: no dedicated ended UI yet. Show a minimal "stream ended" card
+    // so the page doesn't sit blank or try to render live state for a
+    // not-found / ended row. Phase 3 adds a proper recap surface.
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        background: '#08070A',
+        color: '#FAF7F2',
+        fontFamily: 'Geist, system-ui, sans-serif',
+        padding: 24,
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: 360 }}>
+          <h1 style={{ fontSize: 28, margin: 0 }}>This show has ended</h1>
+          <p style={{ marginTop: 12, opacity: 0.7 }}>
+            {livestream.title || 'Check back later for more from this seller.'}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return <LiveStreamLiveView id={id} />;
