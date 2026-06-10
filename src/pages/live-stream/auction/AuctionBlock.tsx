@@ -1,29 +1,36 @@
 // AuctionBlock — glass lot card (status · title · shipping · price · timer)
 // + the Custom pill and SlideToBid row. Sits in the video's bottom overlay.
-// Ported 1:1 from docs/design-system/live_stream/auction.jsx — wraps the
-// extracted primitives (StatusLine, LotRow, BidRow) and keeps the original's
-// wallet-card-ready auto-retry + toast machinery.
+// Phase 3b: drops the `hasCard` prop — the server (place-bid edge fn)
+// gates on saved-card now and throws 'no_card_on_file' which the hook
+// handles by calling onNeedCard. We keep the wallet-card-ready listener
+// for legacy compatibility, but the hook drives the actual retry.
 //
 // Takes the hook's flat result + a viewerId + onNeedCard hook. The hook's
 // `placeBid` / `placeCustomBid` are async; on rejection we sniff the thrown
-// AuctionApiError name (no_card_on_file, bidding_closed, bid_too_low) the
-// same way the prototype did and route to either the wallet sheet or a toast.
+// Error.name (bidding_closed, bid_too_low, etc.) and flash a toast.
+// `no_card_on_file` is consumed by the hook (it calls onNeedCard) but we
+// still tag pendingRef so the legacy wallet-card-ready event re-fires bid
+// in case any other surface dispatches it.
 import { useEffect, useRef, useState } from 'react';
-import { BID_INCREMENT_CENTS } from '../_mock/LiveAuctionAPI.mock';
 import { StatusLine } from './StatusLine';
 import { LotRow } from './LotRow';
 import { BidRow } from './BidRow';
 import type { UseLiveAuction } from './useLiveAuction';
 
+// Display constant for the local optimistic next-bid amount. The real
+// increment is owned server-side; this just paints the BidRow button
+// while we wait for the place-bid round trip. Phase 3b-2 may make the
+// increment server-driven (per-stream config).
+const BID_INCREMENT_CENTS = 100;
+
 type Props = {
   auction: UseLiveAuction;
-  viewerId: string;
-  hasCard: boolean;
+  viewerId: string | null;
   onNeedCard: () => void;
   glass?: boolean;
 };
 
-export function AuctionBlock({ auction, viewerId, hasCard, onNeedCard, glass = true }: Props) {
+export function AuctionBlock({ auction, viewerId, onNeedCard, glass = true }: Props) {
   const {
     currentItem,
     status,
@@ -38,9 +45,10 @@ export function AuctionBlock({ auction, viewerId, hasCard, onNeedCard, glass = t
   const [toast, setToast] = useState<string | null>(null);
   const pendingRef = useRef(false);
 
-  // Auto-retry the bid once a card is added (mirrors inkstash:wallet-card-ready).
-  // The empty-state guard reproduces the prototype: doBid closes over `currentItem`
-  // through the surrounding closure on each render.
+  // Auto-retry the bid once a card is added. The hook's own listener
+  // does the canonical retry; this is a belt-and-suspenders for the
+  // case where AuctionBlock's optimistic loop fires before the hook's
+  // pendingBidRef latches.
   useEffect(() => {
     const onReady = () => {
       if (pendingRef.current) {
@@ -56,13 +64,12 @@ export function AuctionBlock({ auction, viewerId, hasCard, onNeedCard, glass = t
   if (!currentItem) return null;
 
   const now = Date.now();
-  // bidActive gates BidRow rendering (line below the JSX). It is true ONLY
-  // when the lot is mid-bidding AND the soft-close timer hasn't elapsed.
-  // The mock's state machine (useLiveAuction → resolveBidding) flips status
-  // from 'bidding' → 'sold' the instant the timer expires, before the next
-  // render — so a "Bidding closed" slider cannot appear on a sold lot in
-  // steady state. If you see one in dev, hard-reload (Vite HMR can show a
-  // stale BidRow from the previous lot for one frame). Issue 4 (2026-06-10).
+  // bidActive gates BidRow rendering. True only when the lot is mid-bidding
+  // AND the soft-close timer hasn't elapsed. The hook flips status from
+  // 'bidding' → 'sold'/'passed' via the resolveBidding RPC once the
+  // server processes the expiry, so a "Bidding closed" slider can briefly
+  // show between client-side expiry and the round-trip — that's OK; the
+  // hook surfaces 'bidding_closed' errors as a toast in that window.
   const bidActive = status === 'bidding' && endsAt !== null && endsAt > now;
   const isWinning = bidActive && currentWinnerId === viewerId;
   const sold = status === 'sold';
@@ -82,10 +89,13 @@ export function AuctionBlock({ auction, viewerId, hasCard, onNeedCard, glass = t
     } catch (err) {
       const name = (err as Error).name;
       if (name === 'no_card_on_file') {
+        // Hook already invoked onNeedCard; we just remember the bid so
+        // legacy 'inkstash:wallet-card-ready' surfaces can retry.
         pendingRef.current = true;
-        onNeedCard();
-      } else if (name === 'bidding_closed') {
+      } else if (name === 'bidding_closed' || name === 'item_not_bidding') {
         flash('Too late — bidding just closed.');
+      } else if (name === 'Not logged in.') {
+        flash('Sign in to bid.');
       } else {
         flash("Couldn't place your bid — try again.");
       }
@@ -95,18 +105,24 @@ export function AuctionBlock({ auction, viewerId, hasCard, onNeedCard, glass = t
   }
 
   async function doCustom(amountCents: number) {
-    if (!hasCard) {
-      pendingRef.current = true;
-      onNeedCard();
-      return;
-    }
     try {
       await placeCustomBid(amountCents);
     } catch (err) {
       const name = (err as Error).name;
-      flash(name === 'bid_too_low' ? 'Enter more than the current bid.' : 'Bidding just closed.');
+      if (name === 'no_card_on_file') {
+        pendingRef.current = true;
+      } else {
+        flash(name === 'bid_too_low' ? 'Enter more than the current bid.' : 'Bidding just closed.');
+      }
     }
   }
+
+  // onNeedCard is exposed in props for parents that want to open the
+  // wallet from a button (e.g. RightRail Wallet pill). The hook itself
+  // also calls it on 402; the prop wiring just keeps the interface
+  // explicit. Reference it to satisfy unused-var lint (real consumer
+  // is the parent's useLiveAuction config).
+  void onNeedCard;
 
   return (
     <div className="ls-auction-block">

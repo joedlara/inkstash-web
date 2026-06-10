@@ -62,4 +62,20 @@ export const paymentMethodsAPI = {
 
     if (error) throw new Error(error.message);
   },
+
+  /** Mints a Stripe SetupIntent so the client can collect a card
+   *  without charging. Used by the in-stream WalletSheet's add-card
+   *  flow (no_card_on_file 402 handshake). Returns the client_secret
+   *  for <PaymentElement>. Phase 3b. */
+  async createSetupIntent(): Promise<{ client_secret: string; setup_intent_id: string }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('You must be logged in');
+    const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+      body: {},
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data as { client_secret: string; setup_intent_id: string };
+  },
 };

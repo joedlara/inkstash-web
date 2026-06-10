@@ -24,6 +24,8 @@ import { VideoStage } from './live-stream/stage/VideoStage';
 
 import { useLivestream, type Livestream } from './live-stream/useLivestream';
 import PreShowState from './live-stream/PreShowState';
+import { WalletSheet } from './live-stream/wallet/WalletSheet';
+import { useAuth } from '../hooks/useAuth';
 
 type ResponsiveMode = 'desktop' | 'two-col' | 'immersive';
 
@@ -44,10 +46,9 @@ function useResponsiveMode(): ResponsiveMode {
 }
 
 // Phase 2 demo knobs (the prototype exposes these as a Tweaks panel; here they
-// match the prototype's defaults so visual parity is exact).
-const VIEWER_ID = 'you';
-const HAS_CARD = true;
-const BOT_SPEED = 3;
+// match the prototype's defaults so visual parity is exact). Phase 3b drops
+// HAS_CARD (server gates via 'no_card_on_file') + VIEWER_ID + BOT_SPEED
+// (real viewer id comes from useAuth; no more bot loop).
 const GLASS = false;
 const LIKES_KEY = 'inkstash.stream.likes.thundervault';
 
@@ -117,14 +118,26 @@ export default function LiveStreamView() {
 // ShopRail can read host.id without us double-fetching the row.
 function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livestream }) {
   const mode = useResponsiveMode();
+  const { user } = useAuth();
+  const viewerId = user?.id ?? null;
 
   // Profile-card open state — chat clicks bubble up via onUsernameClick.
   const [profileUser, setProfileUser] = useState<string | null>(null);
 
+  // WalletSheet state. autoOpenAddCard=true skips the saved-cards list
+  // and mounts the add-card form immediately — used when opened from
+  // a 402 (place-bid said 'no_card_on_file'). Rail-opened wallet shows
+  // the saved-cards summary first.
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [walletAutoAdd, setWalletAutoAdd] = useState(false);
+
   const auction = useLiveAuction({
-    viewerId: VIEWER_ID,
-    hasCard: HAS_CARD,
-    botSpeed: BOT_SPEED,
+    livestreamId: id,
+    viewerId,
+    onNeedCard: () => {
+      setWalletAutoAdd(true);
+      setWalletOpen(true);
+    },
   });
 
   const { messages, participants, sendMessage } = useLivestreamChat(id);
@@ -185,15 +198,15 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
     () => (
       <AuctionBlock
         auction={auction}
-        viewerId={VIEWER_ID}
-        hasCard={HAS_CARD}
+        viewerId={viewerId}
         onNeedCard={() => {
-          /* Phase 2: no wallet sheet — hasCard is locked true. */
+          setWalletAutoAdd(true);
+          setWalletOpen(true);
         }}
         glass={GLASS}
       />
     ),
-    [auction],
+    [auction, viewerId],
   );
 
   // Bottom overlay inside the video stage: winner banner + immersive chat
@@ -228,6 +241,13 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
             ringTapsTarget={RING_TAPS_TO_COMPLETE}
             celebrateKey={celebrateKey}
             onLike={onLike}
+            onWallet={() => {
+              // Rail-opened wallet → show the saved-cards summary
+              // first; only auto-jump to the add-card form when opened
+              // from a 402.
+              setWalletAutoAdd(false);
+              setWalletOpen(true);
+            }}
           />
 
           {/* Desktop / 2-col chat column. Hidden by CSS at ≤1024px. */}
@@ -247,6 +267,12 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
       </main>
 
       <ProfileCard username={profileUser} onClose={() => setProfileUser(null)} />
+
+      <WalletSheet
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        autoOpenAddCard={walletAutoAdd}
+      />
     </div>
   );
 }

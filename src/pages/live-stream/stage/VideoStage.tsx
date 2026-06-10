@@ -53,6 +53,9 @@ type Props = {
   celebrateKey: number;
   /** Called on every like — heart button click OR double-tap on the video. */
   onLike: () => void;
+  /** Wallet pill in the side rail. Phase 3b: opens the in-stream
+   *  WalletSheet so viewers can add a card without leaving the stream. */
+  onWallet?: () => void;
 };
 
 export function VideoStage({
@@ -63,6 +66,7 @@ export function VideoStage({
   ringTapsTarget,
   celebrateKey,
   onLike,
+  onWallet,
 }: Props) {
   const feedRef = useRef<HTMLDivElement | null>(null);
   const heartId = useRef(0);
@@ -146,6 +150,7 @@ export function VideoStage({
             ringTapsTarget={ringTapsTarget}
             celebrateKey={celebrateKey}
             onLike={likeFromButton}
+            onWallet={onWallet}
           />
 
           <div className="ls-vf-overlay-bottom">{bottomOverlay}</div>

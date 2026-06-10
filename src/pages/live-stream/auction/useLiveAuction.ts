@@ -1,31 +1,48 @@
-// useLiveAuction — drives the on-block lot: countdown, bot bids, resolve, charge.
-// Ported 1:1 from docs/design-system/live_stream/auction.jsx. The bot loop +
-// auto-advance ARE the demo loop the user uses to verify visual parity in
-// Phase 2. Replaced wholesale in Phase 3b by the real livestreamsAPI + realtime
-// row subscription.
+// useLiveAuction — drives the on-block lot from the real livestream_items
+// row (Phase 3b). Replaces the Phase 2 mock loop with a Supabase realtime
+// subscription + 3s polling fallback for the case where the websocket
+// goes stale (we share the same channel + heartbeat hooks as Phase 3a's
+// ShopRail via useLivestreamItemsChannel).
 //
-// The returned shape is intentionally flat (Phase-3 contract): consumers read
-// `currentItem` (the on-block lot blob) + derived fields like `status`,
-// `currentPriceCents`, `currentWinnerId`, `bidCount`, `endsAt`. The mock
-// `charge` UX (Stripe round-trip flash) is internal Phase-2 only; Phase 3b
-// replaces it with the real charge-auction-win edge fn. `winnerBanner` is a
-// presentation-shaped blob the WinnerBanner mounts on; auto-dismiss timing
-// lives here, not in the banner component.
+// The returned shape is the Phase-3 contract: consumers (AuctionBlock,
+// LotRow) read flat fields (`currentItem`, `currentPriceCents`, etc.)
+// and call `placeBid` / `placeCustomBid` which are real async RPCs.
+// `currentItem` is an AuctionDisplayItem — a flat shape that LotRow
+// already consumes (title + ship + grad), built from the joined
+// listings.title + a deterministic fallback gradient.
+//
+// 402 (no_card_on_file) handshake: the place-bid edge fn throws
+// Error.name === 'no_card_on_file' when the bidder has no saved card.
+// We call onNeedCard?.() (parent opens the WalletSheet), remember the
+// in-flight bid via pendingBidRef, and window-listen ONCE for
+// 'inkstash:wallet-card-ready' (dispatched by WalletSheet on a
+// successful SetupIntent confirm) to retry the bid.
+//
+// Win resolution: when bidding_ends_at passes for a live item, call
+// resolveBidding() once (guarded by resolvedRef). When the row flips to
+// 'sold' (via realtime), mount the WinnerBanner with the winner's
+// username — looked up inline from public.users and cached on a
+// username Map so repeated wins by the same user don't re-query. If
+// the viewer is the winner, fire chargeWin() once (guarded by
+// chargedRef); the UI doesn't wait — already_charged is non-error.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { livestreamsAPI, type LivestreamItemRow } from '../../../api/livestreams';
+import { supabase } from '../../../api/supabase/supabaseClient';
 import {
-  ANTI_SNIPE_MS,
-  AUCTION_QUEUE,
-  BID_INCREMENT_CENTS,
-  makeLiveAuctionAPI,
-  pickBot,
-  type AuctionItemState,
-  type LiveAuctionAPI,
-} from '../_mock/LiveAuctionAPI.mock';
+  useLivestreamItemsChannel,
+  getLastHeartbeat,
+} from '../shop/useLivestreamItemsChannel';
+import { avatarGrad, type AvatarGradient } from '../chat/usernameColor';
 
 type Args = {
-  viewerId: string;
-  hasCard: boolean;
-  botSpeed: number;
+  livestreamId: string;
+  /** Viewer's user id. null = not signed in; bids will fail at the
+   *  edge fn's auth gate, which we surface as a toast. */
+  viewerId: string | null;
+  /** Called when place-bid 402s with 'no_card_on_file'. The parent
+   *  opens the WalletSheet; once a card is added it dispatches
+   *  'inkstash:wallet-card-ready' and we retry the pending bid. */
+  onNeedCard?: () => void;
 };
 
 export type AuctionStatus = 'idle' | 'bidding' | 'sold' | 'passed';
@@ -36,132 +53,342 @@ export type WinnerBannerInfo = {
   finalPriceCents: number;
 };
 
+/** Flat shape LotRow consumes. Built from a LivestreamItemRow + a
+ *  deterministic gradient fallback per listing id. Phase 3b keeps `ship`
+ *  as a static line ("Shipping + taxes at checkout") — the listings
+ *  table doesn't store shipping copy, and per-stream shipping math
+ *  lands in a later phase. */
+export type AuctionDisplayItem = {
+  id: string;
+  title: string;
+  thumbUrl: string | null;
+  ship: string;
+  grad: AvatarGradient;
+};
+
 export type UseLiveAuction = {
-  /** Full lot blob (Phase 3b becomes the real livestream_items row). */
-  currentItem: AuctionItemState | null;
+  currentItem: AuctionDisplayItem | null;
   status: AuctionStatus;
   currentPriceCents: number;
   currentWinnerId: string | null;
   bidCount: number;
-  /** Soft-close deadline in ms epoch. Null while idle. */
+  /** Soft-close deadline in ms epoch (CountdownTimer reads ms). Null while idle. */
   endsAt: number | null;
-  /** $1 bump (mock throws on no card; surfaced to consumer via thrown Error.name). */
   placeBid: () => Promise<void>;
   placeCustomBid: (amountCents: number) => Promise<void>;
-  /** Presentation blob for WinnerBanner; null while not showing. */
   winnerBanner: WinnerBannerInfo | null;
   dismissWinnerBanner: () => void;
 };
 
-export function useLiveAuction({ viewerId, hasCard, botSpeed }: Args): UseLiveAuction {
-  const [item, setItem] = useState<AuctionItemState | null>(null);
+// Polling fallback cadence + staleness threshold for the realtime
+// channel. Mirrors Phase 3a's ShopRail behaviour exactly.
+const POLL_INTERVAL_MS = 3000;
+const HEARTBEAT_STALE_MS = 5000;
+const WINNER_BANNER_AUTOHIDE_MS = 6000;
+
+function thumbFromListing(listing: LivestreamItemRow['listing']): string | null {
+  if (!listing?.photos) return null;
+  const first = listing.photos[0];
+  const url = first && typeof first === 'object' ? first.url : null;
+  return typeof url === 'string' ? url : null;
+}
+
+function displayFromRow(row: LivestreamItemRow): AuctionDisplayItem {
+  // grad is deterministic per listing id so the lot card's fallback
+  // color is stable across refetches (matches ShopRail's behaviour).
+  return {
+    id: row.id,
+    title: row.listing?.title ?? 'Untitled lot',
+    thumbUrl: thumbFromListing(row.listing),
+    ship: 'Shipping + taxes at checkout',
+    grad: avatarGrad(row.listing_id),
+  };
+}
+
+function pickLiveRow(rows: LivestreamItemRow[]): LivestreamItemRow | null {
+  // Host-side panel sets exactly one item to 'live' at a time. If
+  // there's an in-progress 'sold'/'passed' row whose banner we still
+  // want to show, that's handled separately via winnerBanner — pickLive
+  // only feeds currentItem.
+  return rows.find((r) => r.status === 'live') ?? null;
+}
+
+function computeStatus(row: LivestreamItemRow | null): AuctionStatus {
+  if (!row) return 'idle';
+  if (row.status === 'sold') return 'sold';
+  if (row.status === 'passed') return 'passed';
+  if (row.status !== 'live') return 'idle';
+  const endsAt = row.bidding_ends_at ? new Date(row.bidding_ends_at).getTime() : null;
+  if (endsAt !== null && endsAt > Date.now()) return 'bidding';
+  return 'idle';
+}
+
+export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): UseLiveAuction {
+  // Full row drives derived fields. We hold the LiveRow + an optional
+  // "just resolved" row (the row that flipped to sold/passed last) so
+  // WinnerBanner can read final price without racing the next live row.
+  const [liveRow, setLiveRow] = useState<LivestreamItemRow | null>(null);
   const [winnerBanner, setWinnerBanner] = useState<WinnerBannerInfo | null>(null);
-  const [tickN, setTickN] = useState(0); // re-render for the countdown
+  const [, setTickN] = useState(0);
 
-  const itemRef = useRef<AuctionItemState | null>(null);
-  itemRef.current = item;
-  const hasCardRef = useRef<boolean>(hasCard);
-  hasCardRef.current = hasCard;
-  const idxRef = useRef(0);
-  const apiRef = useRef<LiveAuctionAPI | null>(null);
-  if (!apiRef.current) {
-    apiRef.current = makeLiveAuctionAPI(() => itemRef.current, setItem, hasCardRef);
-  }
-  const api = apiRef.current;
+  const liveRowRef = useRef<LivestreamItemRow | null>(null);
+  liveRowRef.current = liveRow;
+  const viewerIdRef = useRef<string | null>(viewerId);
+  viewerIdRef.current = viewerId;
+  const onNeedCardRef = useRef<typeof onNeedCard>(onNeedCard);
+  onNeedCardRef.current = onNeedCard;
 
-  // Start the first lot on mount.
-  useEffect(() => {
-    api.startBidding(AUCTION_QUEUE[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Per-item-id resolve/charge guards. resolveBidding is idempotent on
+  // the RPC side, but firing it twice per tick burns network for no
+  // reason. chargeWin is also idempotent (returns 'already_charged')
+  // but same reasoning applies.
+  const resolvedRef = useRef<Set<string>>(new Set());
+  const chargedRef = useRef<Set<string>>(new Set());
+  // In-flight bid that 402'd. After 'inkstash:wallet-card-ready' fires
+  // we retry once and clear.
+  const pendingBidRef = useRef<boolean>(false);
+  // Cache winner username lookups so repeated wins by the same user
+  // don't re-hit users table.
+  const usernameCacheRef = useRef<Map<string, string>>(new Map());
 
-  // Countdown ticker (re-render only; the soft-close timestamp is source of truth).
-  useEffect(() => {
-    const id = setInterval(() => setTickN((n) => n + 1), 200);
-    return () => clearInterval(id);
-  }, []);
-
-  // Resolve once when the soft-close timer runs out (resolve_livestream_bid +
-  // charge-auction-win). Runs on each tick but no-ops once status !== 'bidding'.
-  useEffect(() => {
-    const it = itemRef.current;
-    if (!it || it.status !== 'bidding') return;
-    if (it.biddingEndsAt - Date.now() > 0) return;
-    const status = api.resolveBidding();
-    if (status === 'sold') {
-      setWinnerBanner({
-        itemId: it.title, // Phase 2: no real ids — title is stable across the lot lifecycle
-        winnerUsername: it.currentWinner ?? '',
-        finalPriceCents: it.priceCents,
-      });
-      // Mock Stripe round-trip — Phase 3b replaces with real charge-auction-win.
-      // Result is intentionally not surfaced to consumers in the new contract.
-      if (it.currentWinner === viewerId) {
-        void api.chargeWin(it.priceCents);
+  // ─── Fetch + patch helpers ─────────────────────────────────────────
+  const refetchAll = useCallback(async () => {
+    const rows = await livestreamsAPI.listItems(livestreamId);
+    const live = pickLiveRow(rows);
+    if (live) {
+      setLiveRow(live);
+    } else {
+      // No live row right now — but check if our previous live row
+      // just flipped to sold/passed (resolve happens elsewhere in the
+      // stack). Promote that row so WinnerBanner can read its final
+      // state from the same liveRow source.
+      const prev = liveRowRef.current;
+      if (prev) {
+        const updated = rows.find((r) => r.id === prev.id);
+        if (updated && (updated.status === 'sold' || updated.status === 'passed')) {
+          setLiveRow(updated);
+        } else if (!updated) {
+          setLiveRow(null);
+        }
+      } else {
+        setLiveRow(null);
       }
     }
-  }, [tickN, viewerId, api]);
+  }, [livestreamId]);
 
-  // After a lot resolves, hold the winner moment, then advance to the next lot
-  // (mirrors prototype's 4.6s pause before the next start-bidding).
+  // Initial fetch + on livestreamId change.
   useEffect(() => {
-    if (!item || (item.status !== 'sold' && item.status !== 'passed')) return;
-    const t = setTimeout(() => {
-      setWinnerBanner(null);
-      idxRef.current = (idxRef.current + 1) % AUCTION_QUEUE.length;
-      api.startBidding(AUCTION_QUEUE[idxRef.current]);
-    }, 4600);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item && item.status]);
+    void refetchAll();
+    // Reset per-stream guard state so switching streams doesn't carry
+    // a stale resolve/charge marker.
+    resolvedRef.current = new Set();
+    chargedRef.current = new Set();
+    pendingBidRef.current = false;
+    setWinnerBanner(null);
+    setLiveRow(null);
+  }, [livestreamId, refetchAll]);
 
-  // Bot bidders chase each lot up to its ceiling, resetting the clock (anti-snipe).
+  // Realtime UPDATEs patch the local row when the changed row is our
+  // current live item; INSERT/DELETE refetches because they can change
+  // which row is live. UPDATE on a different row also refetches (host
+  // may have just flipped a new item to 'live').
+  useLivestreamItemsChannel(livestreamId, (payload) => {
+    const eventType = payload.eventType;
+    if (eventType === 'INSERT' || eventType === 'DELETE') {
+      void refetchAll();
+      return;
+    }
+    const newRow = payload.new;
+    const cur = liveRowRef.current;
+    if (cur && newRow && (newRow.id as string | undefined) === cur.id) {
+      // Patch the changed columns into the existing row (preserves the
+      // joined listing data the realtime payload doesn't include).
+      setLiveRow((prev) => (prev ? { ...prev, ...(newRow as Partial<LivestreamItemRow>) } : prev));
+    } else if (newRow?.status === 'live') {
+      // A different row just went live — refetch the whole list to
+      // pick up the joined listing data we need for the display.
+      void refetchAll();
+    } else {
+      // Defensive: out-of-band update (e.g. a queued row's position
+      // changed). Refetch is cheap enough.
+      void refetchAll();
+    }
+  });
+
+  // Polling fallback + countdown re-render. We re-render every
+  // POLL_INTERVAL_MS so CountdownTimer ticks even if the parent
+  // doesn't re-render for any other reason, AND if the realtime
+  // heartbeat is stale we kick a refetch.
   useEffect(() => {
-    const it = item;
-    if (!it || it.status !== 'bidding') return;
-    if (it.priceCents + BID_INCREMENT_CENTS > it.ceilingCents) return; // tapped out
-    const base = 2600 - botSpeed * 320; // higher speed → shorter gap
-    const delay = base + Math.random() * 1400 + (it.currentWinner === viewerId ? 900 : 0); // give the human a beat
-    const id = setTimeout(() => {
-      const cur = itemRef.current;
-      if (!cur || cur.status !== 'bidding' || Date.now() > cur.biddingEndsAt) return;
-      const next = cur.priceCents + BID_INCREMENT_CENTS;
-      const endsAt = Math.max(cur.biddingEndsAt, Date.now() + ANTI_SNIPE_MS);
-      setItem({
-        ...cur,
-        priceCents: next,
-        bidCount: cur.bidCount + 1,
-        currentWinner: pickBot(cur.currentWinner),
-        biddingEndsAt: endsAt,
+    const id = setInterval(() => {
+      setTickN((n) => n + 1);
+      const lastBeat = getLastHeartbeat(livestreamId);
+      if (Date.now() - lastBeat > HEARTBEAT_STALE_MS) {
+        void refetchAll();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [livestreamId, refetchAll]);
+
+  // Win resolution: once bidding_ends_at passes for a live row, call
+  // resolve_livestream_bid. Server will flip the row, which arrives
+  // via realtime and triggers the WinnerBanner side-effect below.
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const cur = liveRowRef.current;
+      if (!cur || cur.status !== 'live' || !cur.bidding_ends_at) return;
+      if (resolvedRef.current.has(cur.id)) return;
+      const endsAt = new Date(cur.bidding_ends_at).getTime();
+      if (Date.now() < endsAt) return;
+      resolvedRef.current.add(cur.id);
+      // Fire-and-forget: server is the source of truth. We don't
+      // optimistically flip status — the realtime UPDATE will tell us.
+      livestreamsAPI.resolveBidding(cur.id).catch((err) => {
+        console.warn('[useLiveAuction] resolveBidding failed', err);
+        // Re-arm so a retry can happen next tick.
+        resolvedRef.current.delete(cur.id);
       });
-    }, delay);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item && item.priceCents, item && item.currentWinner, item && item.status, botSpeed, viewerId]);
+    }, 500);
+    return () => clearInterval(tick);
+  }, []);
 
-  // Flat action wrappers. Async to match the Phase 3b contract (real RPC).
+  // WinnerBanner side effect — fires when the current row flips to
+  // 'sold'. Also kicks off chargeWin() if the viewer is the winner.
+  useEffect(() => {
+    if (!liveRow) return;
+    if (liveRow.status !== 'sold') return;
+    const finalPriceCents = liveRow.current_price_cents ?? 0;
+    const winnerId = liveRow.current_winner_id;
+    const itemId = liveRow.id;
+    if (!winnerId) {
+      // Sold without a winner shouldn't happen but defend against it.
+      setWinnerBanner({ itemId, winnerUsername: '', finalPriceCents });
+      return;
+    }
+    // Try cache first; otherwise fetch and set the banner once the
+    // username resolves. We render the banner immediately with a
+    // placeholder so the visual transition isn't blocked on the lookup.
+    const cached = usernameCacheRef.current.get(winnerId);
+    if (cached) {
+      setWinnerBanner({ itemId, winnerUsername: cached, finalPriceCents });
+    } else {
+      setWinnerBanner({ itemId, winnerUsername: '…', finalPriceCents });
+      (async () => {
+        const { data } = await supabase
+          .from('users')
+          .select('username')
+          .eq('id', winnerId)
+          .maybeSingle();
+        const username = (data as { username?: string | null } | null)?.username ?? 'winner';
+        usernameCacheRef.current.set(winnerId, username);
+        // Only patch the banner if it's still the one for this item id.
+        setWinnerBanner((cur) =>
+          cur && cur.itemId === itemId ? { ...cur, winnerUsername: username } : cur,
+        );
+      })().catch((err) => console.warn('[useLiveAuction] winner username fetch failed', err));
+    }
+
+    // Auto-dismiss the banner after the prototype's ~6s window.
+    const t = setTimeout(() => {
+      setWinnerBanner((cur) => (cur && cur.itemId === itemId ? null : cur));
+    }, WINNER_BANNER_AUTOHIDE_MS);
+
+    // Viewer-is-winner → charge their card. chargeWin is idempotent so
+    // double-fire is harmless; ref-guard avoids the network spend.
+    if (viewerIdRef.current && winnerId === viewerIdRef.current && !chargedRef.current.has(itemId)) {
+      chargedRef.current.add(itemId);
+      livestreamsAPI.chargeWin(itemId).catch((err) => {
+        // 'already_charged' is non-error per the API contract; only
+        // real failures show up here.
+        console.warn('[useLiveAuction] chargeWin failed', err);
+      });
+    }
+
+    return () => clearTimeout(t);
+  }, [liveRow]);
+
+  // ─── Bid actions ───────────────────────────────────────────────────
+  const placeBidImpl = useCallback(async (): Promise<void> => {
+    const cur = liveRowRef.current;
+    if (!cur) return;
+    if (computeStatus(cur) !== 'bidding') return;
+    const viewer = viewerIdRef.current;
+
+    // Optimistic: bump local row so the UI feels instant. The realtime
+    // UPDATE will reconcile (server's amount is source of truth — if
+    // someone else bid the same instant our +100 may be wrong, and the
+    // websocket patch fixes it within ~1-2s).
+    const before = cur;
+    setLiveRow({
+      ...cur,
+      current_price_cents: (cur.current_price_cents ?? 0) + 100,
+      current_winner_id: viewer,
+      bid_count: cur.bid_count + 1,
+    });
+
+    try {
+      await livestreamsAPI.placeBid(cur.id);
+    } catch (err) {
+      const name = (err as Error).name;
+      if (name === 'no_card_on_file') {
+        // Roll back optimistic state, mark the bid as pending, ask the
+        // parent to open the wallet sheet. The wallet-card-ready
+        // listener below retries the bid once a card lands.
+        setLiveRow(before);
+        pendingBidRef.current = true;
+        onNeedCardRef.current?.();
+      } else {
+        // Reconcile from server and re-throw so AuctionBlock can flash
+        // its toast based on err.name.
+        void refetchAll();
+      }
+      throw err;
+    }
+  }, [refetchAll]);
+
   const placeBid = useCallback(async () => {
-    api.placeBid(viewerId);
-  }, [api, viewerId]);
+    await placeBidImpl();
+  }, [placeBidImpl]);
 
+  // Phase 3b: server doesn't accept custom amounts yet (place-bid is
+  // hard-coded to +$1 increments). We intentionally ignore amountCents
+  // and call the flat placeBid — Phase 3b-2 extends the RPC + edge fn
+  // to accept an explicit amount and this becomes a real custom bid.
   const placeCustomBid = useCallback(
-    async (amountCents: number) => {
-      api.placeCustomBid(viewerId, amountCents);
+    async (_amountCents: number) => {
+      void _amountCents;
+      await placeBidImpl();
     },
-    [api, viewerId],
+    [placeBidImpl],
   );
+
+  // Wallet handshake — fires after WalletSheet's confirmSetup() succeeds.
+  // We only retry if a bid was actually pending (avoids spurious
+  // bid-after-card-add when the user opened the wallet from the rail).
+  useEffect(() => {
+    const onReady = () => {
+      if (!pendingBidRef.current) return;
+      pendingBidRef.current = false;
+      void placeBidImpl().catch(() => {
+        // placeBidImpl re-throws; we already rolled back / refetched.
+      });
+    };
+    window.addEventListener('inkstash:wallet-card-ready', onReady);
+    return () => window.removeEventListener('inkstash:wallet-card-ready', onReady);
+  }, [placeBidImpl]);
 
   const dismissWinnerBanner = useCallback(() => setWinnerBanner(null), []);
 
-  // Derived flat fields. `status: 'idle'` only before the first lot mounts.
-  const status: AuctionStatus = item ? item.status : 'idle';
-  const currentPriceCents = item ? item.priceCents : 0;
-  const currentWinnerId = item ? item.currentWinner : null;
-  const bidCount = item ? item.bidCount : 0;
-  const endsAt = item ? item.biddingEndsAt : null;
+  // ─── Derived flat fields ───────────────────────────────────────────
+  const currentItem = liveRow ? displayFromRow(liveRow) : null;
+  const status = computeStatus(liveRow);
+  const currentPriceCents = liveRow?.current_price_cents ?? 0;
+  const currentWinnerId = liveRow?.current_winner_id ?? null;
+  const bidCount = liveRow?.bid_count ?? 0;
+  const endsAt = liveRow?.bidding_ends_at ? new Date(liveRow.bidding_ends_at).getTime() : null;
 
   return {
-    currentItem: item,
+    currentItem,
     status,
     currentPriceCents,
     currentWinnerId,
