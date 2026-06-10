@@ -1174,6 +1174,39 @@
    composer for a read-only "Chat opens when the show starts" pill.
    ============================================ */
 
+/* Container-bounded pre-show wrap. The live-state grid takes the full
+   viewport height; the pre-show variant sits inside AppShell's Container,
+   so we override .ls-stream-grid's 100dvh sizing here and give the stage
+   the same 9:16 aspect as the live video card on desktop. Tablet/mobile
+   media queries in the live grid keep their full-bleed override since
+   they hide AppShell chrome via .ls-topnav { display: none } — but inside
+   AppShell that selector doesn't match, so we set explicit container-
+   bounded heights here too. */
+.ls-preshow-wrap .ls-app { background: transparent; }
+.ls-preshow-wrap .ls-main { padding: 0; }
+.ls-preshow-wrap .ls-stream-grid {
+  height: auto;
+  min-height: 0;
+  grid-template-columns: 320px minmax(0, 1fr) 384px;
+}
+.ls-preshow-wrap .ls-video-col { aspect-ratio: 9 / 16; max-height: 78dvh; }
+.ls-preshow-wrap .ls-video-stage,
+.ls-preshow-wrap .ls-video-feed { height: 100%; }
+@media (max-width: 1240px) {
+  .ls-preshow-wrap .ls-stream-grid {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+@media (max-width: 1024px) {
+  .ls-preshow-wrap .ls-stream-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .ls-preshow-wrap .ls-video-col { aspect-ratio: 9 / 16; max-height: 78dvh; }
+  .ls-preshow-wrap .ls-chat-col,
+  .ls-preshow-wrap .ls-shop-col { display: none; }
+}
+
 /* Stage background: poster image (if set) sits behind a scrim; otherwise the
    inherited .ls-video-feed gradient does the work. */
 .ls-preshow-stage {
@@ -1246,11 +1279,11 @@
 .ls-preshow-cta:active { transform: scale(0.98); }
 .ls-preshow-cta:disabled { opacity: 0.55; cursor: default; transform: none; }
 .ls-preshow-cta--primary {
-  background: var(--gold, #B8893A);
-  color: #1a1208;
-  box-shadow: 0 6px 18px -6px rgba(184,137,58,0.55);
+  background: var(--brand, #A1232C);
+  color: #FFFFFF;
+  box-shadow: 0 6px 18px -6px rgba(161,35,44,0.55);
 }
-.ls-preshow-cta--primary:hover { background: var(--gold-light, #CDA45A); }
+.ls-preshow-cta--primary:hover { background: var(--brand-deep, #821B22); }
 .ls-preshow-cta--secondary {
   background: #fff;
   color: var(--ink, #16110E);

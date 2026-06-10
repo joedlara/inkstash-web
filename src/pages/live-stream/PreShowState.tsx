@@ -10,13 +10,21 @@
 // poll banner (that's a separate feature), no host-only "Start Show" CTA.
 // Phase 3 wires the same component against the real `livestreams` row.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Container } from '@mui/material';
+import AppShell from '../../components/layout/AppShell';
+import LiveStreamSection from '../../components/livestreams/LiveStreamSection';
+import FeaturedBreaksBand from '../../components/livestreams/FeaturedBreaksBand';
+import ScheduledRow from '../../components/livestreams/ScheduledRow';
+import { livestreamsAPI, type LivestreamSections } from '../../api/livestreams';
 import { HostPill } from './stage/HostPill';
 import { ViewerCountBadge } from './stage/ViewerCountBadge';
 import { RightRail } from './stage/RightRail';
 import { ShopRail } from './shop/ShopRail';
 import { avatarGrad } from './chat/usernameColor';
 import type { Livestream } from './useLivestream';
+
+const EMPTY_SECTIONS: LivestreamSections = { live: [], upcoming: [], featured: [] };
 
 type Props = {
   livestream: Livestream;
@@ -156,10 +164,34 @@ export default function PreShowState({ livestream }: Props) {
   // viewers can browse the shop rail behavior surface while waiting.
   const preShowPills = ['more', 'share', 'items', 'buy'] as const;
 
+  // Other-shows carousels — same fetch pattern as /live (Live.tsx). We
+  // refresh on mount only here; the pre-show landing isn't expected to be
+  // a long-dwell surface so the 15s poll Live.tsx uses would be overkill.
+  const [sections, setSections] = useState<LivestreamSections>(EMPTY_SECTIONS);
+  const [sectionsLoading, setSectionsLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await livestreamsAPI.listSections();
+        if (!cancelled) setSections(s);
+      } finally {
+        if (!cancelled) setSectionsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Hide the current pre-show stream from its own "Coming Up" tile row —
+  // the user is already looking at the banner above.
+  const upcomingFiltered = sections.upcoming.filter((s) => s.id !== livestream.id);
+
   return (
-    <div className="ls-app">
-      <main className="ls-main">
-        <div className="ls-stream-grid">
+    <AppShell>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }} className="ls-preshow-wrap">
+        <div className="ls-app">
+          <main className="ls-main">
+            <div className="ls-stream-grid">
           <ShopRail />
 
           <div className="ls-video-col ls-stream-card">
@@ -241,8 +273,33 @@ export default function PreShowState({ livestream }: Props) {
               </div>
             </div>
           </div>
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+
+        {/* Other shows on InkStash — mirrors the three rows on /live so the
+            pre-show landing doubles as a discovery surface while waiting. */}
+        {!sectionsLoading && (
+          <>
+            <LiveStreamSection
+              label="Live Now"
+              sub="Jump into a stream and start bidding."
+              streams={sections.live}
+              emptyHint="No one is live right now. Scroll down for more shows."
+            />
+            <ScheduledRow
+              label="Coming Up"
+              sub="Set a reminder and don't miss the rip."
+              streams={upcomingFiltered}
+            />
+            <FeaturedBreaksBand
+              label="Featured Breaks"
+              sub="Hand-picked shows with serious heat right now."
+              streams={sections.featured}
+            />
+          </>
+        )}
+      </Container>
+    </AppShell>
   );
 }
