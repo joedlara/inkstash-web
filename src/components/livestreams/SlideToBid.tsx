@@ -1,28 +1,18 @@
 // src/components/livestreams/SlideToBid.tsx
 //
-// Drag-right-to-confirm bid pill, Whatnot-style. The outer track is
-// an outlined pill (crimson border, transparent fill so the camera
-// reads through). A smaller solid-crimson pill carries the bid label
-// and slides inside the outer pill. User drags the inner pill to the
-// right edge to confirm.
+// Drag-right-to-confirm bid pill. Visual spec:
+// docs/design-system/claude-design/live_stream/live_stream/stream.css
+// (.slide-bid, .slide-bid-thumb, .chv, .chv-a, .chv-b, @keyframes chvWave).
 //
-// Layout:
-//
-//   ┌─────────────────────────────────────────┐  <- outer pill (crimson border)
-//   │ ╭─────────────────╮                     │
-//   │ │  Bid $9    »»   │       (gap)         │
-//   │ ╰─────────────────╯                     │
-//   └─────────────────────────────────────────┘
-//      ^^^^^^^^^^^^^^^^^^^^ inner pill (solid crimson, draggable)
-//                          ^^^^^^^^^^^^^^^^^^^ commit gap (transparent)
-//
-// Pointer Events cover desktop + mobile in one code path.
-// setPointerCapture keeps the drag alive even if the pointer leaves
-// the pill bounds.
+// Track: 54px tall, 2px crimson border on transparent w/ glass blur.
+// Thumb: 3px inset top/bottom, 74% of track width, crimson gradient.
+// Chevrons: two glyphs pulsing in a left→right wave (0.2s stagger).
+// Pointer Events mechanics unchanged from prior version — half-gap
+// commit threshold + spring-back via cubic-bezier(0.34, 1.4, 0.64, 1).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { ChevronsRight, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -38,20 +28,54 @@ interface Props {
   busy?: boolean;
 }
 
-const TRACK_HEIGHT = 52;
-// Padding INSIDE the outer pill (matches Whatnot). Keeps the inner
-// pill from kissing the border.
-const TRACK_PADDING = 4;
-// Inner pill width as a share of the inner usable width. ~70% leaves
-// a comfortable commit gap on the right.
-const THUMB_RATIO = 0.7;
+const TRACK_HEIGHT = 54;
+// Inset from the track border to the thumb top/bottom. The crimson
+// gradient fill should clear the 2px crimson border with a visible
+// 3px gap on all sides.
+const THUMB_INSET = 3;
+// Thumb width as a share of the track width. 74% leaves a commit gap
+// on the right that the user drags into.
+const THUMB_RATIO = 0.74;
+
+// Single chevron glyph — kept inline so each animates independently.
+function Chev({ delay }: { delay: number }) {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      sx={{
+        width: 18,
+        height: 18,
+        display: 'block',
+        transformBox: 'fill-box',
+        transformOrigin: 'center',
+        animation: 'slbChvWave 1.25s ease-in-out infinite',
+        animationDelay: `${delay}s`,
+        '@keyframes slbChvWave': {
+          '0%, 60%, 100%': { opacity: 0.3, transform: 'scale(0.82)' },
+          '30%':            { opacity: 1,   transform: 'scale(1.12)' },
+        },
+        '@media (prefers-reduced-motion: reduce)': {
+          animation: 'none',
+          opacity: 0.9,
+        },
+      }}
+    >
+      <path
+        d="M9 6l6 6-6 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Box>
+  );
+}
 
 export default function SlideToBid({ label, onConfirm, disabled = false, busy = false }: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [draggingX, setDraggingX] = useState<number | null>(null);
-  // After confirm, briefly hold the thumb at the right end so the
-  // checkmark is visible. Parent clears its busy state, which springs
-  // the thumb back via the effect below.
   const [confirmed, setConfirmed] = useState(false);
   const [trackWidth, setTrackWidth] = useState(0);
 
@@ -69,18 +93,18 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
     if (!busy) setConfirmed(false);
   }, [busy]);
 
-  // Reset thumb position when the label changes (e.g. price went up
+  // Reset thumb position when the label changes (e.g. the price went up
   // after our bid landed — the next bid starts from the left again).
   useEffect(() => {
     if (!busy) setDraggingX(null);
   }, [label, busy]);
 
-  // Inner geometry. The thumb travels between restX and maxX inside
-  // the padded inner region.
-  const innerWidth = Math.max(0, trackWidth - TRACK_PADDING * 2);
-  const thumbWidth = Math.max(120, Math.floor(innerWidth * THUMB_RATIO));
-  const restX = TRACK_PADDING;
-  const maxX = Math.max(restX, trackWidth - thumbWidth - TRACK_PADDING);
+  // Geometry. The thumb travels between restX and maxX inside the
+  // 3px-inset usable region.
+  const innerWidth = Math.max(0, trackWidth - THUMB_INSET * 2);
+  const thumbWidth = Math.max(140, Math.floor(innerWidth * THUMB_RATIO));
+  const restX = THUMB_INSET;
+  const maxX = Math.max(restX, trackWidth - thumbWidth - THUMB_INSET);
   const gapWidth = maxX - restX;
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -94,7 +118,7 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
     const trackRect = trackRef.current?.getBoundingClientRect();
     if (!trackRect) return;
     // Anchor the right edge of the thumb to the pointer so the
-    // chevron tracks the finger as it advances into the gap.
+    // chevrons track the finger as it advances into the gap.
     const pointerOffsetFromThumbRight = e.clientX - trackRect.left - thumbWidth;
     const clamped = Math.max(restX, Math.min(maxX, restX + pointerOffsetFromThumbRight));
     setDraggingX(clamped);
@@ -103,9 +127,8 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (draggingX === null) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    // Confirm threshold: thumb must reach halfway through the
-    // commit gap. Small motion in absolute terms, but big enough
-    // that a stationary tap (zero motion) cannot clear it.
+    // Half-gap commit threshold. Enough to require intent; small enough
+    // that the gesture feels light. A tap (zero motion) cannot clear it.
     if (draggingX >= restX + gapWidth * 0.5) {
       setConfirmed(true);
       setDraggingX(maxX);
@@ -121,6 +144,8 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
       ? draggingX
       : restX;
 
+  const isDragging = draggingX !== null && !confirmed;
+
   return (
     <Box
       ref={trackRef}
@@ -130,65 +155,64 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
       onPointerCancel={onPointerUp}
       sx={{
         position: 'relative',
+        flex: 1,
         width: '100%',
         height: TRACK_HEIGHT,
         borderRadius: 999,
-        // Outlined pill: crimson border, transparent fill so the
-        // background reads through. Matches the Whatnot reference.
-        bgcolor: 'transparent',
-        border: `2px solid ${disabled ? 'rgba(255,255,255,0.25)' : inkstashColors.brand}`,
-        touchAction: 'none',  // prevent the page from scrolling while dragging
-        cursor: disabled ? 'not-allowed' : 'grab',
-        opacity: disabled ? 0.55 : 1,
-        userSelect: 'none',
+        background: 'transparent',
+        border: `2px solid ${inkstashColors.brand}`,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         overflow: 'hidden',
+        touchAction: 'none',
+        cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
+        opacity: disabled ? 0.5 : 1,
+        userSelect: 'none',
       }}
     >
-      {/* Inner pill — solid crimson, carries the label + chevrons,
-          slides within the outer pill. */}
+      {/* Thumb — gradient, 3px inset, chevron wave or check on confirm */}
       <Box
         sx={{
           position: 'absolute',
-          top: TRACK_PADDING,
+          top: THUMB_INSET,
           left: thumbX,
-          height: TRACK_HEIGHT - TRACK_PADDING * 2,
+          height: `calc(100% - ${THUMB_INSET * 2}px)`,
           width: thumbWidth,
           borderRadius: 999,
-          bgcolor: disabled ? 'rgba(255,255,255,0.18)' : inkstashColors.brand,
-          background: disabled
-            ? 'rgba(255,255,255,0.18)'
-            : `linear-gradient(90deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
-          boxShadow: disabled
+          background: `linear-gradient(90deg, ${inkstashColors.brand}, ${inkstashColors.brandDeep})`,
+          boxShadow: '0 6px 16px -4px rgba(161,35,44,0.6), inset 0 1px 0 rgba(255,255,255,0.25)',
+          // Transition: dragging = none (1:1 finger tracking); else spring back.
+          transition: isDragging
             ? 'none'
-            : '0 4px 14px -4px rgba(161,35,44,0.55)',
-          // While dragging we want zero transition (1:1 finger tracking).
-          // On release with no confirm OR when label changes, spring back.
-          transition: draggingX === null || confirmed
-            ? 'left 200ms cubic-bezier(0.34, 1.4, 0.64, 1)'
-            : 'none',
+            : 'left 220ms cubic-bezier(0.34, 1.4, 0.64, 1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 0.85,
+          gap: '8px',
           color: '#fff',
           fontFamily: inkstashFonts.ui,
           fontWeight: 800,
-          fontSize: 15,
+          fontSize: 16,
           letterSpacing: '0.005em',
           pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
         }}
       >
         {confirmed ? (
           <>
             <Check size={18} strokeWidth={2.6} />
-            <Typography component="span" sx={{ fontWeight: 800, fontSize: 15 }}>Bid placed</Typography>
+            <Typography component="span" sx={{ fontWeight: 800, fontSize: 16 }}>
+              Bid placed
+            </Typography>
           </>
         ) : (
           <>
-            <Typography component="span" sx={{ fontWeight: 800, fontSize: 15, color: '#fff' }}>
+            <Typography component="span" sx={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>
               {label}
             </Typography>
-            <ChevronsRight size={18} strokeWidth={2.4} />
+            <Chev delay={0} />
+            <Chev delay={0.2} />
           </>
         )}
       </Box>

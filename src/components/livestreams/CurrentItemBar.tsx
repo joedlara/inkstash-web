@@ -1,27 +1,25 @@
 // src/components/livestreams/CurrentItemBar.tsx
 //
-// Bottom-of-video item info bar. Per docs/design-system/claude-design/
-// live_stream/stream.css :: .vf-item.
+// Bottom-of-video auction block. Visual spec:
+// docs/design-system/claude-design/live_stream/live_stream/stream.css
+// (.ac-status, .ac-thumb, .ac-info, .ac-title, .ac-ship, .ac-right,
+// .ac-price, .ac-timer, .bid-lock, .auction-block).
 //
-// Layout:
-//   [winner line in mono — "@x won!"]
-//   [item title in display 22px UPPERCASE]      [price 26px display]
-//   [N Bids · Shipping is $X — muted]           [status in mono red]
-//
-// Data source: newest livestream_items row with status='sold' (or 'live'
-// if nothing's sold yet). When no item has been on the block at all,
-// returns null so the bar doesn't render. Winner is stubbed to '—' until
-// an auction backend writes a winning bidder per item (L2).
+// Rhythm: status line → lot row (thumb · info · right) → bid row.
+// Container 14/16/16 with 11px vertical gaps. NO glassmorphism on
+// the lot card; transparent over the stream scrim.
 
 import { useEffect, useRef, useState } from 'react';
 import { Box, Snackbar, Typography } from '@mui/material';
+import { Check } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
 import SlideToBid from './SlideToBid';
 import AddCardToBidCTA from './AddCardToBidCTA';
 import { useHasSavedCard } from './useHasSavedCard';
-import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface Props {
   livestreamId: string;
@@ -30,37 +28,63 @@ interface Props {
 interface CurrentItem {
   itemId: string;
   title: string;
+  thumbUrl: string | null;
   price: number | null;
   status: 'live' | 'sold' | 'passed';
-  // Auction state. Null when bidding hasn't been started on this item.
   currentPriceCents: number | null;
   bidCount: number;
   biddingEndsAt: string | null;
   currentWinnerId: string | null;
 }
 
+interface WinnerProfile {
+  username: string;
+  avatar_url: string | null;
+}
+
+// Deterministic avatar background when no avatar_url exists. Picks
+// from the brand palette by hashing the user_id — same id → same color.
+function avatarBg(userId: string): string {
+  const palette = [
+    inkstashColors.brand,
+    inkstashColors.brandDeep,
+    inkstashColors.gold,
+    inkstashColors.goldDeep,
+    inkstashColors.success,
+    inkstashColors.info,
+  ];
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
+  return palette[Math.abs(h) % palette.length];
+}
+
+function formatTimer(seconds: number): string {
+  const s = Math.max(0, seconds);
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
+}
+
 export default function CurrentItemBar({ livestreamId }: Props) {
   const { user } = useAuth();
   const viewerId = user?.id ?? null;
-  // Pre-flight gate for bidding. If the viewer has no saved card we
-  // swap SlideToBid for an "Add a card to bid" CTA so they don't
-  // commit a drag only to hit the wallet prompt afterwards.
   const { hasCard } = useHasSavedCard();
   const [item, setItem] = useState<CurrentItem | null>(null);
   const [bidding, setBidding] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  // Tick to refresh the countdown display without re-fetching. The
-  // realtime row-update broadcast handles the "new bid" case; this
-  // just animates the seconds-remaining label between updates.
+  // Tick for the countdown re-render. Realtime handles new-bid updates;
+  // this just animates the timer between server pushes.
   const [, setNowTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setNowTick((n) => n + 1), 500);
     return () => clearInterval(id);
   }, []);
 
-  // Pending-bid auto-retry after wallet card add. Mirrors the same
-  // pattern used by MobileAuctionCard so desktop viewers don't have
-  // to manually re-drag the slider after saving a card.
+  // Per-id profile cache for the status-line username + avatar.
+  // Same shape as useLivestreamChat's profile lookup so future
+  // factoring can lift this into a shared hook.
+  const [winnerProfile, setWinnerProfile] = useState<Record<string, WinnerProfile>>({});
+
   const pendingBidItemIdRef = useRef<string | null>(null);
   useEffect(() => {
     const onCardReady = () => {
@@ -79,8 +103,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     setBidding(true);
     try {
       await livestreamsAPI.placeBid(item.itemId);
-      // Realtime + 3s polling fallback will refresh priceCents +
-      // biddingEndsAt; no local optimistic update needed.
     } catch (err) {
       const msg = (err as Error).message ?? '';
       if (msg.includes('no_card_on_file')) {
@@ -106,9 +128,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     let cancelled = false;
 
     async function fetchCurrent() {
-      // Prefer 'sold' (most recently auctioned) -> 'live' (currently on
-      // the block) -> 'passed'. PostgREST: filter by status, order desc
-      // by position so the latest entry of the kind wins.
       const { data: items } = await supabase
         .from('livestream_items')
         .select('id, listing_id, status, position, current_price_cents, bid_count, bidding_ends_at, current_winner_id')
@@ -120,7 +139,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         if (!cancelled) setItem(null);
         return;
       }
-      // Pick by priority: sold > live > passed
       type RawStatus = 'sold' | 'sold_pending_payment' | 'live' | 'passed';
       type LIRow = {
         id: string; listing_id: string; status: RawStatus; position: number;
@@ -132,21 +150,28 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         ?? rows.find((r) => r.status === 'sold' || r.status === 'sold_pending_payment')
         ?? rows.find((r) => r.status === 'passed');
       if (!pick) { if (!cancelled) setItem(null); return; }
+      // Extended select: include photos so the spec's 60px thumbnail
+      // can render the first image. Mirrors the listings shape used
+      // by the shop rail (jsonb array of {url} objects).
       const { data: listing } = await supabase
         .from('listings')
-        .select('id, title, buy_now_price')
+        .select('id, title, buy_now_price, photos')
         .eq('id', pick.listing_id)
         .maybeSingle();
       if (cancelled) return;
       if (!listing) { setItem(null); return; }
-      const l = listing as { id: string; title: string; buy_now_price: number | null };
+      const l = listing as {
+        id: string;
+        title: string;
+        buy_now_price: number | null;
+        photos: Array<{ url: string }> | null;
+      };
+      const thumbUrl = Array.isArray(l.photos) && l.photos[0]?.url ? l.photos[0].url : null;
       setItem({
-        // The id Supabase joined back is the livestream_items id —
-        // store the listing id for display + the item id for bidding.
         itemId: pick.id,
         title: l.title,
+        thumbUrl,
         price: l.buy_now_price,
-        // Collapse sold_pending_payment → sold for viewer display.
         status: pick.status === 'sold_pending_payment' ? 'sold' : pick.status,
         currentPriceCents: pick.current_price_cents,
         bidCount: pick.bid_count ?? 0,
@@ -156,9 +181,6 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     }
 
     fetchCurrent();
-    // 3s polling fallback so the on-block state stays current even
-    // when a realtime event is dropped (tab background, ws reconnect,
-    // schema cache lag). Realtime stays primary; this catches gaps.
     const pollId = window.setInterval(() => {
       if (!cancelled) fetchCurrent();
     }, 3000);
@@ -177,6 +199,28 @@ export default function CurrentItemBar({ livestreamId }: Props) {
     };
   }, [livestreamId]);
 
+  // Resolve winner profile on demand. Same select shape as the chat
+  // hook; cached per id so a rapid-bid stream doesn't refetch.
+  useEffect(() => {
+    const winnerId = item?.currentWinnerId;
+    if (!winnerId || winnerProfile[winnerId]) return;
+    let cancelled = false;
+    supabase
+      .from('users')
+      .select('id, username, avatar_url')
+      .eq('id', winnerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const row = data as { id: string; username: string | null; avatar_url: string | null };
+        setWinnerProfile((prev) => ({
+          ...prev,
+          [row.id]: { username: row.username ?? 'anon', avatar_url: row.avatar_url },
+        }));
+      });
+    return () => { cancelled = true; };
+  }, [item?.currentWinnerId, winnerProfile]);
+
   if (!item) return null;
 
   const bidActive = !!item.biddingEndsAt && new Date(item.biddingEndsAt).getTime() > Date.now();
@@ -188,112 +232,175 @@ export default function CurrentItemBar({ livestreamId }: Props) {
   const displayPriceLabel = `$${(displayCents / 100).toFixed(2).replace(/\.00$/, '')}`;
   const nextBidLabel = `$${((displayCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
   const isWinning = !!viewerId && item.currentWinnerId === viewerId;
+  const isSold = item.status === 'sold';
+  const isUrgent = bidActive && (secondsRemaining ?? 0) <= 3;
 
-  const statusLabel = item.status === 'sold' ? 'Sold'
-    : bidActive ? `Bidding · ${secondsRemaining}s`
-    : item.status === 'live' ? 'On the block' : 'Passed';
-  const statusColor = item.status === 'sold' ? '#FF6B6B'
-    : bidActive && (secondsRemaining ?? 0) <= 3 ? '#FF6B6B'
-    : item.status === 'live' ? '#FFC53D' : 'rgba(255,255,255,0.55)';
+  const profile = item.currentWinnerId ? winnerProfile[item.currentWinnerId] : undefined;
+  const winnerName = profile?.username ?? 'someone';
+  const winnerInitial = (profile?.username ?? '?').charAt(0).toUpperCase();
 
   return (
     <Box
       sx={{
         color: '#fff',
-        // Padding mirrors .vf-item: 16px sides, breathing room top/bottom.
-        // Background comes from the parent overlay gradient.
-        padding: '16px 16px 14px',
-        borderRadius: inkstashRadii.md,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '11px',
+        padding: '14px 16px 16px',
       }}
     >
-      {/* Winner line — stubbed dash until L2 attaches a winning bidder.
-          We still render the structure so the spec hierarchy is visible. */}
+      {/* Status line — sized + spaced per .ac-status / .ac-winning / .ac-won */}
       <Box
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 0.9,
-          mb: 1,
-          fontFamily: inkstashFonts.mono,
-          fontSize: 12.5,
+          gap: '7px',
+          fontSize: 13,
+          lineHeight: 1,
+          color: '#fff',
         }}
       >
-        <Box
-          sx={{
-            width: 20,
-            height: 20,
-            borderRadius: 999,
-            bgcolor: inkstashColors.brand,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: inkstashFonts.display,
-            fontWeight: 800,
-            fontSize: 10,
-            color: '#fff',
-            lineHeight: 1,
-          }}
-        >
-          —
-        </Box>
-        <Box component="span" sx={{ fontWeight: 700 }}>—</Box>
-        <Box
-          component="span"
-          sx={{
-            color: '#FFC53D',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            fontSize: 11,
-            letterSpacing: '0.05em',
-          }}
-        >
-          {item.status === 'sold' ? 'won!' : item.status === 'live' ? 'bidding' : 'passed'}
-        </Box>
+        {item.currentWinnerId && (bidActive || isSold) ? (
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: 999,
+              flexShrink: 0,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: inkstashFonts.display,
+              fontWeight: 900,
+              fontSize: 10,
+              color: '#fff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+              bgcolor: avatarBg(item.currentWinnerId),
+              backgroundImage: profile?.avatar_url ? `url(${profile.avatar_url})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            {profile?.avatar_url ? '' : winnerInitial}
+          </Box>
+        ) : null}
+        {item.currentWinnerId && (bidActive || isSold) ? (
+          <>
+            <Box component="span" sx={{ fontWeight: 700 }}>{winnerName}</Box>
+            <Box
+              component="span"
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: isSold ? '#5BD08A' : '#FFC53D',
+              }}
+            >
+              {isSold ? 'won!' : 'is winning!'}
+            </Box>
+          </>
+        ) : (
+          <>
+            <Box component="span" sx={{ fontWeight: 700 }}>On the block</Box>
+            <Box
+              component="span"
+              sx={{
+                fontFamily: inkstashFonts.mono,
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#FFC53D',
+              }}
+            >
+              no bids yet
+            </Box>
+          </>
+        )}
       </Box>
 
-      {/* Item row: title + sub on the left, price + status on the right */}
+      {/* Lot row — thumb · info · right column */}
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          gap: 1.5,
+          alignItems: 'center',
+          gap: '13px',
         }}
       >
-        <Box sx={{ minWidth: 0, flex: 1 }}>
+        {/* 60px thumbnail with halftone dot overlay (.ac-thumb) */}
+        <Box
+          sx={{
+            width: 60,
+            height: 60,
+            borderRadius: '11px',
+            flexShrink: 0,
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+            backgroundImage: `url(${item.thumbUrl ?? PLACEHOLDER_IMAGE_URL})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              backgroundImage:
+                'radial-gradient(circle, rgba(255,255,255,0.16) 1px, transparent 1.3px)',
+              backgroundSize: '6px 6px',
+              pointerEvents: 'none',
+            },
+          }}
+        />
+
+        {/* Info column (.ac-info) */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontFamily: inkstashFonts.display,
               fontWeight: 900,
-              fontSize: { xs: 18, md: 22 },
+              fontSize: 19,
               textTransform: 'uppercase',
-              lineHeight: 1,
+              lineHeight: 1.04,
+              letterSpacing: '0.005em',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-              letterSpacing: '0.005em',
             }}
           >
             {item.title}
           </Typography>
           <Typography
             sx={{
-              fontFamily: inkstashFonts.ui,
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.7)',
-              mt: 0.6,
+              fontFamily: inkstashFonts.mono,
+              fontSize: '11.5px',
+              color: 'rgba(255,255,255,0.52)',
+              marginTop: '2px',
             }}
           >
-            {item.bidCount} {item.bidCount === 1 ? 'Bid' : 'Bids'} · Shipping at checkout
+            Shipping + taxes at checkout
           </Typography>
         </Box>
-        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+
+        {/* Right column — price stacked above timer (.ac-right / .ac-price / .ac-timer) */}
+        <Box
+          sx={{
+            textAlign: 'right',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '2px',
+          }}
+        >
           {displayCents > 0 && (
             <Typography
               sx={{
                 fontFamily: inkstashFonts.display,
                 fontWeight: 900,
-                fontSize: 26,
+                fontSize: 27,
                 lineHeight: 1,
                 fontVariantNumeric: 'tabular-nums',
               }}
@@ -301,53 +408,95 @@ export default function CurrentItemBar({ livestreamId }: Props) {
               {displayPriceLabel}
             </Typography>
           )}
-          <Typography
-            sx={{
-              fontFamily: inkstashFonts.mono,
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: statusColor,
-              mt: 0.6,
-            }}
-          >
-            {statusLabel}
-          </Typography>
+          {/* Timer pill — dot + mono mm:ss */}
+          {isSold ? (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontFamily: inkstashFonts.mono,
+                fontSize: 14,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+                color: '#5BD08A',
+              }}
+            >
+              SOLD
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontFamily: inkstashFonts.mono,
+                fontSize: 14,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+                color: isUrgent ? '#FF5B5B' : '#FFC53D',
+                animation: isUrgent
+                  ? 'acBlinkInk 1s steps(2, jump-none) infinite'
+                  : 'none',
+                '@keyframes acBlinkInk': {
+                  '50%': { opacity: 0.35 },
+                },
+                '@media (prefers-reduced-motion: reduce)': {
+                  animation: 'none',
+                },
+                '&::before': {
+                  content: '""',
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'currentColor',
+                  boxShadow: '0 0 6px currentColor',
+                },
+              }}
+            >
+              {bidActive && secondsRemaining !== null
+                ? formatTimer(secondsRemaining)
+                : 'On the block'}
+            </Box>
+          )}
         </Box>
       </Box>
 
-      {/* Slide-to-bid pill — only renders while bidding is active.
-          When the viewer is the current high bidder we lock the
-          slider AND show a "You're the highest bidder…" notice so
-          they don't accidentally outbid themselves. When they have
-          no saved card on file we swap for "Add a card to bid"
-          so they don't drag the slider only to hit the wallet
-          afterwards. As soon as someone else takes the lead, OR a
-          card lands, the slider unlocks. */}
+      {/* Bid row — slider OR lock pill OR "add a card" CTA, only while bidding active */}
       {bidActive && (isWinning ? (
-        <Box sx={{
-          mt: 1.5, py: 1.25, px: 2, borderRadius: 999,
-          bgcolor: 'rgba(46,111,79,0.85)',
-          color: '#fff',
-          fontFamily: inkstashFonts.ui,
-          fontSize: 13, fontWeight: 700,
-          textAlign: 'center',
-        }}>
-          You're the highest bidder. Wait for someone else to bid.
+        <Box
+          sx={{
+            flex: 1,
+            height: 54,
+            borderRadius: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            bgcolor: 'rgba(46,111,79,0.42)',
+            border: '1px solid rgba(91,208,138,0.55)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            color: '#cdeed7',
+            fontFamily: inkstashFonts.ui,
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          <Check size={18} strokeWidth={2.6} color="#5BD08A" />
+          You're the highest bidder
         </Box>
       ) : hasCard === false ? (
-        <Box sx={{ mt: 1.5 }}>
-          <AddCardToBidCTA nextBidLabel={nextBidLabel} />
-        </Box>
+        <AddCardToBidCTA nextBidLabel={nextBidLabel} />
       ) : (
-        <Box sx={{ mt: 1.5 }}>
-          <SlideToBid
-            label={`Bid ${nextBidLabel}`}
-            onConfirm={handleBid}
-            disabled={false}
-            busy={bidding}
-          />
-        </Box>
+        <SlideToBid
+          label={`Bid ${nextBidLabel}`}
+          onConfirm={handleBid}
+          disabled={false}
+          busy={bidding}
+        />
       ))}
 
       <Snackbar
