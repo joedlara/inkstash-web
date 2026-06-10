@@ -9,11 +9,20 @@
 // In-chat ban link is removed in v1; moderation moves to a click-username
 // modal in a later milestone.
 
-import { useEffect, useRef, useState, FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Box, TextField, IconButton, Avatar, Typography } from '@mui/material';
 import { Send } from '@mui/icons-material';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI, type ChatMessage } from '../../api/livestreams';
+import { openProfileCard } from './ChatProfileCard';
+import { userColor } from '../../utils/chatColors';
+import {
+  ChatBody,
+  MentionAutocomplete,
+  applySuggestion,
+  computeSuggestion,
+  type SuggestionState,
+} from './chatMentions';
 import { inkstashColors } from '../../theme/inkstashTokens';
 
 interface Props {
@@ -26,16 +35,31 @@ interface Props {
    *  sitting under the chat. Composer lifts by this much so the input
    *  isn't covered by the card. */
   bottomReserve?: number;
+  /** Host identity passthroughs so the host appears in the @-mention
+   *  participant list and clicking the host's message opens the profile
+   *  card even on first-load (before the host has spoken). */
+  hostUsername?: string | null;
+  hostUserId?: string | null;
+  hostAvatarUrl?: string | null;
 }
 
 export default function LiveStreamChat({
-  livestreamId, initialMessages, isBanned, readOnly = false, bottomReserve = 0,
+  livestreamId,
+  initialMessages,
+  isBanned,
+  readOnly = false,
+  bottomReserve = 0,
+  hostUsername = null,
+  hostUserId = null,
+  hostAvatarUrl = null,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [profiles, setProfiles] = useState<Record<string, { username: string; avatar_url: string | null }>>({});
+  const [sug, setSug] = useState<SuggestionState | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Subscribe to new chat messages via Supabase Realtime
   useEffect(() => {
@@ -80,12 +104,43 @@ export default function LiveStreamChat({
     if (wasNearBottom) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // Participants for @-mention autocomplete + body rendering.
+  const participants = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    for (const m of messages) {
+      const p = profiles[m.user_id];
+      if (p?.username) set.add(p.username);
+    }
+    if (hostUsername) set.add(hostUsername);
+    return [...set];
+  }, [messages, profiles, hostUsername]);
+
+  const knownSet = useMemo(() => new Set(participants), [participants]);
+
+  const resolveUserId = useCallback((username: string): string | null => {
+    if (hostUsername && username === hostUsername && hostUserId) return hostUserId;
+    for (const [uid, p] of Object.entries(profiles)) {
+      if (p.username === username) return uid;
+    }
+    return null;
+  }, [profiles, hostUsername, hostUserId]);
+
+  const openProfile = useCallback((username: string, avatarUrl: string | null) => {
+    const userId = resolveUserId(username);
+    if (!userId) return;
+    const effectiveAvatar =
+      avatarUrl
+      ?? (hostUsername && username === hostUsername ? hostAvatarUrl : null);
+    openProfileCard({ userId, username, avatarUrl: effectiveAvatar });
+  }, [resolveUserId, hostUsername, hostAvatarUrl]);
+
   async function send(e: FormEvent) {
     e.preventDefault();
     const body = draft.trim();
     if (!body || sending || isBanned) return;
     setSending(true);
     setDraft('');
+    setSug(null);
     try {
       await livestreamsAPI.postChat(livestreamId, body);
     } catch (err) {
@@ -95,6 +150,51 @@ export default function LiveStreamChat({
       }
     } finally {
       setSending(false);
+    }
+  }
+
+  function onDraftChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const text = e.target.value;
+    setDraft(text);
+    const caret = e.target.selectionStart ?? text.length;
+    setSug(computeSuggestion(text, caret, participants));
+  }
+
+  function commitPick(name: string) {
+    if (!sug) return;
+    const { text, caret } = applySuggestion(draft, sug, name);
+    setDraft(text);
+    setSug(null);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      try { el.setSelectionRange(caret, caret); } catch { /* noop */ }
+    });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (sug) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSug((s) => s ? { ...s, active: (s.active + 1) % s.items.length } : s);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSug((s) => s ? { ...s, active: (s.active - 1 + s.items.length) % s.items.length } : s);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        commitPick(sug.items[sug.active]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSug(null);
+        return;
+      }
     }
   }
 
@@ -156,6 +256,7 @@ export default function LiveStreamChat({
         {visible.map((m) => {
           const profile = profiles[m.user_id];
           const username = profile?.username ?? '...';
+          const usernameTone = m.is_mod_action ? inkstashColors.brand : userColor(username);
           return (
             <Box key={m.id} sx={{ display: 'block', mb: 0.6 }}>
               <Box
@@ -163,6 +264,9 @@ export default function LiveStreamChat({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.75,
+                  // Allow the pill to wrap so long usernames or long
+                  // bodies don't overflow.
+                  flexWrap: 'wrap',
                   maxWidth: '100%',
                   bgcolor: 'rgba(0,0,0,0.55)',
                   backdropFilter: 'blur(6px)',
@@ -177,29 +281,64 @@ export default function LiveStreamChat({
                 >
                   {username.charAt(0).toUpperCase()}
                 </Avatar>
-                <Typography
-                  component="span"
-                  sx={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: m.is_mod_action ? inkstashColors.gold : '#fff',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {m.is_mod_action ? 'MOD' : username}
-                </Typography>
+                {m.is_mod_action ? (
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                      color: inkstashColors.brand,
+                      textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    MOD
+                  </Typography>
+                ) : (
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => openProfile(username, profile?.avatar_url ?? null)}
+                    sx={{
+                      display: 'inline',
+                      background: 'transparent',
+                      border: 0,
+                      padding: 0,
+                      margin: 0,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: 13,
+                      fontWeight: 800,
+                      color: usernameTone,
+                      // Per spec: keep the legibility shadow on the
+                      // overlay chat. Hover underline matches the
+                      // prototype's affordance.
+                      textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                      wordBreak: 'break-word',
+                      textAlign: 'left',
+                      '&:hover': { textDecoration: 'underline', textUnderlineOffset: '2px' },
+                      '&:focus-visible': {
+                        outline: '2px solid rgba(255,255,255,0.7)',
+                        outlineOffset: 2,
+                        borderRadius: 2,
+                      },
+                    }}
+                  >
+                    {username}
+                  </Box>
+                )}
                 <Typography
                   component="span"
                   sx={{
                     fontSize: 13,
                     color: '#fff',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    // Allow wrap so the body doesn't ellipsis away on
+                    // long messages.
+                    wordBreak: 'break-word',
                     minWidth: 0,
                   }}
                 >
-                  {m.body}
+                  <ChatBody body={m.body} knownParticipants={knownSet} variant="immersive" />
                 </Typography>
               </Box>
             </Box>
@@ -215,6 +354,7 @@ export default function LiveStreamChat({
         component="form"
         onSubmit={send}
         sx={{
+          position: 'relative',
           display: 'flex',
           gap: 1,
           px: 1.5,
@@ -230,11 +370,20 @@ export default function LiveStreamChat({
           transition: 'transform 180ms ease-out, padding-bottom 180ms ease-out',
         }}
       >
+        {sug && (
+          // The autocomplete pops above the row. Wrap so it inherits
+          // the row's left/right padding.
+          <Box sx={{ position: 'absolute', left: 12, right: 12, bottom: '100%' }}>
+            <MentionAutocomplete sug={sug} onPick={commitPick} variant="immersive" />
+          </Box>
+        )}
         <TextField
           fullWidth
           size="small"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={onDraftChange}
+          onKeyDown={onKeyDown}
+          inputRef={inputRef}
           disabled={isBanned}
           placeholder={isBanned ? 'You were banned from this stream.' : 'Say something…'}
           inputProps={{ maxLength: 280 }}

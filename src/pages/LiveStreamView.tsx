@@ -25,6 +25,7 @@ import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
 import SpeedLinesEffect from '../components/livestreams/SpeedLinesEffect';
+import ChatProfileCard from '../components/livestreams/ChatProfileCard';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -151,13 +152,16 @@ export default function LiveStreamView() {
   // ─── Mobile: full-bleed overlay layout (unchanged) ────────────────────────
   if (isMobile) {
     return (
-      <MobileLiveSurface
-        stream={stream}
-        joinData={joinData}
-        viewerCount={viewerCount}
-        onParticipantCountChange={handleParticipantCount}
-        onClose={() => navigate('/live')}
-      />
+      <>
+        <MobileLiveSurface
+          stream={stream}
+          joinData={joinData}
+          viewerCount={viewerCount}
+          onParticipantCountChange={handleParticipantCount}
+          onClose={() => navigate('/live')}
+        />
+        <ChatProfileCard />
+      </>
     );
   }
 
@@ -165,13 +169,16 @@ export default function LiveStreamView() {
   // No AppShell wrapper (sidebar + topnav are off-screen). Esc to exit.
   if (fullscreen) {
     return (
-      <FullscreenVideoSurface
-        stream={stream}
-        joinData={joinData}
-        viewerCount={viewerCount}
-        onParticipantCountChange={handleParticipantCount}
-        onExit={() => setFullscreen(false)}
-      />
+      <>
+        <FullscreenVideoSurface
+          stream={stream}
+          joinData={joinData}
+          viewerCount={viewerCount}
+          onParticipantCountChange={handleParticipantCount}
+          onExit={() => setFullscreen(false)}
+        />
+        <ChatProfileCard />
+      </>
     );
   }
 
@@ -194,6 +201,7 @@ export default function LiveStreamView() {
       <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 3 }}>
         <ExploreMoreRail excludeId={stream.id} />
       </Box>
+      <ChatProfileCard />
     </AppShell>
   );
 }
@@ -412,6 +420,9 @@ function LiveDesktopStage({
             livestreamId={stream.id}
             initialMessages={joinData.chat}
             isBanned={joinData.isBanned}
+            hostUsername={stream.host?.username ?? null}
+            hostUserId={stream.host_user_id}
+            hostAvatarUrl={stream.host?.avatar_url ?? null}
           />
         </Box>
       </Box>
@@ -545,6 +556,9 @@ function FullscreenVideoSurface({
         initialMessages={joinData.chat}
         isBanned={joinData.isBanned}
         bottomReserve={auctionHeight > 0 ? auctionHeight + 10 : 0}
+        hostUsername={stream.host?.username ?? null}
+        hostUserId={stream.host_user_id}
+        hostAvatarUrl={stream.host?.avatar_url ?? null}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
@@ -760,6 +774,9 @@ function MobileVideoStage({
         // Without bottomBarOffset the composer sits behind Chrome's
         // bottom URL bar and becomes untappable.
         bottomReserve={(auctionHeight > 0 ? auctionHeight + 10 : 0) + bottomBarOffset}
+        hostUsername={stream.host?.username ?? null}
+        hostUserId={stream.host_user_id}
+        hostAvatarUrl={stream.host?.avatar_url ?? null}
       />
 
       {/* Auction info card pinned to the bottom, below the chat composer.
