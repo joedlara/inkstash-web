@@ -1,16 +1,19 @@
-// ShopRail — left 320px rail. Phase 3a: reads real livestream_items via
-// livestreamsAPI.listItems + subscribes to realtime UPDATE/INSERT/DELETE via
-// useLivestreamItemsChannel. A 3s polling fallback covers websocket gaps —
-// if no heartbeat in >5s, we refetch. Search bar + chip group are still
-// local-only placeholders (will get real wiring in a later phase).
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  livestreamsAPI,
-  type LivestreamItemRow,
-} from '../../../api/livestreams';
+// ShopRail — left 320px rail. Phase 3a-fix: shows the HOST'S marketplace
+// inventory (pure buy-now display, no bidding, no per-stream queue). This
+// is the same set of items the seller has listed anywhere else on the
+// site; the rail just surfaces it inside the stream so viewers can shop
+// while they watch. For the auction queue (on-the-block / next-up) see
+// livestreamsAPI.listItems — that powers Phase 3b's auction block, NOT
+// this rail.
+//
+// No realtime here: marketplace inventory doesn't change often enough
+// during a stream to justify a websocket subscription. Buy goes through
+// useCart.addItem and opens the cart drawer (same flow as ItemDetail).
+import { useEffect, useState } from 'react';
+import { listingsAPI, type SellerInventoryItem } from '../../../api/listings';
+import { useCart } from '../../../contexts/CartContext';
 import { type AvatarGradient } from '../chat/usernameColor';
 import { ShopProductCard } from './ShopProductCard';
-import { useLivestreamItemsChannel, getLastHeartbeat } from './useLivestreamItemsChannel';
 
 const Search = () => (
   <svg
@@ -66,64 +69,47 @@ function extractFirstPhoto(photos: unknown): string | null {
   return null;
 }
 
-// Price display: live > start > listing's buy-now (already a dollar value
-// per the listings schema — buy_now_price is a numeric, not cents).
-function priceForItem(item: LivestreamItemRow): number {
-  if (item.current_price_cents != null) return item.current_price_cents / 100;
-  if (item.start_price_cents != null) return item.start_price_cents / 100;
-  if (item.listing?.buy_now_price != null) return item.listing.buy_now_price;
-  return 0;
-}
+type Props = { hostUserId: string };
 
-type Props = { livestreamId: string };
+// Optional periodic refresh — 30s is plenty for marketplace inventory,
+// which only changes when the seller lists/delists.
+const REFRESH_MS = 30_000;
 
-export function ShopRail({ livestreamId }: Props) {
+export function ShopRail({ hostUserId }: Props) {
   const [chip, setChip] = useState<string>('all');
-  const [items, setItems] = useState<LivestreamItemRow[]>([]);
+  const [items, setItems] = useState<SellerInventoryItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const { addItem, setDrawerOpen } = useCart();
 
-  // Hold the refetch as a ref so realtime + polling effect can call it
-  // without re-subscribing on every items change.
-  const refetchRef = useRef<() => Promise<void>>(async () => {});
-
-  const refetch = useCallback(async () => {
-    const rows = await livestreamsAPI.listItems(livestreamId);
-    setItems(rows);
-    setLoaded(true);
-  }, [livestreamId]);
-
-  refetchRef.current = refetch;
-
-  // Initial fetch (and on livestreamId change).
   useEffect(() => {
+    let cancelled = false;
     setLoaded(false);
-    void refetch();
-  }, [refetch]);
-
-  // Realtime: UPDATE → patch in place; INSERT/DELETE → refetch.
-  useLivestreamItemsChannel(livestreamId, (payload) => {
-    if (payload.eventType === 'UPDATE') {
-      const next = payload.new;
-      if (!next?.id) return;
-      setItems((prev) =>
-        prev.map((row) => (row.id === next.id ? { ...row, ...next } : row)),
-      );
-    } else {
-      // INSERT or DELETE → refetch (need full listing join + correct ordering).
-      void refetchRef.current();
-    }
-  });
-
-  // 3s polling fallback: if no realtime heartbeat in >5s, refetch.
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const last = getLastHeartbeat(livestreamId);
-      if (Date.now() - last > 5000) {
-        void refetchRef.current();
+    const fetchOnce = async () => {
+      const rows = await listingsAPI.listSellerInventory(hostUserId);
+      if (!cancelled) {
+        setItems(rows);
+        setLoaded(true);
       }
-    }, 3000);
-    return () => window.clearInterval(interval);
-  }, [livestreamId]);
+    };
+    void fetchOnce();
+    const interval = window.setInterval(fetchOnce, REFRESH_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [hostUserId]);
+
+  const handleBuy = async (listingId: string) => {
+    try {
+      await addItem(listingId);
+      setDrawerOpen(true);
+    } catch (e) {
+      // CartContext logs + rolls back on its side; the most common cause
+      // here is "not signed in" — keep the surface quiet so the page
+      // doesn't yelp into the console during read-only browsing.
+      console.error('[ShopRail] add to cart failed', e);
+    }
+  };
 
   return (
     <aside className="ls-shop-col ls-stream-card">
@@ -147,25 +133,18 @@ export function ShopRail({ livestreamId }: Props) {
       <div className="ls-shop-section-label">Products ({items.length})</div>
       {loaded && items.length === 0 && (
         <div style={{ color: 'var(--muted)', padding: '12px', fontSize: '13px' }}>
-          No items yet — the host hasn't queued anything.
+          This seller has no items listed yet.
         </div>
       )}
       {items.map((item) => (
         <ShopProductCard
           key={item.id}
-          name={item.listing?.title ?? 'Untitled item'}
-          priceDollars={priceForItem(item)}
-          bids={item.bid_count}
-          qty={1}
-          thumbUrl={extractFirstPhoto(item.listing?.photos)}
-          gradient={gradientForListing(item.listing_id)}
-          status={item.status}
-          onBuy={() => {
-            // TODO(phase4): wire to checkout. No clean single-call entry point
-            // exists today (ItemDetail uses a multi-step flow). Tracking as
-            // follow-up.
-            console.log('TODO: wire buy-now for', item.listing_id);
-          }}
+          name={item.title}
+          priceDollars={item.buy_now_price ?? 0}
+          qty={item.quantity}
+          thumbUrl={extractFirstPhoto(item.photos)}
+          gradient={gradientForListing(item.id)}
+          onBuy={() => handleBuy(item.id)}
         />
       ))}
     </aside>

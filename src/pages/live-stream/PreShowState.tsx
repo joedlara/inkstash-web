@@ -192,7 +192,7 @@ export default function PreShowState({ livestream }: Props) {
         <div className="ls-app">
           <main className="ls-main">
             <div className="ls-stream-grid">
-          <ShopRail livestreamId={livestream.id} />
+          <ShopRail hostUserId={livestream.host.id} />
 
           <div className="ls-video-col ls-stream-card">
             <div className="ls-video-stage">

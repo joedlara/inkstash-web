@@ -5,7 +5,56 @@ export interface ListVaultItemResult {
   listing_id: string;
 }
 
+export type SellerInventoryItem = {
+  id: string;
+  title: string;
+  photos: Array<{ url: string }> | null;
+  buy_now_price: number | null;
+  quantity: number;
+  status: string;
+};
+
 export const listingsAPI = {
+  /**
+   * Returns the seller's active marketplace listings that have a buy-now
+   * price set. Powers the livestream Shop rail (pure buy-now display — no
+   * bidding, no per-stream queue). For the auction queue, see
+   * livestreamsAPI.listItems / livestream_items.
+   *
+   * We don't strictly require is_buy_now=true; some sellers set
+   * buy_now_price without toggling the flag, and a price is the only
+   * thing the rail actually needs.
+   */
+  async listSellerInventory(userId: string): Promise<SellerInventoryItem[]> {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, photos, buy_now_price, quantity, status, is_buy_now')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[listingsAPI.listSellerInventory] failed', error);
+      return [];
+    }
+    return (data ?? [])
+      .filter((r: { buy_now_price: number | null }) => r.buy_now_price != null)
+      .map((r: {
+        id: string;
+        title: string;
+        photos: Array<{ url: string }> | null;
+        buy_now_price: number | null;
+        quantity: number;
+        status: string;
+      }) => ({
+        id: r.id,
+        title: r.title,
+        photos: r.photos ?? null,
+        buy_now_price: r.buy_now_price,
+        quantity: r.quantity,
+        status: r.status,
+      }));
+  },
+
   /**
    * Lists a vault inventory item for sale on the marketplace.
    * Returns the new listing id. The book stays in the InkStash vault;

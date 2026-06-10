@@ -22,7 +22,7 @@ import { ProfileCard } from './live-stream/chat/ProfileCard';
 import { ShopRail } from './live-stream/shop/ShopRail';
 import { VideoStage } from './live-stream/stage/VideoStage';
 
-import { useLivestream } from './live-stream/useLivestream';
+import { useLivestream, type Livestream } from './live-stream/useLivestream';
 import PreShowState from './live-stream/PreShowState';
 
 type ResponsiveMode = 'desktop' | 'two-col' | 'immersive';
@@ -108,12 +108,14 @@ export default function LiveStreamView() {
     );
   }
 
-  return <LiveStreamLiveView id={id} />;
+  return <LiveStreamLiveView id={id} livestream={livestream} />;
 }
 
 // Live-state body. Split out so the hooks below (useLiveAuction, etc.) only
 // instantiate when status === 'live' — pre-show takes a different branch.
-function LiveStreamLiveView({ id }: { id: string }) {
+// `livestream` is passed in (already resolved by the outer view) so the
+// ShopRail can read host.id without us double-fetching the row.
+function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livestream }) {
   const mode = useResponsiveMode();
 
   // Profile-card open state — chat clicks bubble up via onUsernameClick.
@@ -216,7 +218,7 @@ function LiveStreamLiveView({ id }: { id: string }) {
     <div className="ls-app">
       <main className="ls-main">
         <div className="ls-stream-grid">
-          <ShopRail livestreamId={id} />
+          <ShopRail hostUserId={livestream.host.id} />
 
           <VideoStage
             bottomOverlay={stageBottomOverlay}
