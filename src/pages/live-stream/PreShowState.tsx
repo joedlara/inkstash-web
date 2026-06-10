@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { Container } from '@mui/material';
 import AppShell from '../../components/layout/AppShell';
 import LiveStreamSection from '../../components/livestreams/LiveStreamSection';
-import FeaturedBreaksBand from '../../components/livestreams/FeaturedBreaksBand';
+import ExploreMoreRail from '../../components/livestreams/ExploreMoreRail';
 import ScheduledRow from '../../components/livestreams/ScheduledRow';
 import { livestreamsAPI, type LivestreamSections } from '../../api/livestreams';
 import { HostPill } from './stage/HostPill';
@@ -292,11 +292,7 @@ export default function PreShowState({ livestream }: Props) {
               sub="Set a reminder and don't miss the rip."
               streams={upcomingFiltered}
             />
-            <FeaturedBreaksBand
-              label="Featured Breaks"
-              sub="Hand-picked shows with serious heat right now."
-              streams={sections.featured}
-            />
+            <ExploreMoreRail excludeId={livestream.id} />
           </>
         )}
       </Container>
