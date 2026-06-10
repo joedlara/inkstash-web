@@ -118,7 +118,7 @@ export function AuctionBlock({ auction, viewerId, onNeedCard, glass = true }: Pr
         // server-receive. Phase 3b-2: the RPC validates against the
         // row-locked current price, so a custom amount that was valid
         // when you tapped it can race-lose by the time it lands.
-        flash('Bid was below minimum — someone bid first.');
+        flash('Outbid before your tap landed — try again at the new price.');
       } else if (name === 'invalid_amount' || name === 'bid_too_low') {
         flash('Enter more than the current bid.');
       } else if (name === 'bidding_closed' || name === 'item_not_bidding') {

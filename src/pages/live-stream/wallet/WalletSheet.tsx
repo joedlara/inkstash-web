@@ -61,20 +61,36 @@ export function WalletSheet({ open, onClose, autoOpenAddCard = false }: Props) {
     if (open && cards !== null && cards.length === 0) setAdding(true);
   }, [open, cards]);
 
+  // Wraps the parent onClose so every dismiss path (scrim click, Esc,
+  // wallet-add cancel) dispatches 'inkstash:wallet-sheet-dismissed' before
+  // closing. useLiveAuction listens for this event and clears its pending
+  // bid ref — without it, a user who opens the sheet from a 402, dismisses
+  // without adding a card, then later adds a card via the RightRail wallet
+  // pill would have the original bid auto-fire on the unrelated wallet-card
+  // -ready event.
+  //
+  // Safe to dispatch unconditionally: if a card WAS just added, the
+  // wallet-card-ready handler already retried + cleared pendingBidRef, so
+  // the subsequent dismissed-event finds it null and is a no-op.
+  const handleClose = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('inkstash:wallet-sheet-dismissed'));
+    onClose();
+  }, [onClose]);
+
   // Body scroll lock + Esc dismiss while mounted.
   useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   if (!open) return null;
 
@@ -83,7 +99,7 @@ export function WalletSheet({ open, onClose, autoOpenAddCard = false }: Props) {
       className="ls-wallet-scrim"
       onClick={(e) => {
         // Only dismiss on scrim taps, not bubbles from the inner sheet.
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
       role="dialog"
       aria-modal="true"
@@ -140,13 +156,16 @@ export function WalletSheet({ open, onClose, autoOpenAddCard = false }: Props) {
               if (newCard) {
                 // Signal to anything listening (notably useLiveAuction)
                 // that a card is now available — pending bids will
-                // retry on this event.
+                // retry on this event. We use handleClose (not onClose
+                // directly) so the wallet-sheet-dismissed event fires
+                // too; useLiveAuction's retry has already cleared its
+                // pendingBidRef so the dismissed-event is a no-op here.
                 window.dispatchEvent(new CustomEvent('inkstash:wallet-card-ready'));
-                onClose();
+                handleClose();
               }
             }}
             onCancel={() => {
-              if (cards && cards.length === 0) onClose();
+              if (cards && cards.length === 0) handleClose();
               else setAdding(false);
             }}
           />

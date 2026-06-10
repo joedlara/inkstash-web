@@ -249,7 +249,7 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
       // Fire-and-forget: server is the source of truth. We don't
       // optimistically flip status — the realtime UPDATE will tell us.
       livestreamsAPI.resolveBidding(cur.id).catch((err) => {
-        console.warn('[useLiveAuction] resolveBidding failed', err);
+        console.error('[useLiveAuction] resolveBidding failed', err);
         // Re-arm so a retry can happen next tick.
         resolvedRef.current.delete(cur.id);
       });
@@ -290,7 +290,7 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
         setWinnerBanner((cur) =>
           cur && cur.itemId === itemId ? { ...cur, winnerUsername: username } : cur,
         );
-      })().catch((err) => console.warn('[useLiveAuction] winner username fetch failed', err));
+      })().catch((err) => console.error('[useLiveAuction] winner username fetch failed', err));
     }
 
     // Auto-dismiss the banner after the prototype's ~6s window.
@@ -305,7 +305,7 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
       livestreamsAPI.chargeWin(itemId).catch((err) => {
         // 'already_charged' is non-error per the API contract; only
         // real failures show up here.
-        console.warn('[useLiveAuction] chargeWin failed', err);
+        console.error('[useLiveAuction] chargeWin failed', err);
       });
     }
 
@@ -400,6 +400,19 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
     window.addEventListener('inkstash:wallet-card-ready', onReady);
     return () => window.removeEventListener('inkstash:wallet-card-ready', onReady);
   }, [placeBidImpl]);
+
+  // If the wallet sheet was dismissed WITHOUT adding a card, drop any
+  // pending bid so it doesn't auto-fire the next time a card-ready event
+  // arrives from an unrelated rail-opened wallet flow. Safe to no-op when
+  // pendingBidRef is already null (e.g. when the dismiss followed a
+  // successful add — wallet-card-ready cleared the ref during its retry).
+  useEffect(() => {
+    const onDismiss = () => {
+      pendingBidRef.current = null;
+    };
+    window.addEventListener('inkstash:wallet-sheet-dismissed', onDismiss);
+    return () => window.removeEventListener('inkstash:wallet-sheet-dismissed', onDismiss);
+  }, []);
 
   const dismissWinnerBanner = useCallback(() => setWinnerBanner(null), []);
 

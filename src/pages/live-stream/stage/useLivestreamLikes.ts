@@ -63,7 +63,7 @@ export function useLivestreamLikes(livestreamId: string) {
       if (error) throw error;
       if (typeof data === 'number') setCount((prev) => Math.max(prev, data));
     } catch (e) {
-      console.warn('[useLivestreamLikes] flush failed', e);
+      console.error('[useLivestreamLikes] flush failed', e);
       // Don't roll back the optimistic local count — UX is fine being slightly
       // ahead of the server when offline / errored.
     }

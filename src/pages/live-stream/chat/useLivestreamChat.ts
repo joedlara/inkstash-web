@@ -77,7 +77,7 @@ export function useLivestreamChat(livestreamId: string): UseLivestreamChat {
 
       if (cancelled) return;
       if (error) {
-        console.warn('[useLivestreamChat] initial fetch failed', error);
+        console.error('[useLivestreamChat] initial fetch failed', error);
         return;
       }
 

@@ -65,7 +65,7 @@ export function ProfileCard({ userId, onClose }: Props) {
           .eq('id', userId)
           .maybeSingle();
         if (cancelled) return;
-        if (error) console.warn('[ProfileCard] user fetch failed', error);
+        if (error) console.error('[ProfileCard] user fetch failed', error);
         setProfile((data as UserRow | null) ?? null);
 
         if (viewerId && viewerId !== userId) {
@@ -107,7 +107,7 @@ export function ProfileCard({ userId, onClose }: Props) {
         await followUser(viewerId, userId);
       }
     } catch (err) {
-      console.warn('[ProfileCard] follow toggle failed', err);
+      console.error('[ProfileCard] follow toggle failed', err);
       setFollowing(wasFollowing);  // revert
     } finally {
       setBusy(false);

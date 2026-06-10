@@ -118,7 +118,7 @@ export function useLivestream(livestreamId: string): Livestream {
       if (error || !row) {
         // Row not found OR RLS blocked the SELECT — surface as ended so the
         // page doesn't crash. PreShow won't fire because status !== scheduled.
-        if (error) console.warn('[useLivestream] livestream fetch failed', error);
+        if (error) console.error('[useLivestream] livestream fetch failed', error);
         setRow({
           id: livestreamId,
           title: 'Stream not found',
@@ -171,7 +171,7 @@ export function useLivestream(livestreamId: string): Livestream {
           }
         } catch (joinErr) {
           // Ban / not-live race / network — VideoStage shows a fallback.
-          console.warn('[useLivestream] join-livestream failed', joinErr);
+          console.error('[useLivestream] join-livestream failed', joinErr);
         }
       }
 

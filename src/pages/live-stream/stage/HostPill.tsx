@@ -78,7 +78,7 @@ export function HostPill({ username, gradient, verified, hostId, viewerId, onCli
         await followUser(viewerId, hostId);
       }
     } catch (err) {
-      console.warn('[HostPill] follow toggle failed', err);
+      console.error('[HostPill] follow toggle failed', err);
       setFollowing(wasFollowing);  // revert
     } finally {
       setBusy(false);
