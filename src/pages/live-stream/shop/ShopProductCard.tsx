@@ -1,6 +1,9 @@
-// ShopProductCard — single row in the Shop rail. Ported 1:1 from the
-// .product-row block of docs/design-system/live_stream/stream-view.jsx's
-// ShopPanel. Buy button is a no-op in Phase 2 (Phase 3a rewrites entirely).
+// ShopProductCard — single row in the Shop rail. Originally ported 1:1 from
+// docs/design-system/live_stream/stream-view.jsx's ShopPanel .product-row.
+// Phase 3a: added thumbUrl (real listing photo) + status badge ("Pre-bid" for
+// queued items). Gradient still renders as a fallback behind the image.
+// Buy button still a no-op — see Phase 3a TODO in ShopRail re: checkout wiring.
+import { useState } from 'react';
 import { gradStyle, type AvatarGradient } from '../chat/usernameColor';
 
 const Bookmark = () => (
@@ -24,13 +27,38 @@ type Props = {
   bids: number;
   qty: number;
   gradient: AvatarGradient;
+  thumbUrl?: string | null;
+  status?: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
+  onBuy?: () => void;
 };
 
-export function ShopProductCard({ name, priceDollars, bids, qty, gradient }: Props) {
+export function ShopProductCard({
+  name,
+  priceDollars,
+  bids,
+  qty,
+  gradient,
+  thumbUrl,
+  status,
+  onBuy,
+}: Props) {
+  // If the image 404s, fall back to the gradient by clearing local state.
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImg = thumbUrl && !imgFailed;
+
   return (
     <div className="ls-product-row">
       <div className="ls-product-main">
         <div className="ls-product-thumb" style={{ background: gradStyle(gradient) }}>
+          {showImg && (
+            <img
+              src={thumbUrl}
+              alt=""
+              className="ls-product-thumb-img"
+              onError={() => setImgFailed(true)}
+            />
+          )}
+          {status === 'queued' && <span className="ls-product-badge">Pre-bid</span>}
           <span className="ls-product-bookmark">
             <Bookmark />
           </span>
@@ -45,7 +73,7 @@ export function ShopProductCard({ name, priceDollars, bids, qty, gradient }: Pro
           <div className="ls-product-qty">Qty. {qty}</div>
         </div>
       </div>
-      <button type="button" className="ls-btn-prebid">
+      <button type="button" className="ls-btn-prebid" onClick={onBuy}>
         Buy
       </button>
     </div>

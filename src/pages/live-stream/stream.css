@@ -1357,3 +1357,28 @@
   .ls-preshow-banner { max-width: 100%; }
   .ls-preshow-time { font-size: 24px; }
 }
+
+/* Phase 3a — real-listing photo render + queue badge.
+   .ls-product-thumb already has position:relative + overflow:hidden above. */
+.ls-product-thumb-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ls-product-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  z-index: 1;
+}

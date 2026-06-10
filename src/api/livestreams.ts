@@ -93,6 +93,25 @@ export interface LivestreamSections {
   featured: Livestream[];
 }
 
+export type LivestreamItemRow = {
+  id: string;
+  livestream_id: string;
+  listing_id: string;
+  position: number;
+  status: 'queued' | 'live' | 'sold' | 'passed' | 'removed';
+  start_price_cents: number | null;
+  current_price_cents: number | null;
+  current_winner_id: string | null;
+  bid_count: number;
+  bidding_ends_at: string | null;
+  listing: {
+    title: string;
+    /** jsonb array of `{ url: string }` objects in this schema. */
+    photos: Array<{ url?: string }> | null;
+    buy_now_price: number | null;
+  } | null;
+};
+
 async function hydrateHosts(rows: Livestream[]): Promise<Livestream[]> {
   const hostIds = [...new Set(rows.map((r) => r.host_user_id))];
   if (hostIds.length === 0) return rows;
@@ -111,6 +130,26 @@ async function hydrateHosts(rows: Livestream[]): Promise<Livestream[]> {
 }
 
 export const livestreamsAPI = {
+  async listItems(livestreamId: string): Promise<LivestreamItemRow[]> {
+    const { data, error } = await supabase
+      .from('livestream_items')
+      .select(
+        'id, livestream_id, listing_id, position, status, start_price_cents, current_price_cents, current_winner_id, bid_count, bidding_ends_at, listing:listings(title, photos, buy_now_price)',
+      )
+      .eq('livestream_id', livestreamId)
+      .neq('status', 'removed')
+      .order('position', { ascending: true });
+    if (error) {
+      console.error('[livestreamsAPI.listItems] failed', error);
+      return [];
+    }
+    // PostgREST types the FK-join as an array; normalize to a single object.
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      listing: Array.isArray(row.listing) ? (row.listing[0] ?? null) : row.listing,
+    })) as LivestreamItemRow[];
+  },
+
   async listLive(): Promise<Livestream[]> {
     const { data, error } = await supabase
       .from('livestreams')

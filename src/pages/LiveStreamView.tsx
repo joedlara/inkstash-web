@@ -216,7 +216,7 @@ function LiveStreamLiveView({ id }: { id: string }) {
     <div className="ls-app">
       <main className="ls-main">
         <div className="ls-stream-grid">
-          <ShopRail />
+          <ShopRail livestreamId={id} />
 
           <VideoStage
             bottomOverlay={stageBottomOverlay}
