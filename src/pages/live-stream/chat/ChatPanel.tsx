@@ -4,14 +4,13 @@
 import { useState } from 'react';
 import { MessageList } from './MessageList';
 import { ChatComposer } from './ChatComposer';
-import type { Participant } from './useLivestreamChat';
-import type { MockChatMessage } from '../_mock/streamData.mock';
+import type { ChatMessage, Participant } from './useLivestreamChat';
 
 type Props = {
-  messages: MockChatMessage[];
-  participants: Participant[];
+  messages: ChatMessage[];
+  participants: Map<string, Participant>;
   variant: 'immersive' | 'panel';
-  onSend: (msg: Pick<MockChatMessage, 'text' | 'mention'>) => void;
+  onSend: (body: string, mentionedUserIds: string[]) => void;
   onUsernameClick: (username: string) => void;
 };
 
@@ -21,7 +20,12 @@ export function ChatPanel({ messages, participants, variant, onSend, onUsernameC
   if (variant === 'immersive') {
     return (
       <>
-        <MessageList messages={messages} variant="immersive" onUsernameClick={onUsernameClick} />
+        <MessageList
+          messages={messages}
+          participants={participants}
+          variant="immersive"
+          onUsernameClick={onUsernameClick}
+        />
         <ChatComposer variant="immersive" participants={participants} onSend={onSend} />
       </>
     );
@@ -46,7 +50,12 @@ export function ChatPanel({ messages, participants, variant, onSend, onUsernameC
         </button>
       </div>
 
-      <MessageList messages={messages} variant="panel" onUsernameClick={onUsernameClick} />
+      <MessageList
+        messages={messages}
+        participants={participants}
+        variant="panel"
+        onUsernameClick={onUsernameClick}
+      />
 
       <ChatComposer variant="panel" participants={participants} onSend={onSend} />
     </section>

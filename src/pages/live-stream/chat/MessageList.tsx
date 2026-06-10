@@ -3,15 +3,16 @@
 // Immersive mode's top-fade mask + height cap come from CSS (.ls-vf-chat).
 import { useEffect, useRef } from 'react';
 import { MessageRow, type MessageVariant } from './MessageRow';
-import type { MockChatMessage } from '../_mock/streamData.mock';
+import type { ChatMessage, Participant } from './useLivestreamChat';
 
 type Props = {
-  messages: MockChatMessage[];
+  messages: ChatMessage[];
+  participants: Map<string, Participant>;
   variant: MessageVariant;
   onUsernameClick: (username: string) => void;
 };
 
-export function MessageList({ messages, variant, onUsernameClick }: Props) {
+export function MessageList({ messages, participants, variant, onUsernameClick }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const lenRef = useRef(messages.length);
 
@@ -26,8 +27,14 @@ export function MessageList({ messages, variant, onUsernameClick }: Props) {
   const cls = variant === 'immersive' ? 'ls-vf-chat' : 'ls-chat-list';
   return (
     <div className={cls} ref={ref}>
-      {messages.map((m, i) => (
-        <MessageRow key={i} message={m} variant={variant} onUsernameClick={onUsernameClick} />
+      {messages.map((m) => (
+        <MessageRow
+          key={m.id}
+          message={m}
+          variant={variant}
+          participants={participants}
+          onUsernameClick={onUsernameClick}
+        />
       ))}
     </div>
   );

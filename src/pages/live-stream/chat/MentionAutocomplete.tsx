@@ -8,7 +8,7 @@ import type { Participant } from './useLivestreamChat';
 type Props = {
   items: Participant[];
   active: number;
-  onPick: (name: Participant) => void;
+  onPick: (p: Participant) => void;
 };
 
 export function MentionAutocomplete({ items, active, onPick }: Props) {
@@ -17,21 +17,18 @@ export function MentionAutocomplete({ items, active, onPick }: Props) {
       {items.map((p, i) => (
         <button
           type="button"
-          key={p}
+          key={p.username}
           className={'ls-cc-sug' + (i === active ? ' ls-active' : '')}
           onMouseDown={(e) => {
             e.preventDefault();
             onPick(p);
           }}
         >
-          <span
-            className="ls-cc-sug-av"
-            style={{ background: gradStyle(avatarGrad(p)) }}
-          >
-            {p[0].toUpperCase()}
+          <span className="ls-cc-sug-av" style={{ background: gradStyle(avatarGrad(p.username)) }}>
+            {p.username[0].toUpperCase()}
           </span>
-          <span className="ls-cc-sug-name" style={{ color: usernameColor(p) }}>
-            {p}
+          <span className="ls-cc-sug-name" style={{ color: usernameColor(p.username) }}>
+            {p.username}
           </span>
         </button>
       ))}

@@ -1,12 +1,30 @@
 // ChatComposer — input + Send + @-mention autocomplete. Ported 1:1 from
-// docs/design-system/live_stream/stream-view.jsx. On send, the first valid
-// @name token becomes a highlighted mention (matches the prototype). Both
-// variants ("immersive" overlay above the video, "panel" right-column card)
-// share the same logic; the wrapper class flips the look.
+// docs/design-system/live_stream/stream-view.jsx. On send, every valid @name
+// token in the input resolves to its user_id and is passed alongside the body
+// to onSend — the hook stores them as `mentioned_user_ids`. Both variants
+// ("immersive" overlay above the video, "panel" right-column card) share the
+// same logic; the wrapper class flips the look.
 import { useRef, useState, type KeyboardEvent, type ChangeEvent } from 'react';
 import { MentionAutocomplete } from './MentionAutocomplete';
 import type { Participant } from './useLivestreamChat';
-import type { MockChatMessage } from '../_mock/streamData.mock';
+
+/** Walk the input for `@name` tokens; for each one that resolves against the
+ *  participants Map, push its user_id. Case-insensitive on the username. */
+function extractMentions(text: string, participants: Map<string, Participant>): string[] {
+  const ids: string[] = [];
+  const re = /@([a-zA-Z0-9_.]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const needle = m[1].toLowerCase();
+    for (const [id, p] of participants.entries()) {
+      if (p.username.toLowerCase() === needle) {
+        ids.push(id);
+        break;
+      }
+    }
+  }
+  return ids;
+}
 
 type Suggestion = {
   items: Participant[];
@@ -16,8 +34,8 @@ type Suggestion = {
 };
 
 type Props = {
-  participants: Participant[];
-  onSend: (msg: Pick<MockChatMessage, 'text' | 'mention'>) => void;
+  participants: Map<string, Participant>;
+  onSend: (body: string, mentionedUserIds: string[]) => void;
   variant: 'immersive' | 'panel';
 };
 
@@ -27,7 +45,9 @@ export function ChatComposer({ participants, onSend, variant }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const matchable = (q: string): Participant[] =>
-    participants.filter((p) => p !== 'you' && p.toLowerCase().startsWith(q)).slice(0, 6);
+    Array.from(participants.values())
+      .filter((p) => p.username !== 'you' && p.username.toLowerCase().startsWith(q))
+      .slice(0, 6);
 
   function suggestAt(text: string, caret: number): Suggestion | null {
     const upto = text.slice(0, caret);
@@ -45,10 +65,10 @@ export function ChatComposer({ participants, onSend, variant }: Props) {
     setSug(suggestAt(text, caret));
   }
 
-  function pick(name: Participant) {
+  function pick(p: Participant) {
     setSug((current) => {
       if (!current) return null;
-      const next = val.slice(0, current.start) + '@' + name + ' ' + val.slice(current.start + current.len);
+      const next = val.slice(0, current.start) + '@' + p.username + ' ' + val.slice(current.start + current.len);
       setVal(next);
       return null;
     });
@@ -60,9 +80,7 @@ export function ChatComposer({ participants, onSend, variant }: Props) {
   function send() {
     const text = val.trim();
     if (!text) return;
-    const mm = text.match(/@([\w.]+)/);
-    const mention = mm && participants.includes(mm[1]) ? '@' + mm[1] : undefined;
-    onSend({ text, mention });
+    onSend(text, extractMentions(text, participants));
     setVal('');
     setSug(null);
   }
