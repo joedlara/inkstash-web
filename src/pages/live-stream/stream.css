@@ -1165,3 +1165,162 @@
   font-family: var(--font-display); font-weight: 900; font-size: 11px; color: #fff;
 }
 .ls-cc-sug-name { font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; }
+
+/* ============================================
+   PRE-SHOW STATE — scheduled livestreams
+   Mounted by PreShowState.tsx when livestream.status === 'scheduled'.
+   Mirrors the live video-stage chrome (host pill, viewer badge, right rail)
+   but swaps the auction block for a center banner card and the chat
+   composer for a read-only "Chat opens when the show starts" pill.
+   ============================================ */
+
+/* Stage background: poster image (if set) sits behind a scrim; otherwise the
+   inherited .ls-video-feed gradient does the work. */
+.ls-preshow-stage {
+  background-size: cover;
+  background-position: center;
+}
+.ls-preshow-stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(8,7,10,0.25) 0%,
+    rgba(8,7,10,0.55) 60%,
+    rgba(8,7,10,0.85) 100%);
+}
+/* Ensure all stage chrome paints above the scrim. */
+.ls-preshow-stage > * { position: relative; z-index: 2; }
+
+/* Center banner: glass card, vertically + horizontally centered. */
+.ls-preshow-center {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 20px;
+  pointer-events: none;
+}
+.ls-preshow-banner {
+  pointer-events: auto;
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 22px 20px;
+  border-radius: var(--radius-lg, 18px);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 24px 60px -16px rgba(0,0,0,0.6);
+  animation: lsPreshowBannerIn .42s var(--ease, ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-preshow-banner { animation: none; }
+}
+@keyframes lsPreshowBannerIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ls-preshow-caption {
+  font-family: var(--font-ui);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+.ls-preshow-time {
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 30px; line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+/* CTA pill — 44px tall, icon + label centered. */
+.ls-preshow-cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  width: 100%; height: 44px; padding: 0 18px;
+  border: 0; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-ui); font-weight: 700; font-size: 14px;
+  transition: transform .12s var(--ease, ease-out), background .12s, box-shadow .12s;
+}
+.ls-preshow-cta:active { transform: scale(0.98); }
+.ls-preshow-cta:disabled { opacity: 0.55; cursor: default; transform: none; }
+.ls-preshow-cta--primary {
+  background: var(--gold, #B8893A);
+  color: #1a1208;
+  box-shadow: 0 6px 18px -6px rgba(184,137,58,0.55);
+}
+.ls-preshow-cta--primary:hover { background: var(--gold-light, #CDA45A); }
+.ls-preshow-cta--secondary {
+  background: #fff;
+  color: var(--ink, #16110E);
+}
+.ls-preshow-cta--secondary:hover { background: rgba(255,255,255,0.92); }
+
+/* Read-only composer — same pill silhouette as .ls-cc-immersive .ls-cc-row
+   but rendered as a plain <div> with cursor:default. */
+.ls-preshow-composer {
+  margin: 4px 14px 0;
+  height: 46px; padding: 0 18px; border-radius: 999px;
+  display: flex; align-items: center;
+  border: 1px solid rgba(255,255,255,0.32);
+  background: rgba(8,7,10,0.34);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: rgba(255,255,255,0.62);
+  font-family: var(--font-ui); font-size: 14px;
+  cursor: default;
+  user-select: none;
+}
+
+/* Toast — sits just above the composer, auto-fades. */
+.ls-preshow-toast {
+  align-self: center;
+  margin: 0 14px 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(8,7,10,0.72);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #fff;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: lsPreshowToastIn .2s var(--ease, ease-out) both;
+}
+@keyframes lsPreshowToastIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Desktop chat-column placeholder — keeps grid layout consistent without
+   spinning up the chat panel (which would call useLivestreamChat). */
+.ls-preshow-chat-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  text-align: center;
+}
+.ls-preshow-chat-empty-title {
+  font-family: var(--font-display);
+  font-weight: 800; font-size: 18px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.ls-preshow-chat-empty-sub {
+  font-family: var(--font-ui);
+  font-size: 13.5px; line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Mobile / immersive: banner tightens up, secondary chat column hidden by
+   the existing .ls-chat-col rule at ≤1024px. */
+@media (max-width: 1024px) {
+  .ls-preshow-banner { max-width: 340px; padding: 20px 18px; }
+  .ls-preshow-time { font-size: 26px; }
+}
+@media (max-width: 480px) {
+  .ls-preshow-banner { max-width: 100%; }
+  .ls-preshow-time { font-size: 24px; }
+}

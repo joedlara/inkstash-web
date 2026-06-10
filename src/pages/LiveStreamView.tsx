@@ -22,6 +22,9 @@ import { ProfileCard } from './live-stream/chat/ProfileCard';
 import { ShopRail } from './live-stream/shop/ShopRail';
 import { VideoStage } from './live-stream/stage/VideoStage';
 
+import { useLivestream } from './live-stream/useLivestream';
+import PreShowState from './live-stream/PreShowState';
+
 type ResponsiveMode = 'desktop' | 'two-col' | 'immersive';
 
 function useResponsiveMode(): ResponsiveMode {
@@ -57,6 +60,23 @@ const RING_WINDOW_MS = 600;
 
 export default function LiveStreamView() {
   const { id = 'mock-stream' } = useParams();
+
+  // Top-level livestream state. Pre-show short-circuits to a different
+  // component tree (which uses a different set of hooks); Phase 2 reads
+  // from a URL-param mock, Phase 3 from Supabase. Routing happens here
+  // BEFORE any live-state-only hooks (useLiveAuction / useLivestreamChat)
+  // are called — pre-show streams never instantiate them.
+  const livestream = useLivestream(id);
+  if (livestream.status === 'scheduled') {
+    return <PreShowState livestream={livestream} />;
+  }
+
+  return <LiveStreamLiveView id={id} />;
+}
+
+// Live-state body. Split out so the hooks below (useLiveAuction, etc.) only
+// instantiate when status === 'live' — pre-show takes a different branch.
+function LiveStreamLiveView({ id }: { id: string }) {
   const mode = useResponsiveMode();
 
   // Profile-card open state — chat clicks bubble up via onUsernameClick.

@@ -117,6 +117,10 @@ function fmtLikes(n: number): string {
 const RING_RADIUS = 26;
 const RING_CIRC = 2 * Math.PI * RING_RADIUS;
 
+export type RightRailPill = 'more' | 'share' | 'wallet' | 'items' | 'buy' | 'like';
+
+const ALL_PILLS: readonly RightRailPill[] = ['more', 'share', 'wallet', 'items', 'buy', 'like'];
+
 type Props = {
   likes: number;
   liked: boolean;
@@ -129,6 +133,9 @@ type Props = {
   onWallet?: () => void;
   onItems?: () => void;
   onBuy?: () => void;
+  /** Whitelist of pills to render. Default = all six (live-state behavior).
+   *  Pre-show passes ['more','share','items','buy'] (no wallet, no like). */
+  visiblePills?: ReadonlyArray<RightRailPill>;
 };
 
 type Burst = { id: number; dx: number; rot: number; delay: number };
@@ -145,7 +152,9 @@ export function RightRail({
   onWallet,
   onItems,
   onBuy,
+  visiblePills = ALL_PILLS,
 }: Props) {
+  const show = (p: RightRailPill) => visiblePills.includes(p);
   // Celebration: every `celebrateKey` bump fires a 4-heart burst that fades
   // out over ~1s. We track an array of bursts so multiple completions stack
   // without canceling the previous animation.
@@ -179,56 +188,67 @@ export function RightRail({
 
   return (
     <div className="ls-vf-actions">
-      <button
-        type="button"
-        className="ls-vf-action ls-vf-action-stack"
-        aria-label="More"
-        onClick={onMore}
-      >
-        <More />
-        <span className="ls-vf-action-label">More</span>
-      </button>
+      {show('more') && (
+        <button
+          type="button"
+          className="ls-vf-action ls-vf-action-stack"
+          aria-label="More"
+          onClick={onMore}
+        >
+          <More />
+          <span className="ls-vf-action-label">More</span>
+        </button>
+      )}
 
-      <button
-        type="button"
-        className="ls-vf-action ls-vf-action-stack"
-        aria-label="Share"
-        onClick={onShare}
-      >
-        <Share />
-        <span className="ls-vf-action-label">Share</span>
-      </button>
+      {show('share') && (
+        <button
+          type="button"
+          className="ls-vf-action ls-vf-action-stack"
+          aria-label="Share"
+          onClick={onShare}
+        >
+          <Share />
+          <span className="ls-vf-action-label">Share</span>
+        </button>
+      )}
 
-      <button
-        type="button"
-        className="ls-vf-action ls-vf-action-stack"
-        aria-label="Wallet"
-        onClick={onWallet}
-      >
-        <Wallet />
-        <span className="ls-vf-action-label">Wallet</span>
-      </button>
+      {show('wallet') && (
+        <button
+          type="button"
+          className="ls-vf-action ls-vf-action-stack"
+          aria-label="Wallet"
+          onClick={onWallet}
+        >
+          <Wallet />
+          <span className="ls-vf-action-label">Wallet</span>
+        </button>
+      )}
 
-      <button
-        type="button"
-        className="ls-vf-action ls-vf-action-stack"
-        aria-label="Items"
-        onClick={onItems}
-      >
-        <List />
-        <span className="ls-vf-action-label">Items</span>
-      </button>
+      {show('items') && (
+        <button
+          type="button"
+          className="ls-vf-action ls-vf-action-stack"
+          aria-label="Items"
+          onClick={onItems}
+        >
+          <List />
+          <span className="ls-vf-action-label">Items</span>
+        </button>
+      )}
 
-      <button
-        type="button"
-        className="ls-vf-action ls-vf-action-stack"
-        aria-label="Buy"
-        onClick={onBuy}
-      >
-        <Buy />
-        <span className="ls-vf-action-label">Buy</span>
-      </button>
+      {show('buy') && (
+        <button
+          type="button"
+          className="ls-vf-action ls-vf-action-stack"
+          aria-label="Buy"
+          onClick={onBuy}
+        >
+          <Buy />
+          <span className="ls-vf-action-label">Buy</span>
+        </button>
+      )}
 
+      {show('like') && (
       <div className="ls-vf-like">
         <button
           type="button"
@@ -289,6 +309,7 @@ export function RightRail({
         </button>
         <span className="ls-vf-like-count">{fmtLikes(likes)}</span>
       </div>
+      )}
     </div>
   );
 }
