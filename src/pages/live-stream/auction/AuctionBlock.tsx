@@ -17,10 +17,12 @@ import { LotRow } from './LotRow';
 import { BidRow } from './BidRow';
 import type { UseLiveAuction } from './useLiveAuction';
 
-// Display constant for the local optimistic next-bid amount. The real
-// increment is owned server-side; this just paints the BidRow button
-// while we wait for the place-bid round trip. Phase 3b-2 may make the
-// increment server-driven (per-stream config).
+// Display constant for the local optimistic next-bid amount on the
+// flat-bid path. The real increment is owned server-side; this just
+// paints the BidRow button while we wait for the place-bid round
+// trip. Phase 3b-2 wires custom amounts ($5/$10/$25) through the same
+// place-bid edge fn — those bypass this constant entirely and pass
+// their absolute target through to the RPC.
 const BID_INCREMENT_CENTS = 100;
 
 type Props = {
@@ -111,8 +113,18 @@ export function AuctionBlock({ auction, viewerId, onNeedCard, glass = true }: Pr
       const name = (err as Error).name;
       if (name === 'no_card_on_file') {
         pendingRef.current = true;
+      } else if (name === 'bid_below_minimum') {
+        // Someone else bid past your target between popover-open and
+        // server-receive. Phase 3b-2: the RPC validates against the
+        // row-locked current price, so a custom amount that was valid
+        // when you tapped it can race-lose by the time it lands.
+        flash('Bid was below minimum — someone bid first.');
+      } else if (name === 'invalid_amount' || name === 'bid_too_low') {
+        flash('Enter more than the current bid.');
+      } else if (name === 'bidding_closed' || name === 'item_not_bidding') {
+        flash('Bidding just closed.');
       } else {
-        flash(name === 'bid_too_low' ? 'Enter more than the current bid.' : 'Bidding just closed.');
+        flash("Couldn't place your bid — try again.");
       }
     }
   }

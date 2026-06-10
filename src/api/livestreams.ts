@@ -303,16 +303,24 @@ export const livestreamsAPI = {
       'start-bidding', { item_id, start_price_cents },
     ),
 
-  /** Viewer-side single $1 increment bid. Returns 402 'no_card_on_file'
-   *  when the bidder hasn't saved a payment method; UI should surface
-   *  the add-card prompt then. */
-  placeBid: (item_id: string) =>
+  /** Viewer-side bid. With no amount, applies the legacy +$1 increment
+   *  (server-controlled). With an explicit `bid_amount_cents`, the server
+   *  validates it's at least current_price + $1 (otherwise raises
+   *  'bid_below_minimum'). Returns 402 'no_card_on_file' when the bidder
+   *  hasn't saved a payment method; UI should surface the add-card prompt
+   *  then. The conditional body construction (only include the field when
+   *  defined) preserves the legacy contract for flat-bid callers and
+   *  matches the edge fn's `undefined → null → 3-arg overload` routing. */
+  placeBid: (item_id: string, bid_amount_cents?: number) =>
     callFn<{
       current_price_cents: number;
       current_winner_id: string;
       bid_count: number;
       bidding_ends_at: string;
-    }>('place-bid', { item_id }),
+    }>(
+      'place-bid',
+      bid_amount_cents !== undefined ? { item_id, bid_amount_cents } : { item_id },
+    ),
 
   /** Calls the resolve_livestream_bid RPC directly (no edge fn). The
    *  host's local timer expiry fires this to flip the item sold/passed.

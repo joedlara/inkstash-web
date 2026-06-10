@@ -1,6 +1,8 @@
 // supabase/functions/place-bid/index.ts
 //
-// Viewer-side. Places a single $1 increment bid on an active item.
+// Viewer-side. Places a bid on an active item — either the default
+// $1 increment (when bid_amount_cents is omitted) or an explicit
+// custom amount (must be >= current + $1; server enforces).
 // Pre-bid gate: bidder must have a Stripe customer ID AND at least
 // one saved payment method. Without it we reject early with
 // 'no_card_on_file' so the client can prompt the bidder to add one.
@@ -8,7 +10,10 @@
 // Atomicity lives in the place_livestream_bid RPC (row-level lock).
 // All this function does is: authenticate, gate, call RPC, return.
 //
-// Body: { item_id: uuid }
+// Body: { item_id: uuid, bid_amount_cents?: integer }
+//   When bid_amount_cents is omitted: flat $1 bump (legacy behaviour).
+//   When provided: explicit amount; RPC raises 'bid_below_minimum'
+//   if it's less than current + $1, or 'invalid_amount' if <= 0.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -47,6 +52,19 @@ serve(async (req) => {
     const body = await req.json()
     const itemId: string = body.item_id
     if (!itemId) return json({ error: 'item_id_required' }, 400)
+
+    // Optional explicit bid amount in cents. When omitted, the RPC
+    // applies the legacy +$1 bump. When present we validate shape
+    // here so the RPC only sees well-formed integers; the RPC
+    // enforces the minimum-vs-current-price rule.
+    let bidAmountCents: number | null = null
+    if (body.bid_amount_cents !== undefined && body.bid_amount_cents !== null) {
+      const raw = body.bid_amount_cents
+      if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
+        return json({ error: 'invalid_amount' }, 400)
+      }
+      bidAmountCents = raw
+    }
 
     // ── Card-on-file gate ─────────────────────────────────────────────
     // Real-money commitment: we don't accept a bid unless the bidder
@@ -89,9 +107,13 @@ serve(async (req) => {
     // ── Atomic bid ───────────────────────────────────────────────────
     // The RPC handles: row lock, status check, self-bid rejection,
     // window check, increment + log + timer reset. We just call it.
+    // Always pass p_amount_cents explicitly (null or value) so the
+    // call routes to the 3-arg overload — undefined would cause
+    // PostgREST to fall back to the 2-arg signature.
     const { data, error: rpcErr } = await serviceClient.rpc('place_livestream_bid', {
       p_item_id: itemId,
       p_bidder: user.id,
+      p_amount_cents: bidAmountCents,
     })
 
     if (rpcErr) {
@@ -105,6 +127,8 @@ serve(async (req) => {
       if (haystack.includes('not_bidding')) return json({ error: 'not_bidding' }, 409)
       if (haystack.includes('bidding_closed')) return json({ error: 'bidding_closed' }, 410)
       if (haystack.includes('cannot_self_bid')) return json({ error: 'cannot_self_bid' }, 403)
+      if (haystack.includes('bid_below_minimum')) return json({ error: 'bid_below_minimum' }, 400)
+      if (haystack.includes('invalid_amount')) return json({ error: 'invalid_amount' }, 400)
       console.error('[place-bid] rpc failed', rpcErr)
       return json({ error: 'bid_failed', detail: haystack }, 500)
     }

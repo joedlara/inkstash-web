@@ -145,8 +145,13 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
   const resolvedRef = useRef<Set<string>>(new Set());
   const chargedRef = useRef<Set<string>>(new Set());
   // In-flight bid that 402'd. After 'inkstash:wallet-card-ready' fires
-  // we retry once and clear.
-  const pendingBidRef = useRef<boolean>(false);
+  // we retry the same kind of bid (flat $1 vs custom amount) and clear.
+  // Tagged union so a custom amount round-trips correctly through the
+  // wallet handshake — Phase 3b stored a boolean here and would have
+  // silently re-fired the flat bid even if the original ask was a
+  // custom amount.
+  type PendingBid = { kind: 'flat' } | { kind: 'custom'; amountCents: number };
+  const pendingBidRef = useRef<PendingBid | null>(null);
   // Cache winner username lookups so repeated wins by the same user
   // don't re-hit users table.
   const usernameCacheRef = useRef<Map<string, string>>(new Map());
@@ -183,7 +188,7 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
     // a stale resolve/charge marker.
     resolvedRef.current = new Set();
     chargedRef.current = new Set();
-    pendingBidRef.current = false;
+    pendingBidRef.current = null;
     setWinnerBanner(null);
     setLiveRow(null);
   }, [livestreamId, refetchAll]);
@@ -308,7 +313,12 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
   }, [liveRow]);
 
   // ─── Bid actions ───────────────────────────────────────────────────
-  const placeBidImpl = useCallback(async (): Promise<void> => {
+  // Shared bid implementation. `amountCents === undefined` → flat $1
+  // bump (server-controlled increment); a number → explicit custom
+  // bid. Phase 3b-2 wires the custom path end-to-end (RPC + edge fn +
+  // API client). The 402 wallet handshake remembers which kind of bid
+  // was in flight so the retry after card-add matches the original ask.
+  const placeBidImpl = useCallback(async (amountCents?: number): Promise<void> => {
     const cur = liveRowRef.current;
     if (!cur) return;
     if (computeStatus(cur) !== 'bidding') return;
@@ -316,30 +326,36 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
 
     // Optimistic: bump local row so the UI feels instant. The realtime
     // UPDATE will reconcile (server's amount is source of truth — if
-    // someone else bid the same instant our +100 may be wrong, and the
-    // websocket patch fixes it within ~1-2s).
+    // someone else bid the same instant our optimistic price may be
+    // wrong, and the websocket patch fixes it within ~1-2s).
     const before = cur;
+    const optimisticPrice =
+      amountCents !== undefined ? amountCents : (cur.current_price_cents ?? 0) + 100;
     setLiveRow({
       ...cur,
-      current_price_cents: (cur.current_price_cents ?? 0) + 100,
+      current_price_cents: optimisticPrice,
       current_winner_id: viewer,
       bid_count: cur.bid_count + 1,
     });
 
     try {
-      await livestreamsAPI.placeBid(cur.id);
+      await livestreamsAPI.placeBid(cur.id, amountCents);
     } catch (err) {
       const name = (err as Error).name;
       if (name === 'no_card_on_file') {
-        // Roll back optimistic state, mark the bid as pending, ask the
-        // parent to open the wallet sheet. The wallet-card-ready
-        // listener below retries the bid once a card lands.
+        // Roll back optimistic state, remember which kind of bid was
+        // pending, ask the parent to open the wallet sheet. The
+        // wallet-card-ready listener below retries the same shape once
+        // a card lands.
         setLiveRow(before);
-        pendingBidRef.current = true;
+        pendingBidRef.current =
+          amountCents !== undefined
+            ? { kind: 'custom', amountCents }
+            : { kind: 'flat' };
         onNeedCardRef.current?.();
       } else {
         // Reconcile from server and re-throw so AuctionBlock can flash
-        // its toast based on err.name.
+        // its toast based on err.name (incl. new 'bid_below_minimum').
         void refetchAll();
       }
       throw err;
@@ -350,14 +366,14 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
     await placeBidImpl();
   }, [placeBidImpl]);
 
-  // Phase 3b: server doesn't accept custom amounts yet (place-bid is
-  // hard-coded to +$1 increments). We intentionally ignore amountCents
-  // and call the flat placeBid — Phase 3b-2 extends the RPC + edge fn
-  // to accept an explicit amount and this becomes a real custom bid.
+  // Phase 3b-2: passes the explicit amountCents through to the server,
+  // which now validates against the row-locked current_price_cents +
+  // $1 floor. A losing-the-race bid (someone else jumped past your
+  // target before your request landed) raises 'bid_below_minimum',
+  // which AuctionBlock surfaces as a toast.
   const placeCustomBid = useCallback(
-    async (_amountCents: number) => {
-      void _amountCents;
-      await placeBidImpl();
+    async (amountCents: number) => {
+      await placeBidImpl(amountCents);
     },
     [placeBidImpl],
   );
@@ -365,11 +381,19 @@ export function useLiveAuction({ livestreamId, viewerId, onNeedCard }: Args): Us
   // Wallet handshake — fires after WalletSheet's confirmSetup() succeeds.
   // We only retry if a bid was actually pending (avoids spurious
   // bid-after-card-add when the user opened the wallet from the rail).
+  // Tagged union lets us route flat-vs-custom retries to the same
+  // amountCents that 402'd, so the custom popover's $5/$10/$25 choice
+  // survives the card-add detour.
   useEffect(() => {
     const onReady = () => {
-      if (!pendingBidRef.current) return;
-      pendingBidRef.current = false;
-      void placeBidImpl().catch(() => {
+      const pending = pendingBidRef.current;
+      if (!pending) return;
+      pendingBidRef.current = null;
+      const retry =
+        pending.kind === 'flat'
+          ? placeBidImpl()
+          : placeBidImpl(pending.amountCents);
+      void retry.catch(() => {
         // placeBidImpl re-throws; we already rolled back / refetched.
       });
     };
