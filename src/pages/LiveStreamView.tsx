@@ -23,6 +23,8 @@ import StreamChatRail from '../components/livestreams/StreamChatRail';
 import GiveawayBanner from '../components/livestreams/GiveawayBanner';
 import CurrentItemBar from '../components/livestreams/CurrentItemBar';
 import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
+import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
+import SpeedLinesEffect from '../components/livestreams/SpeedLinesEffect';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -324,7 +326,16 @@ function LiveDesktopStage({
             streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
           />
 
-          {/* Winner banner slot (L4) */}
+          {/* Manga focus burst — full-bleed inside the video card,
+              fires on sold transition. zIndex 6 keeps it above the
+              video but below the slot banner (zIndex 2 is local to the
+              slot box; SpeedLines reuses the spec's 6 inside the video
+              card's own stacking context which sits above the player
+              but below the bottom item bar's gradient scrim). */}
+          <SpeedLinesEffect livestreamId={stream.id} />
+
+          {/* Winner banner slot (L4). The banner self-mounts when the
+              on-block item flips to sold; absent surface = nothing here. */}
           <Box
             id="livestream-winner-slot"
             sx={{
@@ -335,9 +346,11 @@ function LiveDesktopStage({
               display: 'flex',
               justifyContent: 'center',
               pointerEvents: 'none',
-              zIndex: 2,
+              zIndex: 7,
             }}
-          />
+          >
+            <AuctionWinnerBanner livestreamId={stream.id} />
+          </Box>
 
           {/* Bottom item info bar — design's .vf-item. Sits on a vertical
               gradient scrim so the white text reads regardless of what's
@@ -441,6 +454,26 @@ function FullscreenVideoSurface({
         mode="viewer"
         onParticipantCountChange={onParticipantCountChange}
       />
+
+      {/* Auction win celebration — banner drops near the top of the
+          video, manga focus burst plays full-bleed. Both self-trigger
+          off livestream_items realtime; rendered absolutely inside
+          the fullscreen container. */}
+      <SpeedLinesEffect livestreamId={stream.id} />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 74px)',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          zIndex: 7,
+        }}
+      >
+        <AuctionWinnerBanner livestreamId={stream.id} />
+      </Box>
 
       {/* Click-to-exit hit layer, under the interactive overlays */}
       <Box
@@ -652,6 +685,25 @@ function MobileVideoStage({
         mode="viewer"
         onParticipantCountChange={onParticipantCountChange}
       />
+
+      {/* Auction win celebration — same self-triggering banner + speed
+          lines mounted on the desktop slot, lifted into the mobile
+          full-bleed stage so the moment plays on every surface. */}
+      <SpeedLinesEffect livestreamId={stream.id} />
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 74px)',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          zIndex: 7,
+        }}
+      >
+        <AuctionWinnerBanner livestreamId={stream.id} />
+      </Box>
 
       <Box
         sx={{
