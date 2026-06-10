@@ -8,7 +8,11 @@
 //   ≤1024px  immersive (Video fills; chat overlays inside the video stage)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Container } from '@mui/material';
 import './live-stream/stream.css';
+
+import AppShell from '../components/layout/AppShell';
+import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 
 import { useLiveAuction } from './live-stream/auction/useLiveAuction';
 import { AuctionBlock } from './live-stream/auction/AuctionBlock';
@@ -230,57 +234,65 @@ function LiveStreamLiveView({ id, livestream }: { id: string; livestream: Livest
   );
 
   return (
-    <div className="ls-app">
-      <main className="ls-main">
-        <div className="ls-stream-grid">
-          <ShopRail hostUserId={livestream.host.id} />
+    <AppShell>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }} className="ls-live-wrap">
+        <div className="ls-app">
+          <main className="ls-main">
+            <div className="ls-stream-grid">
+              <ShopRail hostUserId={livestream.host.id} />
 
-          <VideoStage
-            bottomOverlay={stageBottomOverlay}
-            likes={likes}
-            liked={liked}
-            ringTaps={ringTaps}
-            ringTapsTarget={RING_TAPS_TO_COMPLETE}
-            celebrateKey={celebrateKey}
-            onLike={onLike}
-            host={livestream.host}
-            viewerId={viewerId}
-            livekit={livestream.livekit}
-            viewerCount={viewerCount}
-            onParticipantCountChange={setViewerCount}
-            onHostClick={() => setProfileUser(livestream.host.id)}
-            onWallet={() => {
-              // Rail-opened wallet → show the saved-cards summary
-              // first; only auto-jump to the add-card form when opened
-              // from a 402.
-              setWalletAutoAdd(false);
-              setWalletOpen(true);
-            }}
-          />
-
-          {/* Desktop / 2-col chat column. Hidden by CSS at ≤1024px. */}
-          {!isImmersive && (
-            <div className="ls-chat-col">
-              <GiveawayBanner />
-              <ChatPanel
-                messages={messages}
-                participants={participants}
-                variant="panel"
-                onSend={sendMessage}
-                onUsernameClick={setProfileUser}
+              <VideoStage
+                bottomOverlay={stageBottomOverlay}
+                likes={likes}
+                liked={liked}
+                ringTaps={ringTaps}
+                ringTapsTarget={RING_TAPS_TO_COMPLETE}
+                celebrateKey={celebrateKey}
+                onLike={onLike}
+                host={livestream.host}
+                viewerId={viewerId}
+                livekit={livestream.livekit}
+                viewerCount={viewerCount}
+                onParticipantCountChange={setViewerCount}
+                onHostClick={() => setProfileUser(livestream.host.id)}
+                onWallet={() => {
+                  // Rail-opened wallet → show the saved-cards summary
+                  // first; only auto-jump to the add-card form when opened
+                  // from a 402.
+                  setWalletAutoAdd(false);
+                  setWalletOpen(true);
+                }}
               />
+
+              {/* Desktop / 2-col chat column. Hidden by CSS at ≤1024px. */}
+              {!isImmersive && (
+                <div className="ls-chat-col">
+                  <GiveawayBanner />
+                  <ChatPanel
+                    messages={messages}
+                    participants={participants}
+                    variant="panel"
+                    onSend={sendMessage}
+                    onUsernameClick={setProfileUser}
+                  />
+                </div>
+              )}
             </div>
-          )}
+          </main>
+
+          <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />
+
+          <WalletSheet
+            open={walletOpen}
+            onClose={() => setWalletOpen(false)}
+            autoOpenAddCard={walletAutoAdd}
+          />
         </div>
-      </main>
 
-      <ProfileCard userId={profileUser} onClose={() => setProfileUser(null)} />
-
-      <WalletSheet
-        open={walletOpen}
-        onClose={() => setWalletOpen(false)}
-        autoOpenAddCard={walletAutoAdd}
-      />
-    </div>
+        {/* Other shows on InkStash — gives viewers somewhere to browse
+            underneath the live stream stage without leaving the page. */}
+        <ExploreMoreRail excludeId={id} />
+      </Container>
+    </AppShell>
   );
 }

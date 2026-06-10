@@ -984,9 +984,12 @@
 }
 @keyframes awSpin { to { transform: rotate(360deg); } }
 
-/* ===== WALLET SHEET (no_card_on_file → Stripe SetupIntent) ===== */
+/* ===== WALLET SHEET (no_card_on_file → Stripe SetupIntent) =====
+   Fixed positioning so the scrim covers the full viewport even when the
+   live state is mounted inside AppShell's Container (otherwise inset:0
+   would clip to the Container's box and leave the topnav uncovered). */
 .ls-wallet-scrim {
-  position: absolute; inset: 0; z-index: 3000;
+  position: fixed; inset: 0; z-index: 3000;
   display: flex; align-items: center; justify-content: center; padding: 20px;
   background: rgba(8,7,10,0.6);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -1172,6 +1175,50 @@
   font-family: var(--font-display); font-weight: 900; font-size: 11px; color: #fff;
 }
 .ls-cc-sug-name { font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; }
+
+/* ============================================
+   LIVE STATE — Container-bounded wrap (Phase 4)
+   Mirrors .ls-preshow-wrap but for the live state. The grid by default
+   sizes to calc(100dvh - var(--topnav-h) - 42px) which assumed full-bleed
+   mount; inside AppShell's Container we cap height and let the stage
+   take a 9:16 max so ExploreMoreRail can sit underneath.
+   ============================================ */
+.ls-live-wrap .ls-app { background: transparent; }
+.ls-live-wrap .ls-main { padding: 0; }
+.ls-live-wrap .ls-stream-grid {
+  height: auto;
+  min-height: 0;
+  max-height: 78dvh;
+  grid-template-columns: 320px minmax(0, 1fr) 384px;
+}
+.ls-live-wrap .ls-video-col { aspect-ratio: 9 / 16; max-height: 78dvh; }
+.ls-live-wrap .ls-video-stage,
+.ls-live-wrap .ls-video-feed { height: 100%; }
+@media (max-width: 1240px) {
+  .ls-live-wrap .ls-stream-grid {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+@media (max-width: 1024px) {
+  /* Tablet/mobile: the unwrapped live-state rule hides topnav and goes
+     100dvh full-bleed. Inside AppShell we keep AppShell chrome visible
+     and let the stage take its 9:16 box like pre-show. */
+  .ls-live-wrap .ls-topnav { display: revert; }
+  .ls-live-wrap .ls-stream-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+  }
+  .ls-live-wrap .ls-video-col { aspect-ratio: 9 / 16; max-height: 78dvh; }
+  .ls-live-wrap .ls-chat-col,
+  .ls-live-wrap .ls-shop-col { display: none; }
+  /* The unwrapped ≤1024 rule above locks html/body to overflow:hidden so
+     the immersive full-bleed stage can fill the viewport. Inside .ls-live-wrap
+     we need page scroll so users can reach ExploreMoreRail beneath the stage.
+     :has() is supported in all modern evergreens; older fallbacks degrade to
+     no-scroll but the rest of the surface still works. */
+  html:has(.ls-live-wrap), body:has(.ls-live-wrap) { overflow: auto; }
+}
 
 /* ============================================
    PRE-SHOW STATE — scheduled livestreams
