@@ -1,7 +1,12 @@
 // GiveawayBanner — stacks above ChatPanel on desktop. Ported 1:1 from
 // docs/design-system/live_stream/stream-view.jsx's ChatPanel. Pure
-// presentation in Phase 2 (Enter button is a no-op).
-import { mockGiveaway } from '../_mock/streamData.mock';
+// presentation in Phase 2 (Enter button is a no-op). The entries count
+// and item name are placeholder copy for now — wiring giveaways to a real
+// backend (entries, claim) is out of scope for the prototype port.
+const PLACEHOLDER_GIVEAWAY = {
+  entries: 42,
+  item: 'CRIMSON WAVE BOOSTER #8',
+} as const;
 
 const Gift = () => (
   <svg
@@ -44,10 +49,10 @@ export function GiveawayBanner() {
         <span className="ls-gift">
           <Gift />
         </span>
-        <span className="ls-label">Giveaway with {mockGiveaway.entries} entries</span>
+        <span className="ls-label">Giveaway with {PLACEHOLDER_GIVEAWAY.entries} entries</span>
         <ChevronUp />
       </div>
-      <div className="ls-giveaway-item">{mockGiveaway.item}</div>
+      <div className="ls-giveaway-item">{PLACEHOLDER_GIVEAWAY.item}</div>
       <button type="button" className="ls-btn-enter">
         Enter giveaway
       </button>

@@ -1,6 +1,7 @@
 // GiveawayPill — top-right giveaway count pill. Ported 1:1 from .vf-giveaway
 // in stream-view.jsx. Lives in the top-right cluster alongside ViewerCountBadge.
-import { mockGiveaway } from '../_mock/streamData.mock';
+// Entries count is placeholder until giveaways are wired to a real backend.
+const PLACEHOLDER_GIVEAWAY_ENTRIES = 42;
 
 const Gift = () => (
   <svg
@@ -29,7 +30,7 @@ export function GiveawayPill() {
       </span>
       <div>
         <b>Giveaway</b>
-        <span>{mockGiveaway.entries} entries</span>
+        <span>{PLACEHOLDER_GIVEAWAY_ENTRIES} entries</span>
       </div>
     </div>
   );
