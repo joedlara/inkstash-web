@@ -115,11 +115,8 @@
   width: 68px; height: 68px; border-radius: 10px; flex-shrink: 0;
   position: relative; overflow: hidden;
 }
-.ls-product-thumb::after {
-  content: ""; position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,0.16) 1px, transparent 1.3px);
-  background-size: 6px 6px;
-}
+/* Dotted-pattern overlay intentionally removed (user request, 2026-06-10):
+   thumbnails show the underlying image / gradient only. */
 .ls-product-bookmark {
   position: absolute; top: 4px; left: 4px; z-index: 2;
   color: rgba(255,255,255,0.92);
@@ -239,32 +236,40 @@
 .ls-vf-giveaway b { display: block; font-size: 13.5px; font-weight: 700; line-height: 1.2; }
 .ls-vf-giveaway span { font-size: 12px; color: rgba(255,255,255,0.72); }
 
-/* right action rail */
+/* right action rail — stacked icon-over-label, transparent (no pill),
+   generous gap. Like control owns its own stacking inside .ls-vf-like. */
 .ls-vf-actions {
-  position: absolute; right: 14px; top: 50%; transform: translateY(-50%); z-index: 5;
-  display: flex; flex-direction: column; gap: 14px;
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 26px;
+  pointer-events: none; /* let label text not block taps in dead zones */
 }
-.ls-vf-action {
-  width: 44px; height: 44px; border-radius: 999px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);
-  -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 18px -6px rgba(0,0,0,0.4);
-  color: white; cursor: pointer; position: relative;
-  transition: background .12s, transform .12s;
+.ls-vf-actions > * { pointer-events: auto; }
+.ls-vf-action-stack {
+  background: transparent; border: 0; padding: 4px 6px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  color: #fff; position: relative;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.55);
+  transition: transform .12s;
 }
-.ls-vf-action:hover { background: rgba(255,255,255,0.22); transform: scale(1.05); }
-.ls-vf-action svg { width: 21px; height: 21px; }
-.ls-vf-action .ls-dot {
-  position: absolute; top: 8px; right: 9px; width: 8px; height: 8px;
-  border-radius: 50%; background: var(--brand); border: 1.5px solid rgba(8,7,10,0.6);
+.ls-vf-action-stack:hover { transform: scale(1.06); }
+.ls-vf-action-stack svg {
+  width: 28px; height: 28px;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.55));
+}
+.ls-vf-action-label {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: #fff;
 }
 
-/* bottom overlay stack (chat + say + item + bid) */
+/* bottom overlay stack (chat + say + item + bid) — explicitly capture
+   pointer events so the immersive composer + auction block reach taps on
+   mobile/tablet (sits above .ls-like-catcher at z-index 2). */
 .ls-vf-overlay-bottom {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
   display: flex; flex-direction: column;
   background: linear-gradient(0deg, rgba(8,7,10,0.94) 0%, rgba(8,7,10,0.6) 42%, rgba(8,7,10,0.15) 78%, transparent 100%);
+  pointer-events: auto;
 }
 
 /* immersive chat overlay (hidden on desktop) */
@@ -602,11 +607,7 @@
   position: relative; overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
 }
-.ls-ac-thumb::after {
-  content: ""; position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,0.16) 1px, transparent 1.3px);
-  background-size: 6px 6px;
-}
+/* Dotted-pattern overlay intentionally removed (user request, 2026-06-10). */
 .ls-ac-info { flex: 1; min-width: 0; }
 .ls-ac-title {
   font-family: var(--font-display); font-weight: 900; font-size: 19px;
@@ -645,6 +646,14 @@
   transition: background .12s, border-color .12s;
 }
 .ls-btn-custom:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.45); }
+/* Mobile: keep Custom visible alongside the slider — shrink padding rather
+   than vanish. Issue 5 fix-up (2026-06-10). */
+@media (max-width: 560px) {
+  .ls-btn-custom { padding: 0 14px; font-size: 13.5px; }
+}
+@media (max-width: 400px) {
+  .ls-btn-custom { padding: 0 12px; font-size: 12.5px; }
+}
 .ls-custom-pop {
   position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 8;
   display: flex; flex-direction: column; gap: 4px; padding: 6px;
@@ -720,11 +729,15 @@
 .ls-video-feed.ls-vf-clean .ls-vf-actions,
 .ls-video-feed.ls-vf-clean .ls-vf-overlay-bottom { opacity: 0; pointer-events: none; }
 
-/* ===== DOUBLE-TAP LIKES ===== */
+/* ===== DOUBLE-TAP LIKES =====
+   The tap surface covers the UPPER region of the video only — the bottom
+   ~40% is reserved for .ls-vf-overlay-bottom (composer + auction block).
+   Z-index 2 keeps it below the right rail (6) and bottom overlay (5). */
 .ls-like-catcher {
-  position: absolute; inset: 0; z-index: 2;
+  position: absolute; left: 0; right: 0; top: 0; bottom: 40%; z-index: 2;
   background: transparent; user-select: none; -webkit-user-select: none;
   touch-action: manipulation;
+  pointer-events: auto;
 }
 .ls-heart-layer {
   position: absolute; inset: 0; z-index: 9;
@@ -746,13 +759,66 @@
   .ls-heart-pop { animation-duration: 0.6s; }
 }
 
-/* like control in the right action rail */
-.ls-vf-actions .ls-vf-like { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.ls-vf-action.ls-liked { color: var(--brand); border-color: rgba(201,67,76,0.55); background: rgba(201,67,76,0.22); }
-.ls-vf-action.ls-liked:hover { background: rgba(201,67,76,0.3); }
+/* like control in the right action rail — TikTok-style:
+   - Transparent button; heart icon centered inside a 64px SVG meter ring.
+   - Ring fills as rapid taps land within the parent's RING_WINDOW_MS; the
+     stroke transitions smoothly via stroke-dashoffset.
+   - Celebration burst spawns small hearts that drift up + fade out (~1s)
+     when the parent bumps `celebrateKey`. */
+.ls-vf-like {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.ls-vf-like-btn {
+  position: relative; width: 64px; height: 64px; padding: 0;
+  background: transparent; border: 0; cursor: pointer; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s;
+}
+.ls-vf-like-btn:hover { transform: scale(1.06); }
+.ls-vf-like-btn.ls-liked { color: var(--brand); }
+.ls-vf-like-btn:active .ls-vf-like-heart { transform: scale(0.86); }
+.ls-vf-like-heart {
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s var(--ease, ease-out);
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.6));
+}
+.ls-vf-like-ring {
+  position: absolute; inset: 0; pointer-events: none;
+  opacity: 0; transition: opacity .25s;
+}
+.ls-vf-like-ring.ls-active { opacity: 1; }
+.ls-vf-like-ring-track {
+  stroke: rgba(255,255,255,0.22); stroke-width: 3;
+}
+.ls-vf-like-ring-fill {
+  stroke: var(--brand); stroke-width: 3; stroke-linecap: round;
+  transition: stroke-dashoffset .18s var(--ease, ease-out);
+  filter: drop-shadow(0 0 4px rgba(201,67,76,0.55));
+}
+.ls-vf-like-burst {
+  position: absolute; inset: 0; pointer-events: none; overflow: visible;
+}
+.ls-vf-burst-heart {
+  position: absolute; left: 50%; top: 50%; color: var(--brand);
+  transform: translate(-50%, -50%) scale(0);
+  animation: lsBurstHeart 1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
+}
+.ls-vf-burst-heart svg { width: 18px; height: 18px; display: block; }
+@keyframes lsBurstHeart {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(var(--rot, 0)); }
+  18%  { opacity: 1; transform: translate(calc(-50% + calc(var(--dx, 0px) * 0.3)), -50%) scale(1.1) rotate(var(--rot, 0)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), -150%) scale(0.85) rotate(var(--rot, 0)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-vf-burst-heart { animation: none; opacity: 0; }
+  .ls-vf-like-btn:active { transform: scale(0.94); }
+  .ls-vf-like-ring-fill { transition: none; }
+}
 .ls-vf-like-count {
-  font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; color: #fff;
-  font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: #fff;
+  font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  margin-top: -2px;
 }
 
 /* ===== INKSTASH CONFETTI (winner drop) ===== */
