@@ -325,13 +325,16 @@ function LiveDesktopStage({
             </Box>
           </Box>
 
-          {/* Floating right-rail actions (Share / Wallet / Shop / More)
-              on top of the video card on desktop too. RightRailActions is
-              internally absolutely positioned, so dropping it here anchors
-              it to the card's right edge. */}
+          {/* Floating right-rail actions (Share / Wallet / More) on top
+              of the video card on desktop. RightRailActions is internally
+              absolutely positioned, so dropping it here anchors it to the
+              card's right edge. The Shop chip is suppressed on the
+              desktop 3-column layout — the StreamShopRail is already
+              visible to the left of the video. */}
           <RightRailActions
             streamTitle={stream.title}
             streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+            showShop={false}
           />
 
           {/* Manga focus burst — full-bleed inside the video card,

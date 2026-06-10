@@ -5,8 +5,8 @@
 // so the popover never blocks the camera feed.
 
 import { forwardRef, useEffect, useRef, useState } from 'react';
-import { Box, Typography, ButtonBase, Tooltip } from '@mui/material';
-import { MoreHorizontal, Share2, Wallet as WalletIcon, ShoppingBag } from 'lucide-react';
+import { Box, Typography, ButtonBase } from '@mui/material';
+import { MoreHorizontal, Share2, Wallet as WalletIcon, Store } from 'lucide-react';
 import ShareDrawer from './ShareDrawer';
 import MoreDrawer from './MoreDrawer';
 import WalletDrawer from './WalletDrawer';
@@ -15,11 +15,19 @@ import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 interface Props {
   streamTitle: string;
   streamUrl: string;
+  /** When true, render the storefront chip. The shop chip is meaningful
+   *  only on surfaces where the StreamShopRail is off-screen
+   *  (mobile + tablet immersive + fullscreen). The desktop 3-column
+   *  layout already shows the rail, so the parent passes false there. */
+  showShop?: boolean;
+  /** Fires when the storefront chip is tapped. Parent decides what to
+   *  do (open a mobile shop overlay, route to the vendor page, etc.). */
+  onShop?: () => void;
 }
 
 type PopoverKey = 'more' | 'share' | 'wallet' | null;
 
-export default function RightRailActions({ streamTitle, streamUrl }: Props) {
+export default function RightRailActions({ streamTitle, streamUrl, showShop = true, onShop }: Props) {
   const [open, setOpen] = useState<PopoverKey>(null);
   const [walletAutoAddCard, setWalletAutoAddCard] = useState(false);
   // One ref per button so each popover can anchor to the exact chip the
@@ -81,15 +89,33 @@ export default function RightRailActions({ streamTitle, streamUrl }: Props) {
           label="Wallet"
           onClick={() => setOpen('wallet')}
         />
-        <Tooltip title="Coming with auctions" arrow placement="left">
-          <span>
-            <RailChip
-              icon={<ShoppingBag size={15} strokeWidth={2.4} />}
-              label="Shop"
-              disabled
-            />
-          </span>
-        </Tooltip>
+        {/* Storefront chip — only rendered when the shop rail is off-
+            screen (mobile/tablet/fullscreen). The dot is a subtle
+            "new inventory" affordance; tap routes through onShop. */}
+        {showShop && (
+          <RailChip
+            icon={(
+              <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                <Store size={15} strokeWidth={2.4} />
+                <Box
+                  aria-hidden
+                  sx={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -3,
+                    width: 6,
+                    height: 6,
+                    borderRadius: 999,
+                    bgcolor: inkstashColors.live,
+                    boxShadow: '0 0 0 1.5px rgba(10,10,10,0.55)',
+                  }}
+                />
+              </Box>
+            )}
+            label="Shop"
+            onClick={onShop}
+          />
+        )}
         <RailChip
           ref={moreRef}
           icon={<MoreHorizontal size={17} strokeWidth={2.4} />}
