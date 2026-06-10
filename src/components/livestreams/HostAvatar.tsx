@@ -1,7 +1,7 @@
 // src/components/livestreams/HostAvatar.tsx
 //
 // Shared host-avatar component used wherever a livestream host appears on
-// screen (LiveStreamCard, MomentumCard, SchedCard, HostPill).
+// screen (LiveStreamCard, MomentumCard, SchedCard).
 //
 // When the user has a profile picture (avatar_url), we render it as a
 // circular image. Otherwise we fall back to a brand-gradient initial — the

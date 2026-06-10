@@ -195,9 +195,8 @@ function LiveSurface({ active }: { active: ActiveStream }) {
     }
   }
 
-  // Queue state, hydrated from livestream_items + listings (same pattern
-  // as StreamShopRail). Realtime keeps it in sync with whatever the
-  // phone or another tab does.
+  // Queue state, hydrated from livestream_items + listings. Realtime
+  // keeps it in sync with whatever the phone or another tab does.
   const [queue, setQueue] = useState<QueueRow[]>([]);
   const [viewerCount, setViewerCount] = useState(1);
   const [likes, setLikes] = useState(0);
@@ -304,7 +303,7 @@ function LiveSurface({ active }: { active: ActiveStream }) {
   // surface so only one client fires both calls — chargeWin is
   // idempotent server-side but we don't want every viewer hitting it.
   // Realtime then broadcasts the status flip + charge state to all
-  // viewers' MobileAuctionCards.
+  // viewers.
   useEffect(() => {
     if (!onBlock?.bidding_ends_at) return;
     const endsMs = new Date(onBlock.bidding_ends_at).getTime();
