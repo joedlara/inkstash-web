@@ -389,11 +389,15 @@ function Tab({ label, active = false, disabled = false }: { label: string; activ
       <Typography
         component="span"
         sx={{
-          fontFamily: inkstashFonts.ui,
-          fontSize: 14,
-          fontWeight: 700,
+          // Tab labels use the display face — "CHAT" / "WATCHING" match
+          // the display-uppercase rhythm of the page (SHOP, lot titles,
+          // giveaway header).
+          fontFamily: inkstashFonts.display,
+          fontSize: 16,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
           color: active ? inkstashColors.ink : inkstashColors.muted,
-          letterSpacing: '-0.005em',
         }}
       >
         {label}

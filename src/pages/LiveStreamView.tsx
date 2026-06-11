@@ -335,23 +335,25 @@ function LiveDesktopStage({
               />
               <StreamDescriptionPill description={stream.description} />
             </Box>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
-              <ViewerCountBadge count={viewerCount} />
-            </Box>
+            {/* Viewer count + right-rail actions only make sense while
+                the stream is actually live — for scheduled streams the
+                pre-show sheet carries the Share Show CTA, no one is
+                "watching", and likes/wallet/shop don't apply. */}
+            {stream.status === 'live' && (
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
+                <ViewerCountBadge count={viewerCount} />
+              </Box>
+            )}
           </Box>
 
-          {/* Floating right-rail actions (Share / Wallet / More) on top
-              of the video card on desktop. RightRailActions is internally
-              absolutely positioned, so dropping it here anchors it to the
-              card's right edge. The Shop chip is suppressed on the
-              desktop 3-column layout — the StreamShopRail is already
-              visible to the left of the video. */}
-          <RightRailActions
-            streamTitle={stream.title}
-            streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
-            showShop={false}
-            livestreamId={stream.id}
-          />
+          {stream.status === 'live' && (
+            <RightRailActions
+              streamTitle={stream.title}
+              streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+              showShop={false}
+              livestreamId={stream.id}
+            />
+          )}
 
           {/* Manga focus burst — full-bleed inside the video card,
               fires on sold transition. zIndex 6 keeps it above the
@@ -549,7 +551,7 @@ function FullscreenVideoSurface({
           <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
-          <ViewerCountBadge count={viewerCount} />
+          {stream.status === 'live' && <ViewerCountBadge count={viewerCount} />}
           <IconButton
             onClick={onExit}
             size="small"
@@ -568,16 +570,18 @@ function FullscreenVideoSurface({
         </Box>
       </Box>
 
-      {/* Right rail — pinned above the chat composer + auction card so
-          the input is never overlapped by the action chips. */}
-      <RightRailActions
-        streamTitle={stream.title}
-        streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        livestreamId={stream.id}
-        placement="anchor"
-        // composer ≈ 56px + safety gap, plus the auction card if mounted.
-        bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + 56}
-      />
+      {/* Right rail only renders while the stream is live — scheduled
+          streams use the pre-show sheet's Share Show button for sharing. */}
+      {stream.status === 'live' && (
+        <RightRailActions
+          streamTitle={stream.title}
+          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          livestreamId={stream.id}
+          placement="anchor"
+          // composer ≈ 56px + safety gap, plus the auction card if mounted.
+          bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + 56}
+        />
+      )}
 
       {/* Bottom chat overlay — read-only, fade-mask at top. bottomReserve
           lifts the composer above the auction card below. +10px matches
@@ -784,7 +788,7 @@ function MobileVideoStage({
           <StreamDescriptionPill description={stream.description} />
         </Box>
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, pointerEvents: 'auto' }}>
-          <ViewerCountBadge count={viewerCount} />
+          {stream.status === 'live' && <ViewerCountBadge count={viewerCount} />}
           <IconButton
             onClick={onClose}
             size="small"
@@ -802,13 +806,17 @@ function MobileVideoStage({
         </Box>
       </Box>
 
-      <RightRailActions
-        streamTitle={stream.title}
-        streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        livestreamId={stream.id}
-        placement="anchor"
-        bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + bottomBarOffset + 56}
-      />
+      {/* Right rail only renders while live — pre-show has its own
+          Share Show CTA, no wallet/shop/heart action for scheduled. */}
+      {stream.status === 'live' && (
+        <RightRailActions
+          streamTitle={stream.title}
+          streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          livestreamId={stream.id}
+          placement="anchor"
+          bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + bottomBarOffset + 56}
+        />
+      )}
 
       <LiveStreamChat
         livestreamId={stream.id}

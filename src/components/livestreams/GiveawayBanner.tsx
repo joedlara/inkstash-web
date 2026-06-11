@@ -64,11 +64,14 @@ export default function GiveawayBanner({ entryCount = 0, giveawayItemName }: Pro
           </Box>
           <Typography
             sx={{
-              fontFamily: inkstashFonts.ui,
-              fontSize: 13,
-              fontWeight: 700,
+              // "Giveaway with N entries" — display face for parity with
+              // the SHOP / lot-title headings throughout the live page.
+              fontFamily: inkstashFonts.display,
+              fontSize: 14.5,
+              fontWeight: 900,
+              textTransform: 'uppercase',
               color: inkstashColors.ink,
-              letterSpacing: '-0.005em',
+              letterSpacing: '0.02em',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

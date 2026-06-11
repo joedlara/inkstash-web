@@ -127,10 +127,13 @@ export default function StreamShopRail({ livestreamId, hostUserId, streamTitle }
           color: '#fff',
           px: 1.5,
           py: 0.75,
-          fontFamily: inkstashFonts.ui,
-          fontSize: 10.5,
-          fontWeight: 800,
-          letterSpacing: '-0.005em',
+          // Stream-title chip uses the display face — same Big Shoulders
+          // treatment the auction card title gets, so the shop card reads
+          // as part of the same family.
+          fontFamily: inkstashFonts.display,
+          fontSize: 11,
+          fontWeight: 900,
+          letterSpacing: '0.02em',
           textTransform: 'uppercase',
           maxWidth: '90%',
           overflow: 'hidden',
@@ -144,11 +147,14 @@ export default function StreamShopRail({ livestreamId, hostUserId, streamTitle }
       <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
         <Typography
           sx={{
-            fontFamily: inkstashFonts.ui,
+            // "SHOP" matches the app's display headings (Big Shoulders),
+            // not the smaller Geist UI face the body uses.
+            fontFamily: inkstashFonts.display,
             fontWeight: 900,
             fontSize: 22,
+            textTransform: 'uppercase',
             color: inkstashColors.ink,
-            letterSpacing: '-0.03em',
+            letterSpacing: '0.01em',
             lineHeight: 1,
             mb: 1.5,
           }}
@@ -282,11 +288,14 @@ function SectionHeader({ label }: { label: string }) {
   return (
     <Typography
       sx={{
-        fontFamily: inkstashFonts.ui,
-        fontWeight: 800,
-        fontSize: 14,
-        color: inkstashColors.ink,
-        letterSpacing: '-0.01em',
+        // Section labels (e.g. "PRODUCTS (3)") use mono so the count
+        // reads as metadata against the display "SHOP" header above.
+        fontFamily: inkstashFonts.mono,
+        fontWeight: 700,
+        fontSize: 11.5,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        color: inkstashColors.muted,
         mt: 1,
         mb: 1.25,
       }}
@@ -390,17 +399,20 @@ function ProductTile({
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
-              fontFamily: inkstashFonts.ui,
-              fontWeight: 700,
-              fontSize: 13.5,
+              // Product titles take the display face — matches the auction
+              // card's lot title so titles read consistently across the page.
+              fontFamily: inkstashFonts.display,
+              fontWeight: 900,
+              fontSize: 14.5,
+              textTransform: 'uppercase',
               color: inkstashColors.ink,
-              letterSpacing: '0.01em',
+              letterSpacing: '0.005em',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
-              lineHeight: 1.25,
+              lineHeight: 1.1,
             }}
           >
             {title}

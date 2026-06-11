@@ -74,12 +74,17 @@ function buildCalendarUrls(stream: Livestream, watchUrl: string) {
     + `&enddt=${encodeURIComponent(end.toISOString())}`
     + `&body=${encodeURIComponent(description)}`;
 
-  // Apple Calendar / native iCal: standards-based .ics data URL.
-  // Browsers open this in the user's calendar app on tap.
-  const ics = [
+  // Apple Calendar / native iCal — standards-based .ics body. We
+  // wrap it in a Blob at click time (not here) because data: URLs
+  // get blocked by Safari + several mobile browsers as file
+  // downloads. Returning the raw body lets the click handler
+  // create a Blob URL with a real download attribute.
+  const icsBody = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//InkStash//Livestream//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:livestream-${stream.id}@inkstash`,
     `DTSTAMP:${isoForCalendar(new Date())}`,
@@ -91,9 +96,8 @@ function buildCalendarUrls(stream: Livestream, watchUrl: string) {
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
-  const appleUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
 
-  return { google, outlook, apple: appleUrl };
+  return { google, outlook, icsBody, title };
 }
 
 export default function ScheduledShowSheet({ stream, shareUrl }: Props) {
@@ -131,10 +135,10 @@ export default function ScheduledShowSheet({ stream, shareUrl }: Props) {
   function closeCalendarMenu() {
     setCalMenuAnchor(null);
   }
-  function pickCalendar(href: string) {
+  function pickCalendarUrl(href: string) {
     closeCalendarMenu();
-    // Use a transient <a> so the .ics data URL triggers the OS-level
-    // calendar handler on iOS / Android instead of opening as a page.
+    // Google / Outlook open the compose page in a new tab. _blank is
+    // important so we don't navigate the viewer away from the show.
     if (typeof document !== 'undefined') {
       const a = document.createElement('a');
       a.href = href;
@@ -144,6 +148,27 @@ export default function ScheduledShowSheet({ stream, shareUrl }: Props) {
       a.click();
       a.remove();
     }
+  }
+
+  function downloadIcs(body: string, title: string) {
+    closeCalendarMenu();
+    if (typeof document === 'undefined' || typeof URL === 'undefined') return;
+    // Blob URL with a download attribute. Safari mobile + most desktop
+    // browsers refuse data:text/calendar as a download, but accept a
+    // Blob URL fine. Filename has to end in .ics so iOS Safari hands
+    // it to the Calendar app instead of rendering as plaintext.
+    const blob = new Blob([body], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60) || 'event'}.ics`;
+    // Some browsers ignore download on cross-origin / blob URLs unless
+    // the anchor is in the DOM at click time.
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Give the browser a tick to start the download before we revoke.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return (
@@ -228,9 +253,9 @@ export default function ScheduledShowSheet({ stream, shareUrl }: Props) {
             fontWeight: 800,
             fontSize: 14.5,
             textTransform: 'none',
-            color: inkstashColors.ink,
-            bgcolor: inkstashColors.gold,
-            '&:hover': { bgcolor: inkstashColors.goldDeep, color: '#fff' },
+            color: '#fff',
+            bgcolor: inkstashColors.brand,
+            '&:hover': { bgcolor: inkstashColors.brandDeep },
           }}
         >
           Share Show
@@ -276,13 +301,13 @@ export default function ScheduledShowSheet({ stream, shareUrl }: Props) {
             },
           }}
         >
-          <MenuItem onClick={() => calendarUrls && pickCalendar(calendarUrls.apple)}>
+          <MenuItem onClick={() => calendarUrls && downloadIcs(calendarUrls.icsBody, calendarUrls.title)}>
             Apple Calendar
           </MenuItem>
-          <MenuItem onClick={() => calendarUrls && pickCalendar(calendarUrls.google)}>
+          <MenuItem onClick={() => calendarUrls && pickCalendarUrl(calendarUrls.google)}>
             Google Calendar
           </MenuItem>
-          <MenuItem onClick={() => calendarUrls && pickCalendar(calendarUrls.outlook)}>
+          <MenuItem onClick={() => calendarUrls && pickCalendarUrl(calendarUrls.outlook)}>
             Outlook
           </MenuItem>
         </Menu>
