@@ -306,14 +306,13 @@ export default function StreamChatRail({
         })}
       </Box>
 
-      {/* Composer */}
+      {/* Composer — Send button lives INSIDE the input pill via an
+          endAdornment, hidden until the user types. */}
       <Box
         component="form"
         onSubmit={handleSubmit}
         sx={{
           position: 'relative',
-          display: 'flex',
-          gap: 1,
           p: 1.25,
           borderTop: `1px solid ${inkstashColors.border}`,
           bgcolor: inkstashColors.bgElev,
@@ -330,6 +329,34 @@ export default function StreamChatRail({
           disabled={isBanned}
           placeholder={isBanned ? 'You were banned from this stream.' : 'Say something…'}
           inputProps={{ maxLength: 280 }}
+          InputProps={{
+            endAdornment: (
+              <IconButton
+                type="submit"
+                disabled={!draft.trim() || sending || isBanned}
+                aria-label="Send message"
+                sx={{
+                  bgcolor: inkstashColors.brand,
+                  color: '#fff',
+                  width: 30,
+                  height: 30,
+                  mr: '-4px',
+                  flexShrink: 0,
+                  opacity: draft.trim() ? 1 : 0,
+                  pointerEvents: draft.trim() ? 'auto' : 'none',
+                  transition: 'opacity 140ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
+                  '&:hover': { bgcolor: inkstashColors.brandDeep },
+                  '&:active': { transform: 'scale(0.96)' },
+                  '&.Mui-disabled': {
+                    bgcolor: inkstashColors.bgSunken,
+                    color: inkstashColors.muted,
+                  },
+                }}
+              >
+                <Send size={14} strokeWidth={2.4} />
+              </IconButton>
+            ),
+          }}
           sx={{
             '& .MuiInputBase-root': {
               bgcolor: inkstashColors.bgSunken,
@@ -337,32 +364,13 @@ export default function StreamChatRail({
               fontFamily: inkstashFonts.ui,
               fontSize: 13,
               borderRadius: 999,
-              px: 1.5,
+              pl: 1.75,
+              pr: 0.5,
             },
             '& fieldset': { border: 'none' },
             '& input::placeholder': { color: inkstashColors.muted, opacity: 1 },
           }}
         />
-        <IconButton
-          type="submit"
-          disabled={!draft.trim() || sending || isBanned}
-          sx={{
-            bgcolor: inkstashColors.brand,
-            color: '#fff',
-            width: 38,
-            height: 38,
-            flexShrink: 0,
-            transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease',
-            '&:hover': { bgcolor: inkstashColors.brandDeep },
-            '&:active': { transform: 'scale(0.96)' },
-            '&.Mui-disabled': {
-              bgcolor: inkstashColors.bgSunken,
-              color: inkstashColors.muted,
-            },
-          }}
-        >
-          <Send size={16} strokeWidth={2.4} />
-        </IconButton>
       </Box>
     </Box>
   );

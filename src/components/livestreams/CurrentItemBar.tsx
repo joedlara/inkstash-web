@@ -86,6 +86,29 @@ export default function CurrentItemBar({ livestreamId }: Props) {
   // factoring can lift this into a shared hook.
   const [winnerProfile, setWinnerProfile] = useState<Record<string, WinnerProfile>>({});
 
+  // Flat shipping rate the host set on the livestream row. Read once
+  // per mount; the column is part of the livestreams row schema added
+  // by the 20260610235000 migration.
+  // - undefined: still fetching (don't render until known)
+  // - null:      host didn't set a rate (legacy "calculated at checkout")
+  // - 0:         free shipping
+  // - >0:        flat per-item shipping in cents
+  const [flatShippingCents, setFlatShippingCents] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('livestreams')
+        .select('flat_shipping_cents')
+        .eq('id', livestreamId)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as { flat_shipping_cents: number | null } | null;
+      setFlatShippingCents(row?.flat_shipping_cents ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [livestreamId]);
+
   // Tracks the bid we tried to place when the wallet 402'd, so the
   // post-card-add auto-retry can replay it. Tagged shape so a custom
   // amount survives the round-trip — a plain item-id ref would lose
@@ -257,18 +280,20 @@ export default function CurrentItemBar({ livestreamId }: Props) {
         padding: '14px 16px 16px',
       }}
     >
-      {/* Status line — sized + spaced per .ac-status / .ac-winning / .ac-won */}
-      <Box
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '7px',
-          fontSize: 13,
-          lineHeight: 1,
-          color: '#fff',
-        }}
-      >
-        {item.currentWinnerId && (bidActive || isSold) ? (
+      {/* Status line — only when there is an actual winner. With no bids
+          yet the thumbnail + title carry "on the block" semantically, so
+          we keep the surface quiet. */}
+      {item.currentWinnerId && (bidActive || isSold) && (
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '7px',
+            fontSize: 13,
+            lineHeight: 1,
+            color: '#fff',
+          }}
+        >
           <Box
             sx={{
               width: 20,
@@ -292,43 +317,22 @@ export default function CurrentItemBar({ livestreamId }: Props) {
           >
             {profile?.avatar_url ? '' : winnerInitial}
           </Box>
-        ) : null}
-        {item.currentWinnerId && (bidActive || isSold) ? (
-          <>
-            <Box component="span" sx={{ fontWeight: 700 }}>{winnerName}</Box>
-            <Box
-              component="span"
-              sx={{
-                fontFamily: inkstashFonts.mono,
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: isSold ? '#5BD08A' : '#FFC53D',
-              }}
-            >
-              {isSold ? 'won!' : 'is winning!'}
-            </Box>
-          </>
-        ) : (
-          <>
-            <Box component="span" sx={{ fontWeight: 700 }}>On the block</Box>
-            <Box
-              component="span"
-              sx={{
-                fontFamily: inkstashFonts.mono,
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: '#FFC53D',
-              }}
-            >
-              no bids yet
-            </Box>
-          </>
-        )}
-      </Box>
+          <Box component="span" sx={{ fontWeight: 700 }}>{winnerName}</Box>
+          <Box
+            component="span"
+            sx={{
+              fontFamily: inkstashFonts.mono,
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: isSold ? '#5BD08A' : '#FFC53D',
+            }}
+          >
+            {isSold ? 'won!' : 'is winning!'}
+          </Box>
+        </Box>
+      )}
 
       {/* Lot row — thumb · info · right column */}
       <Box
@@ -388,7 +392,11 @@ export default function CurrentItemBar({ livestreamId }: Props) {
               marginTop: '2px',
             }}
           >
-            Shipping + taxes at checkout
+            {flatShippingCents == null
+              ? 'Shipping + Taxes calculated at checkout'
+              : flatShippingCents === 0
+                ? 'Free shipping + Taxes'
+                : `$${(flatShippingCents / 100).toFixed(2).replace(/\.00$/, '')} Shipping + Taxes`}
           </Typography>
         </Box>
 

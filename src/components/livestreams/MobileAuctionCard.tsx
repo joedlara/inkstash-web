@@ -1,10 +1,12 @@
 // src/components/livestreams/MobileAuctionCard.tsx
 //
-// Collapsible auction card for the mobile/tablet viewer surface. Sits
-// below the chat. Tap the chevron to collapse so users who only care
-// about chatting can hide it.
+// Auction block for the mobile/tablet viewer surface. Sits below the
+// chat over the video scrim — no card background or border. Mirrors
+// the desktop CurrentItemBar visually; the only difference is the
+// onHeightChange callback so the parent can reserve space for the
+// composer.
 //
-// Default expanded. Pulls auction state directly from livestream_items
+// Pulls auction state directly from livestream_items
 // (current_price_cents, bid_count, bidding_ends_at) and joins the
 // listing for thumbnail + title. Realtime keeps the price + timer
 // in sync after each bid.
@@ -22,8 +24,8 @@
 // docs/design-system/claude-design/live_stream/live_stream/stream.css
 
 import { useEffect, useRef, useState } from 'react';
-import { Box, ButtonBase, Snackbar, Typography } from '@mui/material';
-import { ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Box, Snackbar, Typography } from '@mui/material';
+import { Check } from 'lucide-react';
 import { supabase } from '../../api/supabase/supabaseClient';
 import { livestreamsAPI } from '../../api/livestreams';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,7 +33,7 @@ import SlideToBid from './SlideToBid';
 import AddCardToBidCTA from './AddCardToBidCTA';
 import CustomBidButton from './CustomBidButton';
 import { useHasSavedCard } from './useHasSavedCard';
-import { inkstashColors, inkstashFonts, inkstashRadii } from '../../theme/inkstashTokens';
+import { inkstashColors, inkstashFonts } from '../../theme/inkstashTokens';
 import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 interface Props {
@@ -98,7 +100,6 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   // as "let them try" so a transient RLS hiccup doesn't block bidding.
   const { hasCard } = useHasSavedCard();
   const [item, setItem] = useState<CurrentItem | null>(null);
-  const [expanded, setExpanded] = useState(true);
   const [bidding, setBidding] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   // Tick the countdown every 250ms so the seconds remaining feels
@@ -116,6 +117,27 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   // future factoring can lift this into a shared lookup.
   const [winnerProfile, setWinnerProfile] = useState<Record<string, WinnerProfile>>({});
 
+  // Flat shipping rate the host set on the livestream row.
+  // - undefined: still fetching
+  // - null:      legacy "calculated at checkout"
+  // - 0:         free shipping
+  // - >0:        flat per-item shipping in cents
+  const [flatShippingCents, setFlatShippingCents] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('livestreams')
+        .select('flat_shipping_cents')
+        .eq('id', livestreamId)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as { flat_shipping_cents: number | null } | null;
+      setFlatShippingCents(row?.flat_shipping_cents ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [livestreamId]);
+
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === 'undefined') {
@@ -128,7 +150,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
     ro.observe(el);
     onHeightChangeRef.current?.(el.offsetHeight);
     return () => { ro.disconnect(); };
-  }, [item, expanded]);
+  }, [item]);
 
   useEffect(() => {
     if (!item) onHeightChangeRef.current?.(0);
@@ -269,16 +291,6 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
   const isSold = item.status === 'sold';
   const isUrgent = bidActive && (secondsRemaining ?? 0) <= 3;
 
-  // Compact pill in the collapsed header — stays terse so a long title
-  // doesn't overflow the chevron. Uses the same color logic the timer
-  // uses, just in label form.
-  const headerStatusLabel = isSold ? 'Sold'
-    : bidActive ? `Bidding · ${secondsRemaining}s`
-    : item.status === 'live' ? 'On the block' : 'Passed';
-  const headerStatusColor = isSold ? '#5BD08A'
-    : isUrgent ? '#FF5B5B'
-    : item.status === 'live' ? '#FFC53D' : 'rgba(255,255,255,0.55)';
-
   const priceLabel = `$${(item.priceCents / 100).toFixed(2).replace(/\.00$/, '')}`;
   const nextBidLabel = `$${((item.priceCents + 100) / 100).toFixed(2).replace(/\.00$/, '')}`;
 
@@ -323,176 +335,73 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
       <Box
         ref={rootRef}
         sx={{
-          bgcolor: 'rgba(8,7,10,0.78)',
-          backdropFilter: 'blur(10px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-          border: `1px solid ${isWinning ? inkstashColors.success : 'rgba(255,255,255,0.12)'}`,
-          borderRadius: inkstashRadii.md,
+          // No background / border / blur — auction block sits directly
+          // over the video scrim, matching the desktop CurrentItemBar.
           color: '#fff',
-          overflow: 'hidden',
-          transition: 'all 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+          overflow: 'visible',
         }}
       >
-        {/* Collapsed header — terse pill + title + price + chevron.
-            Same affordance as before so users can still tap to collapse. */}
-        <ButtonBase
-          onClick={() => setExpanded((v) => !v)}
+        <Box
           sx={{
-            width: '100%',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 1,
-            px: 1.5,
-            py: 0.85,
-            color: '#fff',
+            flexDirection: 'column',
+            gap: '11px',
+            padding: '14px 16px 16px',
           }}
-          aria-expanded={expanded}
-        >
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                bgcolor: headerStatusColor,
-                flexShrink: 0,
-                animation: bidActive ? 'inkstashBidPulse 1s ease-in-out infinite' : 'none',
-                '@keyframes inkstashBidPulse': {
-                  '0%, 100%': { opacity: 1 },
-                  '50%': { opacity: 0.3 },
-                },
-              }}
-            />
-            <Typography
-              sx={{
-                fontFamily: inkstashFonts.mono,
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: headerStatusColor,
-                lineHeight: 1,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {headerStatusLabel}
-            </Typography>
-            <Typography
-              sx={{
-                fontFamily: inkstashFonts.ui,
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#fff',
-                opacity: 0.85,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 180,
-              }}
-            >
-              {item.title}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-            {!expanded && (
-              <Typography
+          >
+            {/* Status line — only when there is an actual winner. With
+                no bids yet the thumbnail + title carry "on the block"
+                semantically, so we keep the surface quiet. */}
+            {item.currentWinnerId && (bidActive || isSold) && (
+              <Box
                 sx={{
-                  fontFamily: inkstashFonts.display,
-                  fontWeight: 900,
-                  fontSize: 14,
-                  color: '#fff',
-                  fontVariantNumeric: 'tabular-nums',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  fontSize: 13,
                   lineHeight: 1,
+                  color: '#fff',
                 }}
               >
-                {priceLabel}
-              </Typography>
+                <Box
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 999,
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: inkstashFonts.display,
+                    fontWeight: 900,
+                    fontSize: 10,
+                    color: '#fff',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                    bgcolor: avatarBg(item.currentWinnerId),
+                    backgroundImage: profile?.avatar_url ? `url(${profile.avatar_url})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {profile?.avatar_url ? '' : winnerInitial}
+                </Box>
+                <Box component="span" sx={{ fontWeight: 700 }}>{winnerName}</Box>
+                <Box
+                  component="span"
+                  sx={{
+                    fontFamily: inkstashFonts.mono,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: isSold ? '#5BD08A' : '#FFC53D',
+                  }}
+                >
+                  {isSold ? 'won!' : 'is winning!'}
+                </Box>
+              </Box>
             )}
-            {expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </Box>
-        </ButtonBase>
-
-        {/* Expanded body — Phase 1 visual spec (CurrentItemBar parity). */}
-        {expanded && (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '11px',
-              padding: '14px 16px 16px',
-            }}
-          >
-            {/* Status line — three states. Avatar hidden when no winner. */}
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '7px',
-                fontSize: 13,
-                lineHeight: 1,
-                color: '#fff',
-              }}
-            >
-              {item.currentWinnerId && (bidActive || isSold) ? (
-                <>
-                  <Box
-                    sx={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 999,
-                      flexShrink: 0,
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontFamily: inkstashFonts.display,
-                      fontWeight: 900,
-                      fontSize: 10,
-                      color: '#fff',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
-                      bgcolor: avatarBg(item.currentWinnerId),
-                      backgroundImage: profile?.avatar_url ? `url(${profile.avatar_url})` : undefined,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }}
-                  >
-                    {profile?.avatar_url ? '' : winnerInitial}
-                  </Box>
-                  <Box component="span" sx={{ fontWeight: 700 }}>{winnerName}</Box>
-                  <Box
-                    component="span"
-                    sx={{
-                      fontFamily: inkstashFonts.mono,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: isSold ? '#5BD08A' : '#FFC53D',
-                    }}
-                  >
-                    {isSold ? 'won!' : 'is winning!'}
-                  </Box>
-                </>
-              ) : (
-                <>
-                  <Box component="span" sx={{ fontWeight: 700 }}>On the block</Box>
-                  <Box
-                    component="span"
-                    sx={{
-                      fontFamily: inkstashFonts.mono,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: '#FFC53D',
-                    }}
-                  >
-                    no bids yet
-                  </Box>
-                </>
-              )}
-            </Box>
 
             {/* Lot row — 60px halftone thumb + info + price/timer. */}
             <Box
@@ -550,7 +459,11 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                     marginTop: '2px',
                   }}
                 >
-                  Shipping + taxes at checkout
+                  {flatShippingCents == null
+                    ? 'Shipping + Taxes calculated at checkout'
+                    : flatShippingCents === 0
+                      ? 'Free shipping + Taxes'
+                      : `$${(flatShippingCents / 100).toFixed(2).replace(/\.00$/, '')} Shipping + Taxes`}
                 </Typography>
               </Box>
 
@@ -684,8 +597,7 @@ export default function MobileAuctionCard({ livestreamId, onHeightChange }: Prop
                 busy={bidding}
               />
             )}
-          </Box>
-        )}
+        </Box>
       </Box>
 
       <Snackbar

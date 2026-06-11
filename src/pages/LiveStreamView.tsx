@@ -26,6 +26,7 @@ import MobileAuctionCard from '../components/livestreams/MobileAuctionCard';
 import AuctionWinnerBanner from '../components/livestreams/AuctionWinnerBanner';
 import SpeedLinesEffect from '../components/livestreams/SpeedLinesEffect';
 import ChatProfileCard from '../components/livestreams/ChatProfileCard';
+import ScheduledShowSheet from '../components/livestreams/ScheduledShowSheet';
 import StreamDescriptionPill from '../components/livestreams/StreamDescriptionPill';
 import ExploreMoreRail from '../components/livestreams/ExploreMoreRail';
 import { livestreamsAPI, type Livestream, type ChatMessage } from '../api/livestreams';
@@ -91,13 +92,20 @@ export default function LiveStreamView() {
     let cancelled = false;
     (async () => {
       try {
-        const [s, j] = await Promise.all([
-          livestreamsAPI.get(id),
-          livestreamsAPI.join(id),
-        ]);
+        const s = await livestreamsAPI.get(id);
         if (cancelled) return;
         if (!s) { setError('Stream not found.'); return; }
         setStream(s);
+        // join-livestream 400s with stream_not_live when the stream
+        // hasn't gone live yet. Skip it for scheduled / preparing
+        // streams so the pre-show surface can render cleanly without
+        // a spurious error toast.
+        if (s.status !== 'live') {
+          setJoinData({ token: '', wsUrl: '', chat: [], isBanned: false });
+          return;
+        }
+        const j = await livestreamsAPI.join(id);
+        if (cancelled) return;
         setJoinData({
           token: j.livekit_token,
           wsUrl: j.livekit_ws_url,
@@ -285,12 +293,19 @@ function LiveDesktopStage({
             overflow: 'hidden',
           }}
         >
-          <LiveStreamVideo
-            wsUrl={joinData.wsUrl}
-            token={joinData.token}
-            mode="viewer"
-            onParticipantCountChange={onParticipantCountChange}
-          />
+          {stream.status === 'live' ? (
+            <LiveStreamVideo
+              wsUrl={joinData.wsUrl}
+              token={joinData.token}
+              mode="viewer"
+              onParticipantCountChange={onParticipantCountChange}
+            />
+          ) : (
+            <ScheduledShowSheet
+              stream={stream}
+              shareUrl={typeof window !== 'undefined' ? window.location.href : ''}
+            />
+          )}
 
           {/* Click-to-fullscreen removed on desktop per QA. The video
               just plays — no zoom-in cursor, no hit layer. Mobile/
@@ -335,6 +350,7 @@ function LiveDesktopStage({
             streamTitle={stream.title}
             streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
             showShop={false}
+            livestreamId={stream.id}
           />
 
           {/* Manga focus burst — full-bleed inside the video card,
@@ -462,12 +478,19 @@ function FullscreenVideoSurface({
         touchAction: 'manipulation',
       }}
     >
-      <LiveStreamVideo
-        wsUrl={joinData.wsUrl}
-        token={joinData.token}
-        mode="viewer"
-        onParticipantCountChange={onParticipantCountChange}
-      />
+      {stream.status === 'live' ? (
+        <LiveStreamVideo
+          wsUrl={joinData.wsUrl}
+          token={joinData.token}
+          mode="viewer"
+          onParticipantCountChange={onParticipantCountChange}
+        />
+      ) : (
+        <ScheduledShowSheet
+          stream={stream}
+          shareUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+      )}
 
       {/* Auction win celebration — banner drops near the top of the
           video, manga focus burst plays full-bleed. Both self-trigger
@@ -545,10 +568,15 @@ function FullscreenVideoSurface({
         </Box>
       </Box>
 
-      {/* Right rail (Share / Items / Buy) — same component as mobile */}
+      {/* Right rail — pinned above the chat composer + auction card so
+          the input is never overlapped by the action chips. */}
       <RightRailActions
         streamTitle={stream.title}
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        livestreamId={stream.id}
+        placement="anchor"
+        // composer ≈ 56px + safety gap, plus the auction card if mounted.
+        bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + 56}
       />
 
       {/* Bottom chat overlay — read-only, fade-mask at top. bottomReserve
@@ -610,9 +638,13 @@ function MobileLiveSurface({
         position: 'fixed',
         inset: 0,
         width: '100vw',
-        // 100dvh = dynamic viewport (shrinks when bottom nav appears).
-        // Falls back to 100vh on the rare browser without dvh.
-        height: '100dvh',
+        // 100vh (NOT dvh) so the video frame stays the same height when
+        // the keyboard opens. dvh shrinks with the keyboard, which would
+        // re-letterbox the video and feel like the camera jumped. The
+        // chat composer rides above the keyboard via its own translateY
+        // based on visualViewport, so we don't need the container to
+        // track the keyboard too.
+        height: '100vh',
         bgcolor: '#000',
         overflow: 'hidden',
         touchAction: 'manipulation',
@@ -696,12 +728,19 @@ function MobileVideoStage({
   const [auctionHeight, setAuctionHeight] = useState(0);
   return (
     <Box sx={{ position: 'absolute', inset: 0 }}>
-      <LiveStreamVideo
-        wsUrl={joinData.wsUrl}
-        token={joinData.token}
-        mode="viewer"
-        onParticipantCountChange={onParticipantCountChange}
-      />
+      {stream.status === 'live' ? (
+        <LiveStreamVideo
+          wsUrl={joinData.wsUrl}
+          token={joinData.token}
+          mode="viewer"
+          onParticipantCountChange={onParticipantCountChange}
+        />
+      ) : (
+        <ScheduledShowSheet
+          stream={stream}
+          shareUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+      )}
 
       {/* Auction win celebration — same self-triggering banner + speed
           lines mounted on the desktop slot, lifted into the mobile
@@ -766,6 +805,9 @@ function MobileVideoStage({
       <RightRailActions
         streamTitle={stream.title}
         streamUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        livestreamId={stream.id}
+        placement="anchor"
+        bottomOffset={(auctionHeight > 0 ? auctionHeight + 10 : 0) + bottomBarOffset + 56}
       />
 
       <LiveStreamChat
@@ -785,14 +827,17 @@ function MobileVideoStage({
       {/* Auction info card pinned to the bottom, below the chat composer.
           Collapsible — viewers who only want to watch + chat can hide it.
           Renders null when no item is on the block. */}
+      {/* Auction card pinned to the safe-area bottom — does NOT lift
+          with the on-screen keyboard. The chat composer lifts to clear
+          the keyboard; the auction card stays put so the bidding state
+          remains anchored where the user's eye expects it. */}
       <Box
         sx={{
           position: 'absolute',
           left: 'calc(env(safe-area-inset-left, 0px) + 10px)',
           right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
-          bottom: `calc(env(safe-area-inset-bottom, 0px) + 10px + ${bottomBarOffset}px)`,
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
           zIndex: 6,
-          transition: 'bottom 180ms ease-out',
         }}
       >
         <MobileAuctionCard

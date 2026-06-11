@@ -188,7 +188,9 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '8px',
+          // Tighter gap between the label and the chevron pair — keeps
+          // the label visually centered on narrow viewports.
+          gap: '6px',
           color: '#fff',
           fontFamily: inkstashFonts.ui,
           fontWeight: 800,
@@ -211,8 +213,21 @@ export default function SlideToBid({ label, onConfirm, disabled = false, busy = 
             <Typography component="span" sx={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>
               {label}
             </Typography>
-            <Chev delay={0} />
-            <Chev delay={0.2} />
+            {/* Chevron pair grouped tight (3px) so the wave reads as a
+                single arrow-cluster instead of two separate icons; lets
+                the label dominate visual center. */}
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                marginLeft: '-2px',
+              }}
+            >
+              <Chev delay={0} />
+              <Chev delay={0.2} />
+            </Box>
           </>
         )}
       </Box>

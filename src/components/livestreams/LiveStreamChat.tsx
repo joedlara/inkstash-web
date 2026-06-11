@@ -355,8 +355,7 @@ export default function LiveStreamChat({
         onSubmit={send}
         sx={{
           position: 'relative',
-          display: 'flex',
-          gap: 1,
+          display: 'block',
           px: 1.5,
           // Lift the composer above any reserved bottom space (e.g. the
           // MobileAuctionCard underneath). When the keyboard is open we
@@ -387,6 +386,38 @@ export default function LiveStreamChat({
           disabled={isBanned}
           placeholder={isBanned ? 'You were banned from this stream.' : 'Say something…'}
           inputProps={{ maxLength: 280 }}
+          InputProps={{
+            // Send button lives INSIDE the input pill on the right side.
+            // Hidden when the draft is empty so the placeholder reads
+            // clean; appears with a fade once the user types.
+            endAdornment: (
+              <IconButton
+                type="submit"
+                disabled={!draft.trim() || sending || isBanned}
+                aria-label="Send message"
+                sx={{
+                  bgcolor: inkstashColors.brand,
+                  color: '#fff',
+                  width: 30,
+                  height: 30,
+                  // -4px so the pill kisses the inner edge of the input
+                  // padding without growing the pill height.
+                  mr: '-4px',
+                  flexShrink: 0,
+                  opacity: draft.trim() ? 1 : 0,
+                  pointerEvents: draft.trim() ? 'auto' : 'none',
+                  transition: 'opacity 140ms ease, background-color 160ms ease',
+                  '&:hover': { bgcolor: inkstashColors.brandDeep },
+                  '&.Mui-disabled': {
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.4)',
+                  },
+                }}
+              >
+                <Send sx={{ fontSize: 16 }} />
+              </IconButton>
+            ),
+          }}
           onFocus={() => {
             // iOS Safari sometimes scrolls the document up to "reveal" a
             // focused input even when it's already in view. Snap back to
@@ -400,27 +431,15 @@ export default function LiveStreamChat({
               color: '#fff',
               fontSize: 13,
               borderRadius: 999,
-              px: 1.5,
+              // Right padding tightens so the inner Send button doesn't
+              // double up with the field's normal right pad.
+              pl: 1.75,
+              pr: 0.5,
             },
             '& fieldset': { border: 'none' },
             '& input::placeholder': { color: 'rgba(255,255,255,0.7)', opacity: 1 },
           }}
         />
-        <IconButton
-          type="submit"
-          disabled={!draft.trim() || sending || isBanned}
-          sx={{
-            bgcolor: inkstashColors.brand,
-            color: '#fff',
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            '&:hover': { bgcolor: inkstashColors.brandDeep },
-            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)' },
-          }}
-        >
-          <Send fontSize="small" />
-        </IconButton>
       </Box>
       )}
     </Box>
