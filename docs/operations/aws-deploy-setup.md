@@ -16,7 +16,7 @@ When everything in this doc is done, ping the assistant — the GitHub Actions w
 | Auth (GitHub → AWS) | **OIDC federated IAM roles** | No long-lived secrets in repo; short-lived tokens scoped to specific branches |
 | Account strategy | **One AWS account, three sets of resources** | Right scale for now; document path to multi-account later |
 | Supabase | **Three separate projects** (`dev` / `staging` / `prod`) | Migrations on dev can never break prod data |
-| Domains | **Route 53 + ACM** | Apex `inkstash.com` → prod, `staging.inkstash.com` → staging, `dev.inkstash.com` → dev |
+| Domains | **Route 53 + ACM** | Apex `inkstash.shop` → prod, `staging.inkstash.shop` → staging, `dev.inkstash.shop` → dev |
 | Stripe | Test mode dev+staging, live mode prod | Stripe's own boundary |
 | LiveKit | One project per env, OR one project with separate API keys per env | Keep credentials separate from prod's room namespace |
 
@@ -99,12 +99,12 @@ Verify:
 
 ## Section 3 — Route 53 hosted zone + ACM cert
 
-You have a domain. Let's call it `inkstash.com` — substitute throughout this doc.
+Domain: `inkstash.shop` (registered at an external registrar; we'll point its nameservers at Route 53 below).
 
 ### 3.1 Create hosted zone
 
 1. **Route 53 → Hosted zones → Create hosted zone**
-2. Domain: `inkstash.com`
+2. Domain: `inkstash.shop`
 3. Type: Public hosted zone
 4. Create.
 
@@ -116,8 +116,8 @@ CloudFront only accepts certs from `us-east-1` regardless of distribution region
 
 1. **AWS Certificate Manager (in us-east-1) → Request → Public certificate**
 2. Add domains:
-   - `inkstash.com`
-   - `*.inkstash.com` (wildcard so `dev.` and `staging.` work)
+   - `inkstash.shop`
+   - `*.inkstash.shop` (wildcard so `dev.` and `staging.` work)
 3. Validation: DNS validation
 4. Request.
 5. ACM gives you CNAME records to add. Click "Create records in Route 53" — it auto-adds them.
@@ -128,10 +128,10 @@ Record:
 - **ACM cert ARN**: `_________________`
 
 Verify:
-- [ ] Route 53 hosted zone exists for `inkstash.com`
+- [ ] Route 53 hosted zone exists for `inkstash.shop`
 - [ ] Nameservers updated at registrar
 - [ ] ACM cert status: Issued
-- [ ] Cert covers `inkstash.com` and `*.inkstash.com`
+- [ ] Cert covers `inkstash.shop` and `*.inkstash.shop`
 
 ---
 
@@ -182,7 +182,7 @@ For each env:
    - Response headers policy: `SimpleCORS` (optional; helpful for some Stripe / Supabase flows)
 4. Settings:
    - Price class: `Use only North America and Europe` (cheaper; expand later if you have international users)
-   - Alternate domain (CNAME): the env's hostname (`dev.inkstash.com` / `staging.inkstash.com` / `inkstash.com`)
+   - Alternate domain (CNAME): the env's hostname (`dev.inkstash.shop` / `staging.inkstash.shop` / `inkstash.shop`)
    - SSL cert: pick the ACM cert from Section 3
    - Default root object: `index.html`
 5. **Custom error pages** (critical for SPAs):
@@ -205,7 +205,7 @@ Record:
 
 For each env, add a Route 53 record pointing the env's hostname at the CloudFront distribution:
 
-1. **Route 53 → Hosted zones → inkstash.com → Create record**
+1. **Route 53 → Hosted zones → inkstash.shop → Create record**
 2. Record name: `dev` (or `staging`, or leave blank for apex)
 3. Record type: A
 4. Alias: ON
@@ -218,7 +218,7 @@ Verify:
 - [ ] Each is using the ACM cert from Section 3
 - [ ] Each S3 bucket has the CloudFront OAC bucket policy applied
 - [ ] Three Route 53 A records exist (one per env)
-- [ ] `https://dev.inkstash.com` resolves (may take 15-60 min for DNS to propagate)
+- [ ] `https://dev.inkstash.shop` resolves (may take 15-60 min for DNS to propagate)
 
 ---
 
@@ -422,14 +422,14 @@ aws cloudfront create-invalidation \
   --distribution-id <dev-distribution-id> \
   --paths '/*'
 
-# 4. Visit https://dev.inkstash.com — should serve the built app
+# 4. Visit https://dev.inkstash.shop — should serve the built app
 ```
 
 If this works manually, the GitHub Actions workflows are basically scripted versions of these four steps.
 
 Verify:
 - [ ] Manual deploy to dev works
-- [ ] `https://dev.inkstash.com` serves the built app correctly
+- [ ] `https://dev.inkstash.shop` serves the built app correctly
 - [ ] Supabase calls succeed against the dev project
 
 ---
